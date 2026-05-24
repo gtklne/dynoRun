@@ -28,7 +28,7 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
   }, []);
 
   async function start() {
-    const sensor = speedSourceFactory();
+    const sensor = await speedSourceFactory();
     const ctrl = new CalibrationController({
       vehicleId,
       speedSource: sensor,

@@ -1,10 +1,10 @@
 import { createContext, useContext } from 'react';
 import type { SpeedSource } from '@/sensors/types';
-import { GpsSpeedSource } from '@/sensors/gps-speed-source';
+import { createSpeedSource } from '@/sensors/speed-source-factory';
 
-export type SpeedSourceFactory = () => SpeedSource;
+export type SpeedSourceFactory = () => SpeedSource | Promise<SpeedSource>;
 
-export const SpeedSourceContext = createContext<SpeedSourceFactory>(() => new GpsSpeedSource());
+export const SpeedSourceContext = createContext<SpeedSourceFactory>(() => createSpeedSource());
 
 export function useSpeedSourceFactory(): SpeedSourceFactory {
   return useContext(SpeedSourceContext);

@@ -28,7 +28,7 @@ export function LiveRunScreen() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const sensor = speedSourceFactory();
+      const sensor = await speedSourceFactory();
       const ctrl = new RunController({
         sensor,
         vehicleRepository: new VehicleRepository(db),
