@@ -18,7 +18,6 @@ export class CalibrationController {
   private state: CalibrationState = initialCalibrationState();
   private detector: CalibrationStabilityDetector;
   private unsub: Unsubscribe | null = null;
-  private lastSample_t_ms = 0;
   private running = false;
 
   constructor(private readonly opts: CalibrationControllerOptions) {
@@ -67,7 +66,6 @@ export class CalibrationController {
   }
 
   private onSample(sample: SensorSample<SpeedValue>): void {
-    this.lastSample_t_ms = sample.t_ms;
     this.detector.push({ t_ms: sample.t_ms, speed_mps: sample.value.speed_mps });
     if (this.state.kind !== 'measuring') return;
     const stable = this.detector.check(sample.t_ms);
