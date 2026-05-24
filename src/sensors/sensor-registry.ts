@@ -1,15 +1,30 @@
-import type { Capability, SensorSource } from './types';
+import type { Capability, SensorSource, SpeedSource, RpmSource, AccelSource } from './types';
 
 type AnySource = SensorSource<unknown>;
 
-export class SensorRegistry {
-  private readonly sources: AnySource[] = [];
+interface RegisteredSource {
+  source: AnySource;
+  priority: number;
+}
 
-  register(source: AnySource): void {
-    this.sources.push(source);
+type CapabilityMap = {
+  speed: SpeedSource;
+  rpm: RpmSource;
+  accel: AccelSource;
+  throttle: SensorSource<unknown>;
+};
+
+export class SensorRegistry {
+  private readonly registered: RegisteredSource[] = [];
+
+  register(source: AnySource, priority = 0): void {
+    this.registered.push({ source, priority });
   }
 
-  best<T extends AnySource>(capability: Capability): T | null {
-    return (this.sources.find((s) => s.capabilities.includes(capability)) as T | undefined) ?? null;
+  best<C extends Capability>(capability: C): CapabilityMap[C] | null {
+    const candidates = this.registered
+      .filter((r) => r.source.capabilities.includes(capability))
+      .sort((a, b) => b.priority - a.priority);
+    return (candidates[0]?.source as CapabilityMap[C] | undefined) ?? null;
   }
 }
