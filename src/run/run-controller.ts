@@ -3,22 +3,18 @@ import { runReducer, initialRunState, type RunEvent } from './run-state-machine'
 import { DEFAULT_AUTO_STOP_CONFIG, type AutoStopConfig, type RunState } from './types';
 import type { SpeedSource, SensorSample, SpeedValue } from '@/sensors/types';
 import type { Unsubscribe } from '@/shared/observable';
-import type { VehicleRepository } from '@/storage/repositories/vehicle-repository';
-import type { CalibrationRepository } from '@/storage/repositories/calibration-repository';
-import type { RunRepository } from '@/storage/repositories/run-repository';
-import type { SampleRepository } from '@/storage/repositories/sample-repository';
-import type { DerivedCurveRepository } from '@/storage/repositories/derived-curve-repository';
+import type { IVehicleRepository, ICalibrationRepository, IRunRepository, ISampleRepository, IDerivedCurveRepository } from '@/api/repositories/types';
 import type { Calibration, Sample } from '@/shared/types';
 import { analyzeRun } from '@/analysis/pipeline';
 import { nowIso } from '@/shared/iso-time';
 
 export interface RunControllerOptions {
   sensor: SpeedSource;
-  vehicleRepository: VehicleRepository;
-  calibrationRepository: CalibrationRepository;
-  runRepository: RunRepository;
-  sampleRepository: SampleRepository;
-  derivedCurveRepository: DerivedCurveRepository;
+  vehicleRepository: IVehicleRepository;
+  calibrationRepository: ICalibrationRepository;
+  runRepository: IRunRepository;
+  sampleRepository: ISampleRepository;
+  derivedCurveRepository: IDerivedCurveRepository;
   autoStop?: AutoStopConfig;
   onStateChange: (state: RunState) => void;
   onLiveSample?: (s: { t_ms: number; speed_mps: number; rpm: number }) => void;

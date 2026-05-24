@@ -2,14 +2,14 @@ import { CalibrationStabilityDetector } from './calibration-stability-detector';
 import { calibrationReducer, initialCalibrationState } from './calibration-state-machine';
 import { DEFAULT_STABILITY_WINDOW, type CalibrationState, type StabilityWindow } from './types';
 import type { SpeedSource, SensorSample, SpeedValue } from '@/sensors/types';
-import type { CalibrationRepository } from '@/storage/repositories/calibration-repository';
+import type { ICalibrationRepository } from '@/api/repositories/types';
 import type { Calibration } from '@/shared/types';
 import type { Unsubscribe } from '@/shared/observable';
 
 export interface CalibrationControllerOptions {
   vehicleId: string;
   speedSource: SpeedSource;
-  calibrationRepository: CalibrationRepository;
+  calibrationRepository: ICalibrationRepository;
   window?: StabilityWindow;
   onStateChange: (state: CalibrationState) => void;
 }
