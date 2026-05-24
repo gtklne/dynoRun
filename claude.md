@@ -13,10 +13,11 @@ commit and push after every implementation
 ## Deployment layout
 
 - Web root: `/var/www/dynorun` (owned by `deploy:deploy`) — static SPA build (`index.html` + `assets/`)
-- Web server: nginx (`/etc/nginx/sites-enabled/dynorun`), port 80 default server, SPA fallback to `/index.html`
-- No backend service deployed yet (no systemd unit for dynorun, no docker)
+- Web server: nginx (`/etc/nginx/sites-enabled/dynorun`), HTTPS on port 443, SPA fallback to `/index.html`, `/api/` proxied to `:3000`
+- API service: `dynorun-api` systemd unit, Node.js Hono server at `/opt/dynorun-api/`, reads `/etc/dynorun.env`
+- Database: PostgreSQL 16 in Docker (`docker exec postgres psql -U dynorun -d dynorun`), data at `/var/lib/pg-data`
 - Deploy user: `deploy` (`/home/deploy`), used to rsync built frontend into `/var/www/dynorun`
-- **Deploy = `git push origin main`** → GitHub Actions (`.github/workflows/deploy.yml`) builds and rsyncs `dist/` to `deploy@HOST:/var/www/dynorun/`. No manual deploy step.
+- **Deploy = `git push origin main`** → GitHub Actions builds frontend + API, rsyncs both to server, restarts `dynorun-api`.
 
 ## Public URL & TLS
 
