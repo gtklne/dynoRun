@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">dynorun</string>
+    <string name="title_activity_main">dynorun</string>
+    <string name="package_name">com.dynorun.app</string>
+    <string name="custom_url_scheme">com.dynorun.app</string>
+</resources>
