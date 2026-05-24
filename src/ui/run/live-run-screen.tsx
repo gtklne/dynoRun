@@ -37,12 +37,14 @@ export function LiveRunScreen() {
         sampleRepository: new SampleRepository(db),
         derivedCurveRepository: new DerivedCurveRepository(db),
         onStateChange: (s) => {
-          if (!cancelled) setState(s);
+          if (cancelled) return;
+          setState(s);
           if (s.kind === 'reviewing') {
             navigate(`/runs/${s.run_id}/review`);
           }
         },
         onLiveSample: ({ t_ms, speed_mps, rpm }) => {
+          if (cancelled) return;
           const sKmh = mpsToKmh(speed_mps);
           setCurrentSpeed(sKmh);
           setCurrentRpm(rpm);
