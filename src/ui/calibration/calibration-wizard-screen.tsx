@@ -7,6 +7,8 @@ import type { Calibration } from '@/shared/types';
 
 type WizardStep = 'gear' | 'measure' | 'confirm';
 
+const STEPS: WizardStep[] = ['gear', 'measure', 'confirm'];
+
 export function CalibrationWizardScreen() {
   const { vehicleId = '' } = useParams();
   const navigate = useNavigate();
@@ -14,9 +16,43 @@ export function CalibrationWizardScreen() {
   const [gear, setGear] = useState<GearInput | null>(null);
   const [calibration, setCalibration] = useState<Calibration | null>(null);
 
+  const stepIndex = STEPS.indexOf(step);
+
   return (
-    <section>
-      <h1>New Calibration</h1>
+    <div className="space-y-5">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-zinc-100">New Calibration</h1>
+        <p className="text-zinc-500 text-sm mt-1">Sets up your gear ratio for dyno runs</p>
+      </div>
+
+      {/* Step indicator */}
+      <div className="flex items-center gap-2">
+        {STEPS.map((s, i) => (
+          <div key={s} className="flex items-center gap-2">
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-colors ${
+              i < stepIndex
+                ? 'bg-emerald-500 text-zinc-950'
+                : i === stepIndex
+                  ? 'bg-amber-500 text-zinc-950'
+                  : 'bg-zinc-800 text-zinc-500'
+            }`}>
+              {i < stepIndex ? (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              ) : (
+                i + 1
+              )}
+            </div>
+            {i < STEPS.length - 1 && (
+              <div className={`h-0.5 w-8 rounded-full transition-colors ${i < stepIndex ? 'bg-emerald-500' : 'bg-zinc-800'}`} />
+            )}
+          </div>
+        ))}
+        <span className="text-zinc-500 text-xs ml-1">Step {stepIndex + 1} of {STEPS.length}</span>
+      </div>
+
       {step === 'gear' && (
         <CalibrationStepGear onSubmit={(g) => { setGear(g); setStep('measure'); }} />
       )}
@@ -34,6 +70,6 @@ export function CalibrationWizardScreen() {
           onDone={() => navigate(`/vehicles/${vehicleId}`)}
         />
       )}
-    </section>
+    </div>
   );
 }
