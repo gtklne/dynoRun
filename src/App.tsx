@@ -8,6 +8,7 @@ import { CalibrationWizardScreen } from './ui/calibration/calibration-wizard-scr
 import { LiveRunScreen } from './ui/run/live-run-screen';
 import { RunReviewScreen } from './ui/run/run-review-screen';
 import { CompareScreen } from './ui/compare/compare-screen';
+import { SettingsScreen } from './ui/settings/settings-screen';
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
             <Route path="/runs/:runId/review" element={<RunReviewScreen />} />
             <Route path="/replay" element={<FixtureReplayScreen />} />
             <Route path="/vehicles/:vehicleId/compare" element={<CompareScreen />} />
+            <Route path="/settings" element={<SettingsScreen />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

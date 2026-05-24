@@ -6,6 +6,7 @@ export function AppShell() {
       <header style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
         <NavLink to="/">Garage</NavLink>
         <NavLink to="/replay">Replay demo</NavLink>
+        <NavLink to="/settings">Settings</NavLink>
       </header>
       <main><Outlet /></main>
     </div>
