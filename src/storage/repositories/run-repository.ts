@@ -46,17 +46,18 @@ export class RunRepository {
   }
 
   async get(id: string): Promise<Run | null> {
-    const rows = await this.db.query<RunRow>('SELECT * FROM runs WHERE id = ?', [id]);
+    const rows = await this.db.query('SELECT * FROM runs WHERE id = ?', [id]);
     if (!rows[0]) return null;
-    return { ...rows[0], conditions: JSON.parse(rows[0].conditions) };
+    const row = rows[0] as unknown as RunRow;
+    return { ...row, conditions: JSON.parse(row.conditions) };
   }
 
   async listByVehicle(vehicleId: string): Promise<Run[]> {
-    const rows = await this.db.query<RunRow>(
+    const rows = await this.db.query(
       'SELECT * FROM runs WHERE vehicle_id = ? ORDER BY started_at DESC',
       [vehicleId],
     );
-    return rows.map((r) => ({ ...r, conditions: JSON.parse(r.conditions) }));
+    return (rows as unknown as RunRow[]).map((r) => ({ ...r, conditions: JSON.parse(r.conditions) }));
   }
 
   async markDegraded(id: string): Promise<void> {

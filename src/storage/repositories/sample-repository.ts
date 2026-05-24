@@ -18,10 +18,11 @@ export class SampleRepository {
   }
 
   async listByRun(runId: string): Promise<Sample[]> {
-    return this.db.query<Sample>(
+    const rows = await this.db.query(
       'SELECT run_id, t_ms, speed_mps, accel_long_ms2, accel_vert_ms2, lat, lon, hdop FROM samples WHERE run_id = ? ORDER BY t_ms',
       [runId],
     );
+    return rows as unknown as Sample[];
   }
 
   async deleteByRun(runId: string): Promise<void> {

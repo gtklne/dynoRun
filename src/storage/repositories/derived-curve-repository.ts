@@ -23,11 +23,12 @@ export class DerivedCurveRepository {
   }
 
   async getByRun(runId: string): Promise<DerivedCurve | null> {
-    const rows = await this.db.query<DerivedCurveRow>(
+    const rows = await this.db.query(
       'SELECT * FROM derived_curves WHERE run_id = ?',
       [runId],
     );
     if (!rows[0]) return null;
-    return { ...rows[0], points: JSON.parse(rows[0].points) as RpmPoint[] };
+    const row = rows[0] as unknown as DerivedCurveRow;
+    return { ...row, points: JSON.parse(row.points as string) as RpmPoint[] };
   }
 }
