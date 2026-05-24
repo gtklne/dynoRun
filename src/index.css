@@ -9,6 +9,14 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Prevent iOS Safari from auto-zooming on focused form controls.
+   Triggered whenever the computed font-size is below 16px. */
+input,
+textarea,
+select {
+  font-size: 16px;
+}
+
 html, body, #root {
   height: 100%;
   background-color: #09090b; /* zinc-950 */
