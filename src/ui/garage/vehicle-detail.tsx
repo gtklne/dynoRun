@@ -41,6 +41,9 @@ export function VehicleDetail() {
       </ul>
       <p><Link to={`/vehicles/${vehicle.id}/calibrations/new`}>+ New calibration</Link></p>
 
+      {runs.filter((r) => r.status === 'complete').length >= 2 && (
+        <p><Link to={`/vehicles/${vehicle.id}/compare`}>Compare runs</Link></p>
+      )}
       <h2>Runs ({runs.length})</h2>
       <ul>
         {runs.map((r) => (
