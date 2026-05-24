@@ -16,3 +16,8 @@ commit and push after every implementation
 - Web server: nginx (`/etc/nginx/sites-enabled/dynorun`), port 80 default server, SPA fallback to `/index.html`
 - No backend service deployed yet (no systemd unit for dynorun, no docker)
 - Deploy user: `deploy` (`/home/deploy`), used to rsync built frontend into `/var/www/dynorun`
+- **Deploy = `git push origin main`** → GitHub Actions (`.github/workflows/deploy.yml`) builds and rsyncs `dist/` to `deploy@HOST:/var/www/dynorun/`. No manual deploy step.
+
+## Production gotchas
+
+- Prod nginx serves plain HTTP (port 80, no TLS). That means browser **Secure Context APIs are unavailable**: `crypto.randomUUID()`, `crypto.subtle.*`, Service Workers, Notifications, etc. Use fallbacks (e.g. `crypto.getRandomValues`-based UUIDs) until HTTPS is set up.
