@@ -43,7 +43,7 @@ export function FixtureReplayScreen() {
       {result && (
         <>
           <h2>Power curve ({result.rpm_min.toFixed(0)} – {result.rpm_max.toFixed(0)} RPM)</h2>
-          <PowerCurveChart points={result.points} />
+          <PowerCurveChart series={[{ label: 'Power', points: result.points }]} />
           <p>{result.points.length} binned points · pipeline v{result.pipeline_version}</p>
         </>
       )}

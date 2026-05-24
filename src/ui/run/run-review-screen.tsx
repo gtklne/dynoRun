@@ -49,7 +49,7 @@ export function RunReviewScreen() {
     <section>
       <h1>Run review</h1>
       <p>Peak power: <strong>{peak.wheel_power_kw.toFixed(1)} kW</strong> @ {peak.rpm.toFixed(0)} RPM</p>
-      <PowerCurveChart points={curve.points} />
+      <PowerCurveChart series={[{ label: 'Power', points: curve.points }]} />
       <label>
         Notes
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
