@@ -127,4 +127,33 @@ describe('RunController', () => {
     expect(ctrl.getState().kind).toBe('aborted');
     vi.useRealTimers();
   });
+
+  it('surfaces finishRun errors via onError', async () => {
+    vi.useFakeTimers();
+    const { vehicleId, calibrationId } = await setup(db);
+    const sensor = new MockSpeedSource('mock', buildScript());
+    const errors: unknown[] = [];
+
+    // Break the vehicle repository so analysis fails partway through.
+    const vRepo = new VehicleRepository(db);
+    vi.spyOn(vRepo, 'get').mockRejectedValue(new Error('boom'));
+
+    const ctrl = new RunController({
+      sensor,
+      vehicleRepository: vRepo,
+      calibrationRepository: new CalibrationRepository(db),
+      runRepository: new RunRepository(db),
+      sampleRepository: new SampleRepository(db),
+      derivedCurveRepository: new DerivedCurveRepository(db),
+      onStateChange: () => {},
+      onError: (e) => errors.push(e),
+    });
+    await ctrl.ready(vehicleId, calibrationId);
+    await ctrl.start();
+    await vi.advanceTimersByTimeAsync(12000);
+    await vi.runAllTimersAsync();
+    expect(errors.length).toBeGreaterThan(0);
+    expect(String(errors[0])).toMatch(/boom/);
+    vi.useRealTimers();
+  });
 });

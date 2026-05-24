@@ -22,6 +22,7 @@ export interface RunControllerOptions {
   autoStop?: AutoStopConfig;
   onStateChange: (state: RunState) => void;
   onLiveSample?: (s: { t_ms: number; speed_mps: number; rpm: number }) => void;
+  onError?: (err: unknown) => void;
 }
 
 export class RunController {
@@ -129,13 +130,20 @@ export class RunController {
     }
 
     if (this.hasSeen_positive_accel && this.detector.check(s.t_ms)) {
-      void this.finishRun();
+      void this.finishRun().catch((err) => {
+        this.opts.onError?.(err);
+      });
     }
   }
 
   async stopNow(): Promise<void> {
     if (this.state.kind === 'running') {
-      await this.finishRun();
+      try {
+        await this.finishRun();
+      } catch (err) {
+        this.opts.onError?.(err);
+        throw err;
+      }
     }
   }
 
