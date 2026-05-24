@@ -18,6 +18,10 @@ commit and push after every implementation
 - Deploy user: `deploy` (`/home/deploy`), used to rsync built frontend into `/var/www/dynorun`
 - **Deploy = `git push origin main`** → GitHub Actions (`.github/workflows/deploy.yml`) builds and rsyncs `dist/` to `deploy@HOST:/var/www/dynorun/`. No manual deploy step.
 
-## Production gotchas
+## Public URL & TLS
 
-- Prod nginx serves plain HTTP (port 80, no TLS). That means browser **Secure Context APIs are unavailable**: `crypto.randomUUID()`, `crypto.subtle.*`, Service Workers, Notifications, etc. Use fallbacks (e.g. `crypto.getRandomValues`-based UUIDs) until HTTPS is set up.
+- App lives at **https://wasgoht.ch** (apex). `www.wasgoht.ch`, any plain-HTTP URL, and bare-IP HTTP all 301 to the apex.
+- TLS: Let's Encrypt cert covering `wasgoht.ch` + `www.wasgoht.ch`, renewed automatically by `certbot.timer` (runs twice daily).
+- DNS: managed in Hetzner DNS (`dns.hetzner.com`), zone `wasgoht.ch`, A records for `@` and `www` → `138.199.154.225`.
+- nginx config: `/etc/nginx/sites-enabled/dynorun` (3 server blocks: HTTP→HTTPS catch-all, HTTPS www→apex, HTTPS apex serving the SPA + `/api/` proxy to `localhost:3000`). Backup of pre-rewrite config: `/root/dynorun.nginx.bak`.
+- Secure Context APIs (`crypto.randomUUID`, `crypto.subtle`, Service Workers, Geolocation on mobile) now work since the origin is HTTPS.
