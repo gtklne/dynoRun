@@ -5,6 +5,7 @@ export class GpsSpeedSource implements SpeedSource {
   readonly id = 'gps';
   readonly capabilities: Capability[] = ['speed'];
   readonly samples$ = new Subject<SensorSample<SpeedValue>>();
+  readonly errors$ = new Subject<GeolocationPositionError>();
   private watchId: number | null = null;
   private startMs = 0;
 
@@ -20,7 +21,7 @@ export class GpsSpeedSource implements SpeedSource {
         const quality = pos.coords.accuracy ? Math.max(0, 1 - pos.coords.accuracy / 30) : 0.5;
         this.samples$.next({ t_ms, value: { speed_mps: Math.max(0, speed) }, quality });
       },
-      undefined,
+      (err) => this.errors$.next(err),
       { enableHighAccuracy: true, maximumAge: 0 },
     );
   }
