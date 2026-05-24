@@ -32,6 +32,7 @@ export class RunController {
   private samples: Sample[] = [];
   private calibration: Calibration | null = null;
   private hasSeen_positive_accel = false;
+  private finishingRun = false;
 
   constructor(private readonly opts: RunControllerOptions) {
     this.detector = new AutoStopDetector(opts.autoStop ?? DEFAULT_AUTO_STOP_CONFIG);
@@ -66,6 +67,7 @@ export class RunController {
     this.detector.reset();
     this.samples = [];
     this.hasSeen_positive_accel = false;
+    this.finishingRun = false;
     this.transition({ type: 'START', run_id: run.id, now_ms: 0 });
 
     this.unsub = this.opts.sensor.samples$.subscribe((s) => this.onSample(s, run.id));
@@ -148,7 +150,8 @@ export class RunController {
   }
 
   private async finishRun(): Promise<void> {
-    if (this.state.kind !== 'running') return;
+    if (this.state.kind !== 'running' || this.finishingRun) return;
+    this.finishingRun = true;
     const runId = this.state.run_id;
     this.unsub?.();
     this.unsub = null;
