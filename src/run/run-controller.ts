@@ -86,7 +86,11 @@ export class RunController {
       await this.opts.runRepository.markAborted(this.state.run_id);
       this.transition({ type: 'DISCARD' });
     } else if (this.state.kind === 'running') {
-      await this.opts.runRepository.markAborted(this.state.run_id);
+      const runId = this.state.run_id;
+      this.unsub?.();
+      this.unsub = null;
+      await this.opts.sensor.stop();
+      await this.opts.runRepository.markAborted(runId);
       this.transition({ type: 'ABORT' });
     }
   }

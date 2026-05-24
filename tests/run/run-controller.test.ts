@@ -104,4 +104,27 @@ describe('RunController', () => {
     expect(ctrl.getState().kind).toBe('aborted');
     vi.useRealTimers();
   });
+
+  it('discard during running stops the sensor and aborts', async () => {
+    vi.useFakeTimers();
+    const { vehicleId, calibrationId } = await setup(db);
+    const sensor = new MockSpeedSource('mock', buildScript());
+    const stopSpy = vi.spyOn(sensor, 'stop');
+    const ctrl = new RunController({
+      sensor,
+      vehicleRepository: new VehicleRepository(db),
+      calibrationRepository: new CalibrationRepository(db),
+      runRepository: new RunRepository(db),
+      sampleRepository: new SampleRepository(db),
+      derivedCurveRepository: new DerivedCurveRepository(db),
+      onStateChange: () => {},
+    });
+    await ctrl.ready(vehicleId, calibrationId);
+    await ctrl.start();
+    await vi.advanceTimersByTimeAsync(500);
+    await ctrl.discard();
+    expect(stopSpy).toHaveBeenCalled();
+    expect(ctrl.getState().kind).toBe('aborted');
+    vi.useRealTimers();
+  });
 });
