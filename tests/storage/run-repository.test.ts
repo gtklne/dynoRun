@@ -33,7 +33,7 @@ describe('RunRepository', () => {
     });
     const got = await runs.get(r.id);
     expect(got?.conditions).toEqual({ ambient_temp_c: 20, surface: 'asphalt' });
-    expect(got?.status).toBe('complete');
+    expect(got?.status).toBe('in_progress');
   });
 
   it('lists runs for a vehicle newest first', async () => {
@@ -42,6 +42,13 @@ describe('RunRepository', () => {
     const b = await runs.create({ vehicle_id: vehicleId, calibration_id: calibrationId, gear_label: '3rd', conditions: {}, notes: '' });
     const list = await runs.listByVehicle(vehicleId);
     expect(list.map((r) => r.id)).toEqual([b.id, a.id]);
+  });
+
+  it('marks run complete', async () => {
+    const r = await runs.create({ vehicle_id: vehicleId, calibration_id: calibrationId, gear_label: '3rd', conditions: {}, notes: '' });
+    await runs.markComplete(r.id);
+    const got = await runs.get(r.id);
+    expect(got?.status).toBe('complete');
   });
 
   it('updates status', async () => {

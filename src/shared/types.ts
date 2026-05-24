@@ -3,7 +3,7 @@ export type IsoTime = string;
 
 export type VehicleKind = 'car' | 'motorcycle';
 export type Drivetrain = 'fwd' | 'rwd' | 'awd' | 'chain' | 'shaft';
-export type RunStatus = 'complete' | 'degraded' | 'aborted';
+export type RunStatus = 'in_progress' | 'complete' | 'degraded' | 'aborted';
 
 export interface Vehicle {
   id: UUID;

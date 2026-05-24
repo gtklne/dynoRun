@@ -39,7 +39,7 @@ CREATE TABLE runs (
   gear_label TEXT NOT NULL,
   conditions TEXT NOT NULL DEFAULT '{}',
   notes TEXT NOT NULL DEFAULT '',
-  status TEXT NOT NULL CHECK (status IN ('complete','degraded','aborted')),
+  status TEXT NOT NULL CHECK (status IN ('in_progress','complete','degraded','aborted')),
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   synced_at TEXT

@@ -31,7 +31,7 @@ export class RunRepository {
       gear_label: input.gear_label,
       conditions: input.conditions,
       notes: input.notes,
-      status: 'complete',
+      status: 'in_progress',
       created_at: now,
       updated_at: now,
       synced_at: null,
@@ -66,6 +66,10 @@ export class RunRepository {
 
   async markAborted(id: string): Promise<void> {
     await this.setStatus(id, 'aborted');
+  }
+
+  async markComplete(id: string): Promise<void> {
+    await this.setStatus(id, 'complete');
   }
 
   async finalize(id: string, endedAt: string): Promise<void> {
