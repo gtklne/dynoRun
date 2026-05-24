@@ -50,11 +50,77 @@ function TelemetryRow({ label, value, unit, valueClass = 'text-zinc-100' }: Tele
   );
 }
 
+// Mutable fusion state kept in a ref — no re-renders from motion events directly.
+interface FusionState {
+  lastGpsSpeed_mps: number;
+  intX: number; intY: number; intZ: number;
+  lastMotionTime: number;
+  // Unit vector pointing "forward" in device space. Updated after each GPS fix.
+  forwardAxis: [number, number, number];
+}
+
+function initialFusion(): FusionState {
+  return { lastGpsSpeed_mps: 0, intX: 0, intY: 0, intZ: 0, lastMotionTime: 0, forwardAxis: [0, 1, 0] };
+}
+
+// Picks the cardinal axis whose integral best matches targetDelta, blended into current axis.
+function adaptAxis(f: FusionState, delta_mps: number): void {
+  const { intX, intY, intZ, forwardAxis: [ox, oy, oz] } = f;
+  const candidates: Array<{ axis: [number, number, number]; err: number }> = [
+    { axis: [1, 0, 0], err: Math.abs(intX - delta_mps) },
+    { axis: [-1, 0, 0], err: Math.abs(-intX - delta_mps) },
+    { axis: [0, 1, 0], err: Math.abs(intY - delta_mps) },
+    { axis: [0, -1, 0], err: Math.abs(-intY - delta_mps) },
+    { axis: [0, 0, 1], err: Math.abs(intZ - delta_mps) },
+    { axis: [0, 0, -1], err: Math.abs(-intZ - delta_mps) },
+  ];
+  candidates.sort((a, b) => a.err - b.err);
+  const [nx, ny, nz] = candidates[0].axis;
+  const k = 0.3;
+  const bx = ox + (nx - ox) * k, by = oy + (ny - oy) * k, bz = oz + (nz - oz) * k;
+  const len = Math.sqrt(bx * bx + by * by + bz * bz);
+  if (len > 0.001) f.forwardAxis = [bx / len, by / len, bz / len];
+}
+
 export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel }: Props) {
   const speedSourceFactory = useSpeedSourceFactory();
   const [state, setState] = useState<CalibrationState>({ kind: 'idle' });
   const [live, setLive] = useState<CalibrationLiveSample | null>(null);
+  // High-frequency fused speed for display; kept separate from live to avoid
+  // flooding React re-renders from the GPS-only onLiveSample path.
+  const [displaySpeed, setDisplaySpeed] = useState<number | null>(null);
   const ctrlRef = useRef<CalibrationController | null>(null);
+  const fusionRef = useRef<FusionState>(initialFusion());
+
+  // DeviceMotion listener: active only while measuring, integrates acceleration
+  // between GPS fixes to give a high-frequency speed estimate.
+  useEffect(() => {
+    if (state.kind !== 'measuring') return;
+
+    const handler = (e: DeviceMotionEvent) => {
+      const f = fusionRef.current;
+      const a = e.acceleration;
+      if (!a) return;
+
+      const now = performance.now();
+      const dt = f.lastMotionTime > 0 ? (now - f.lastMotionTime) / 1000 : 0;
+      f.lastMotionTime = now;
+      if (dt <= 0 || dt > 0.5) return;
+
+      f.intX += (a.x ?? 0) * dt;
+      f.intY += (a.y ?? 0) * dt;
+      f.intZ += (a.z ?? 0) * dt;
+
+      const [fx, fy, fz] = f.forwardAxis;
+      const correction = f.intX * fx + f.intY * fy + f.intZ * fz;
+      // Cap drift at ±8 m/s (~29 km/h) from the last GPS fix.
+      const speed_kmh = Math.max(0, (f.lastGpsSpeed_mps + Math.max(-8, Math.min(8, correction))) * 3.6);
+      setDisplaySpeed(speed_kmh);
+    };
+
+    window.addEventListener('devicemotion', handler);
+    return () => window.removeEventListener('devicemotion', handler);
+  }, [state.kind]);
 
   useEffect(() => {
     return () => {
@@ -64,13 +130,35 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
   }, []);
 
   async function start() {
+    // iOS 13+ requires a user-gesture permission request for DeviceMotionEvent.
+    const DME = DeviceMotionEvent as unknown as { requestPermission?: () => Promise<string> };
+    if (typeof DME.requestPermission === 'function') {
+      try { await DME.requestPermission(); } catch { /* fall back to GPS-only */ }
+    }
+
+    fusionRef.current = initialFusion();
+
     const sensor = await speedSourceFactory();
     const ctrl = new CalibrationController({
       vehicleId,
       speedSource: sensor,
       calibrationRepository,
       onStateChange: setState,
-      onLiveSample: setLive,
+      onLiveSample: (sample) => {
+        const f = fusionRef.current;
+        const newSpeed_mps = sample.speed_kmh / 3.6;
+        const delta = newSpeed_mps - f.lastGpsSpeed_mps;
+
+        // Update forward-axis estimate whenever the speed changed meaningfully.
+        if (Math.abs(delta) > 0.3) adaptAxis(f, delta);
+
+        // Reset integrals so the next motion window starts from this GPS baseline.
+        f.intX = 0; f.intY = 0; f.intZ = 0;
+        f.lastGpsSpeed_mps = newSpeed_mps;
+
+        setLive(sample);
+        setDisplaySpeed(sample.speed_kmh);
+      },
     });
     ctrlRef.current = ctrl;
     await ctrl.start({ gear_label: gear.gear_label, user_rpm: gear.user_rpm });
@@ -83,9 +171,7 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
     onConfirmed(cal);
   }
 
-  const stabilityPct = live
-    ? Math.min(1, live.stability.elapsed_ms / live.stability.window_ms)
-    : 0;
+  const stabilityPct = live ? Math.min(1, live.stability.elapsed_ms / live.stability.window_ms) : 0;
   const deltaOk = live ? live.stability.speed_delta_kmh <= live.stability.max_delta_kmh : false;
 
   return (
@@ -127,7 +213,7 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
             <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Current Speed</p>
             <div className="flex items-baseline gap-2">
               <span className="text-5xl font-bold tabular-nums text-zinc-100 font-mono">
-                {live ? live.speed_kmh.toFixed(1) : '—'}
+                {displaySpeed != null ? displaySpeed.toFixed(1) : '—'}
               </span>
               <span className="text-lg text-zinc-500">km/h</span>
             </div>
@@ -177,22 +263,16 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
               </span>
             </div>
 
-            {/* Progress bar */}
             <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden mb-2">
               <div
-                className={`h-full rounded-full transition-all duration-300 ${
-                  deltaOk ? 'bg-amber-500' : 'bg-red-700'
-                }`}
+                className={`h-full rounded-full transition-all duration-300 ${deltaOk ? 'bg-amber-500' : 'bg-red-700'}`}
                 style={{ width: `${stabilityPct * 100}%` }}
               />
             </div>
 
-            {/* Speed delta */}
             <div className="flex items-baseline justify-between">
               <span className="text-zinc-600 text-xs">Speed Δ</span>
-              <span className={`text-xs font-mono tabular-nums font-semibold ${
-                deltaOk ? 'text-emerald-400' : 'text-red-400'
-              }`}>
+              <span className={`text-xs font-mono tabular-nums font-semibold ${deltaOk ? 'text-emerald-400' : 'text-red-400'}`}>
                 {live ? `±${(live.stability.speed_delta_kmh / 2).toFixed(2)} km/h` : '—'}
                 <span className="text-zinc-600 font-normal ml-1">
                   (max ±{live ? (live.stability.max_delta_kmh / 2).toFixed(1) : '0.5'})
