@@ -43,16 +43,16 @@ export class CalibrationRepository {
   }
 
   async get(id: string): Promise<Calibration | null> {
-    const rows = await this.db.query('SELECT * FROM calibrations WHERE id = ?', [id]);
-    return (rows[0] as unknown as Calibration) ?? null;
+    const rows = await this.db.query<Calibration>('SELECT * FROM calibrations WHERE id = ?', [id]);
+    return rows[0] ?? null;
   }
 
   async listByVehicle(vehicleId: string): Promise<Calibration[]> {
-    const rows = await this.db.query(
+    const rows = await this.db.query<Calibration>(
       'SELECT * FROM calibrations WHERE vehicle_id = ? ORDER BY created_at DESC',
       [vehicleId],
     );
-    return rows as unknown as Calibration[];
+    return rows;
   }
 
   async delete(id: string): Promise<void> {

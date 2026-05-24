@@ -37,13 +37,13 @@ export class VehicleRepository {
   }
 
   async get(id: string): Promise<Vehicle | null> {
-    const rows = await this.db.query('SELECT * FROM vehicles WHERE id = ?', [id]);
-    return (rows[0] as unknown as Vehicle) ?? null;
+    const rows = await this.db.query<Vehicle>('SELECT * FROM vehicles WHERE id = ?', [id]);
+    return rows[0] ?? null;
   }
 
   async list(): Promise<Vehicle[]> {
-    const rows = await this.db.query('SELECT * FROM vehicles ORDER BY name');
-    return rows as unknown as Vehicle[];
+    const rows = await this.db.query<Vehicle>('SELECT * FROM vehicles ORDER BY name');
+    return rows;
   }
 
   async update(id: string, patch: Partial<NewVehicle>): Promise<Vehicle> {

@@ -13,7 +13,7 @@ export async function createWebDatabase(_name: string): Promise<Database> {
     sqlDb.run(sql, params as never);
   };
 
-  const query = async <T extends Row = Row>(
+  const query = async <T = Row>(
     sql: string,
     params: SqlParam[] = [],
   ): Promise<T[]> => {
