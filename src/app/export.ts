@@ -1,6 +1,7 @@
 import type { Database } from '@/storage/database';
 import type { Vehicle, Calibration, Run, Sample, DerivedCurve, RpmPoint, RunConditions } from '@/shared/types';
 import { nowIso } from '@/shared/iso-time';
+import { isNative } from './platform';
 
 export const EXPORT_FORMAT_VERSION = 1;
 
@@ -41,12 +42,28 @@ export async function exportDatabase(db: Database): Promise<DatabaseDump> {
   };
 }
 
-export function downloadDump(dump: DatabaseDump): void {
-  const blob = new Blob([JSON.stringify(dump, null, 2)], { type: 'application/json' });
+export async function downloadDump(dump: DatabaseDump): Promise<void> {
+  const json = JSON.stringify(dump, null, 2);
+  const filename = `dynorun-export-${dump.exported_at.replace(/[:.]/g, '-')}.json`;
+
+  if (isNative()) {
+    const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem');
+    const { Share } = await import('@capacitor/share');
+    const written = await Filesystem.writeFile({
+      path: filename,
+      data: json,
+      directory: Directory.Cache,
+      encoding: Encoding.UTF8,
+    });
+    await Share.share({ title: 'DynoRun export', url: written.uri });
+    return;
+  }
+
+  const blob = new Blob([json], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `dynorun-export-${dump.exported_at.replace(/[:.]/g, '-')}.json`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

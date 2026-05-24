@@ -49,7 +49,11 @@ npm run cap:run:android
 ## Permissions to grant on first launch
 
 - **Location:** "Always" or "While Using" — required for the run.
-- **iOS only:** wake-lock not supported; the screen will sleep unless you adjust Settings → Display & Brightness → Auto-Lock → Never during a run.
+- **iOS:** The app uses `@capacitor-community/keep-awake` to prevent screen sleep during a run. No manual adjustment needed.
+
+## Android manifest notes
+
+`android/app/src/main/AndroidManifest.xml` declares `FOREGROUND_SERVICE` and `FOREGROUND_SERVICE_LOCATION`. Investigation result: `@capacitor/geolocation` v8 uses Google's `FusedLocationProviderClient` directly and does **not** start an Android foreground service — its own `AndroidManifest.xml` is empty. These two permissions are therefore redundant. They are harmless (neither triggers a runtime permission prompt), but if Google Play flags them as undeclared foreground service types during a future submission review, remove them from the manifest without any other changes needed.
 
 ## Rebuilding after web-app changes
 
