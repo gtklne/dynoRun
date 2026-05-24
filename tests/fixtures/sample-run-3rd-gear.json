@@ -1,0 +1,11 @@
+{
+  "calibration": { "rpm": 3000, "speed_kmh": 80 },
+  "vehicle_mass_kg": 1300,
+  "samples": [
+    { "t_ms": 0, "speed_mps": 8.333, "quality": 1 },
+    { "t_ms": 100, "speed_mps": 8.5, "quality": 1 },
+    { "t_ms": 200, "speed_mps": 8.7, "quality": 1 },
+    { "t_ms": 300, "speed_mps": 8.95, "quality": 1 },
+    { "t_ms": 400, "speed_mps": 9.25, "quality": 1 }
+  ]
+}
