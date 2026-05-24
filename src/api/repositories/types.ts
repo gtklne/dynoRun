@@ -1,6 +1,6 @@
 import type {
   Vehicle, Calibration, Run, Sample, DerivedCurve,
-  VehicleKind, Drivetrain,
+  VehicleKind, Drivetrain, RunConditions,
 } from '@/shared/types';
 
 export interface NewVehicle {
@@ -25,7 +25,7 @@ export interface NewRun {
   vehicle_id: string;
   calibration_id: string;
   gear_label: string;
-  conditions: object;
+  conditions: RunConditions;
   notes: string;
 }
 
