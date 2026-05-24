@@ -12,6 +12,10 @@ export class AutoStopDetector {
 
   push(sample: Sample): void {
     this.buffer.push(sample);
+    const cutoff = sample.t_ms - 2 * this.config.zero_accel_window_ms;
+    while (this.buffer.length > 0 && this.buffer[0].t_ms < cutoff) {
+      this.buffer.shift();
+    }
   }
 
   reset(): void {
