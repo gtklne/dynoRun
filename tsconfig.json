@@ -17,7 +17,9 @@
     "allowSyntheticDefaultImports": true,
     "types": ["vitest/globals", "@testing-library/jest-dom"],
     "baseUrl": ".",
-    "paths": { "@/*": ["src/*"] }
+    "paths": { "@/*": ["src/*"] },
+    "outDir": "./dist"
   },
-  "include": ["src", "tests"]
+  "include": ["src", "tests"],
+  "references": [{ "path": "./tsconfig.node.json" }]
 }
