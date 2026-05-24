@@ -79,6 +79,13 @@ export class RunRepository {
     );
   }
 
+  async updateNotes(id: string, notes: string): Promise<void> {
+    await this.db.execute(
+      'UPDATE runs SET notes = ?, updated_at = ? WHERE id = ?',
+      [notes, nowIso(), id],
+    );
+  }
+
   private async setStatus(id: string, status: RunStatus): Promise<void> {
     await this.db.execute(
       'UPDATE runs SET status = ?, updated_at = ? WHERE id = ?',
