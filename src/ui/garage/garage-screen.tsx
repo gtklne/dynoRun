@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDatabase } from '@/storage/db-context';
 import { VehicleRepository } from '@/storage/repositories/vehicle-repository';
@@ -7,15 +7,15 @@ import { VehicleForm } from './vehicle-form';
 
 export function GarageScreen() {
   const db = useDatabase();
-  const repo = new VehicleRepository(db);
+  const repo = useMemo(() => new VehicleRepository(db), [db]);
   const [vehicles, setVehicles] = useState<Vehicle[] | null>(null);
   const [adding, setAdding] = useState(false);
 
-  async function reload() {
+  const reload = useCallback(async () => {
     setVehicles(await repo.list());
-  }
+  }, [repo]);
 
-  useEffect(() => { reload(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  useEffect(() => { reload(); }, [reload]);
 
   if (vehicles === null) return <p>Loading…</p>;
 
