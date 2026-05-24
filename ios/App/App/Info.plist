@@ -47,5 +47,13 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>DynoRun needs your location to measure your car or motorcycle's speed during a run.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>DynoRun needs your location in the background to continue capturing speed data while the screen is off.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 </dict>
 </plist>
