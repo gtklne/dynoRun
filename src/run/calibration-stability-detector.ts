@@ -23,6 +23,17 @@ export class CalibrationStabilityDetector {
     this.buffer = [];
   }
 
+  progress(now_ms: number): { elapsed_ms: number; speed_delta_kmh: number } {
+    const cutoff = now_ms - this.window.duration_ms;
+    const recent = this.buffer.filter((s) => s.t_ms >= cutoff);
+    if (recent.length < 2) return { elapsed_ms: 0, speed_delta_kmh: 0 };
+    const speedsKmh = recent.map((s) => mpsToKmh(s.speed_mps));
+    const min = Math.min(...speedsKmh);
+    const max = Math.max(...speedsKmh);
+    const span = recent[recent.length - 1].t_ms - recent[0].t_ms;
+    return { elapsed_ms: span, speed_delta_kmh: max - min };
+  }
+
   check(now_ms: number): StabilityResult | null {
     const cutoff = now_ms - this.window.duration_ms;
     // Need at least one anchor sample strictly before the cutoff

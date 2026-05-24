@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { calibrationRepository } from '@/api/repositories/calibration-repository';
-import { CalibrationController } from '@/run/calibration-controller';
+import { CalibrationController, type CalibrationLiveSample } from '@/run/calibration-controller';
 import { useSpeedSourceFactory } from './speed-source-context';
 import type { GearInput } from './calibration-step-gear';
 import type { Calibration } from '@/shared/types';
@@ -13,9 +13,47 @@ interface Props {
   onCancel: () => void;
 }
 
+function headingLabel(deg: number): string {
+  const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+  return dirs[Math.round(deg / 45) % 8];
+}
+
+function qualityColor(q: number): string {
+  if (q >= 0.7) return 'text-emerald-400';
+  if (q >= 0.4) return 'text-amber-400';
+  return 'text-red-400';
+}
+
+function accuracyColor(m: number | null): string {
+  if (m === null) return 'text-zinc-500';
+  if (m <= 5) return 'text-emerald-400';
+  if (m <= 15) return 'text-amber-400';
+  return 'text-red-400';
+}
+
+interface TelemetryRowProps {
+  label: string;
+  value: string;
+  unit?: string;
+  valueClass?: string;
+}
+
+function TelemetryRow({ label, value, unit, valueClass = 'text-zinc-100' }: TelemetryRowProps) {
+  return (
+    <div className="flex items-baseline justify-between py-1.5 border-b border-zinc-800/60 last:border-0">
+      <span className="text-zinc-500 text-xs uppercase tracking-wider font-medium">{label}</span>
+      <span className={`tabular-nums text-sm font-mono font-semibold ${valueClass}`}>
+        {value}
+        {unit && <span className="text-zinc-500 text-xs font-normal ml-1">{unit}</span>}
+      </span>
+    </div>
+  );
+}
+
 export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel }: Props) {
   const speedSourceFactory = useSpeedSourceFactory();
   const [state, setState] = useState<CalibrationState>({ kind: 'idle' });
+  const [live, setLive] = useState<CalibrationLiveSample | null>(null);
   const ctrlRef = useRef<CalibrationController | null>(null);
 
   useEffect(() => {
@@ -32,6 +70,7 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
       speedSource: sensor,
       calibrationRepository,
       onStateChange: setState,
+      onLiveSample: setLive,
     });
     ctrlRef.current = ctrl;
     await ctrl.start({ gear_label: gear.gear_label, user_rpm: gear.user_rpm });
@@ -43,6 +82,11 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
     await ctrlRef.current.stop();
     onConfirmed(cal);
   }
+
+  const stabilityPct = live
+    ? Math.min(1, live.stability.elapsed_ms / live.stability.window_ms)
+    : 0;
+  const deltaOk = live ? live.stability.speed_delta_kmh <= live.stability.max_delta_kmh : false;
 
   return (
     <div className="space-y-5">
@@ -56,7 +100,7 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
         </p>
       </div>
 
-      {/* State display */}
+      {/* Idle state */}
       {state.kind === 'idle' && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex flex-col items-center gap-2">
           <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center">
@@ -69,18 +113,97 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
         </div>
       )}
 
+      {/* Measuring state — telemetry debug panel */}
       {state.kind === 'measuring' && (
-        <div className="bg-zinc-900 border border-amber-800/40 rounded-2xl p-6 flex flex-col items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
-            <div className="w-5 h-5 rounded-full border-2 border-amber-500 border-t-transparent animate-spin" />
+        <div className="bg-zinc-900 border border-amber-800/40 rounded-2xl overflow-hidden">
+          {/* Header bar */}
+          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-zinc-800 bg-zinc-950/60">
+            <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+            <span className="text-amber-400 text-xs font-semibold uppercase tracking-widest">Measuring</span>
           </div>
-          <div className="text-center">
-            <p className="text-amber-400 font-semibold text-sm">Measuring…</p>
-            <p className="text-zinc-500 text-xs mt-1">Hold the RPM steady</p>
+
+          {/* Big speed readout */}
+          <div className="px-4 pt-4 pb-3 border-b border-zinc-800">
+            <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Current Speed</p>
+            <div className="flex items-baseline gap-2">
+              <span className="text-5xl font-bold tabular-nums text-zinc-100 font-mono">
+                {live ? live.speed_kmh.toFixed(1) : '—'}
+              </span>
+              <span className="text-lg text-zinc-500">km/h</span>
+            </div>
+          </div>
+
+          {/* GPS telemetry rows */}
+          <div className="px-4 py-1 border-b border-zinc-800">
+            <p className="text-zinc-600 text-xs uppercase tracking-wider pt-2 pb-1">GPS Signal</p>
+            <TelemetryRow
+              label="Accuracy"
+              value={live?.accuracy_m != null ? live.accuracy_m.toFixed(1) : '—'}
+              unit="m"
+              valueClass={accuracyColor(live?.accuracy_m ?? null)}
+            />
+            <TelemetryRow
+              label="Signal Quality"
+              value={live ? Math.round(live.quality * 100).toString() : '—'}
+              unit="%"
+              valueClass={live ? qualityColor(live.quality) : 'text-zinc-500'}
+            />
+            <TelemetryRow
+              label="Fix Rate"
+              value={live?.fix_rate_hz != null ? live.fix_rate_hz.toFixed(1) : '—'}
+              unit="Hz"
+            />
+            {live?.altitude_m != null && (
+              <TelemetryRow
+                label="Altitude"
+                value={live.altitude_m.toFixed(0)}
+                unit="m"
+              />
+            )}
+            {live?.heading_deg != null && (
+              <TelemetryRow
+                label="Heading"
+                value={`${live.heading_deg.toFixed(0)}° ${headingLabel(live.heading_deg)}`}
+              />
+            )}
+          </div>
+
+          {/* Stability progress */}
+          <div className="px-4 py-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-zinc-600 text-xs uppercase tracking-wider">Stability</p>
+              <span className="text-zinc-500 text-xs font-mono tabular-nums">
+                {live ? (live.stability.elapsed_ms / 1000).toFixed(1) : '0.0'}s / {live ? (live.stability.window_ms / 1000).toFixed(0) : '5'}s
+              </span>
+            </div>
+
+            {/* Progress bar */}
+            <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden mb-2">
+              <div
+                className={`h-full rounded-full transition-all duration-300 ${
+                  deltaOk ? 'bg-amber-500' : 'bg-red-700'
+                }`}
+                style={{ width: `${stabilityPct * 100}%` }}
+              />
+            </div>
+
+            {/* Speed delta */}
+            <div className="flex items-baseline justify-between">
+              <span className="text-zinc-600 text-xs">Speed Δ</span>
+              <span className={`text-xs font-mono tabular-nums font-semibold ${
+                deltaOk ? 'text-emerald-400' : 'text-red-400'
+              }`}>
+                {live ? `±${(live.stability.speed_delta_kmh / 2).toFixed(2)} km/h` : '—'}
+                <span className="text-zinc-600 font-normal ml-1">
+                  (max ±{live ? (live.stability.max_delta_kmh / 2).toFixed(1) : '0.5'})
+                </span>
+              </span>
+            </div>
           </div>
         </div>
       )}
 
+      {/* Stable / captured state */}
       {state.kind === 'stable' && (
         <div className="bg-zinc-900 border border-emerald-800/40 rounded-2xl p-6 flex flex-col items-center gap-3">
           <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center">

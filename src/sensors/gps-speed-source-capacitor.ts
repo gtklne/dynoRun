@@ -27,7 +27,16 @@ export class CapacitorGpsSpeedSource implements SpeedSource {
       const speed = pos.coords.speed ?? 0;
       const t_ms = performance.now() - this.startMs;
       const quality = pos.coords.accuracy ? Math.max(0, 1 - pos.coords.accuracy / 30) : 0.5;
-      this.samples$.next({ t_ms, value: { speed_mps: Math.max(0, speed) }, quality });
+      this.samples$.next({
+        t_ms,
+        value: {
+          speed_mps: Math.max(0, speed),
+          accuracy_m: pos.coords.accuracy ?? undefined,
+          altitude_m: pos.coords.altitude ?? undefined,
+          heading_deg: pos.coords.heading ?? undefined,
+        },
+        quality,
+      });
     });
   }
 

@@ -6,12 +6,29 @@ import type { ICalibrationRepository } from '@/api/repositories/types';
 import type { Calibration } from '@/shared/types';
 import type { Unsubscribe } from '@/shared/observable';
 
+export interface CalibrationLiveSample {
+  t_ms: number;
+  speed_kmh: number;
+  quality: number;
+  accuracy_m: number | null;
+  altitude_m: number | null;
+  heading_deg: number | null;
+  fix_rate_hz: number;
+  stability: {
+    elapsed_ms: number;
+    speed_delta_kmh: number;
+    window_ms: number;
+    max_delta_kmh: number;
+  };
+}
+
 export interface CalibrationControllerOptions {
   vehicleId: string;
   speedSource: SpeedSource;
   calibrationRepository: ICalibrationRepository;
   window?: StabilityWindow;
   onStateChange: (state: CalibrationState) => void;
+  onLiveSample?: (sample: CalibrationLiveSample) => void;
 }
 
 export class CalibrationController {
@@ -19,6 +36,7 @@ export class CalibrationController {
   private detector: CalibrationStabilityDetector;
   private unsub: Unsubscribe | null = null;
   private running = false;
+  private fixTimestamps: number[] = [];
 
   constructor(private readonly opts: CalibrationControllerOptions) {
     this.detector = new CalibrationStabilityDetector(opts.window ?? DEFAULT_STABILITY_WINDOW);
@@ -67,6 +85,29 @@ export class CalibrationController {
 
   private onSample(sample: SensorSample<SpeedValue>): void {
     this.detector.push({ t_ms: sample.t_ms, speed_mps: sample.value.speed_mps });
+
+    this.fixTimestamps.push(sample.t_ms);
+    if (this.fixTimestamps.length > 10) this.fixTimestamps.shift();
+
+    if (this.opts.onLiveSample) {
+      const window = this.opts.window ?? DEFAULT_STABILITY_WINDOW;
+      const { elapsed_ms, speed_delta_kmh } = this.detector.progress(sample.t_ms);
+      const span_ms = this.fixTimestamps.length > 1
+        ? this.fixTimestamps[this.fixTimestamps.length - 1] - this.fixTimestamps[0]
+        : 0;
+      const fix_rate_hz = span_ms > 0 ? (this.fixTimestamps.length - 1) / (span_ms / 1000) : 0;
+      this.opts.onLiveSample({
+        t_ms: sample.t_ms,
+        speed_kmh: sample.value.speed_mps * 3.6,
+        quality: sample.quality,
+        accuracy_m: sample.value.accuracy_m ?? null,
+        altitude_m: sample.value.altitude_m ?? null,
+        heading_deg: sample.value.heading_deg ?? null,
+        fix_rate_hz,
+        stability: { elapsed_ms, speed_delta_kmh, window_ms: window.duration_ms, max_delta_kmh: window.max_speed_delta_kmh },
+      });
+    }
+
     if (this.state.kind !== 'measuring') return;
     const stable = this.detector.check(sample.t_ms);
     if (stable) {

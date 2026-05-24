@@ -8,7 +8,12 @@ export interface SensorSample<T> {
   quality: number;
 }
 
-export interface SpeedValue { speed_mps: number; }
+export interface SpeedValue {
+  speed_mps: number;
+  accuracy_m?: number;
+  altitude_m?: number;
+  heading_deg?: number;
+}
 export interface RpmValue { rpm: number; }
 export interface AccelValue { ax: number; ay: number; az: number; }
 
