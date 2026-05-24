@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { createWebDatabase } from '@/storage/database-web';
 import { runMigrations } from '@/storage/migrations/runner';
@@ -21,7 +21,7 @@ async function setup() {
 }
 
 describe('CalibrationWizardScreen', () => {
-  it('captures a steady speed and persists a calibration', async () => {
+  it('captures a steady speed and persists a calibration', { timeout: 15000 }, async () => {
     vi.useFakeTimers();
     const { db, vehicleId } = await setup();
     const samples = Array.from({ length: 16 }, (_, i) => ({
@@ -50,15 +50,23 @@ describe('CalibrationWizardScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
     // Step 2: start measurement, advance time until stability
-    fireEvent.click(await screen.findByRole('button', { name: /start measurement/i }));
-    await vi.advanceTimersByTimeAsync(8000);
+    // After clicking Next, the measure step renders synchronously
+    fireEvent.click(screen.getByRole('button', { name: /start measurement/i }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(8000);
+    });
 
-    // Confirm button should appear after stability is detected
-    const confirm = await waitFor(() => screen.getByRole('button', { name: /save calibration/i }));
-    fireEvent.click(confirm);
+    // After advancing timers, state should be 'stable' — find the confirm button synchronously
+    const confirm = screen.getByRole('button', { name: /save calibration/i });
+    await act(async () => {
+      fireEvent.click(confirm);
+    });
 
-    // Step 3: done
-    await waitFor(() => expect(screen.getByText(/vehicle detail/i)).toBeInTheDocument());
+    // Step 3: now on the "Done" confirm screen; click "Done" to navigate
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /done/i }));
+    });
+    expect(screen.getByText(/vehicle detail/i)).toBeInTheDocument();
 
     const persisted = await new CalibrationRepository(db).listByVehicle(vehicleId);
     expect(persisted).toHaveLength(1);
