@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useDatabase } from '@/storage/db-context';
-import { VehicleRepository } from '@/storage/repositories/vehicle-repository';
+import { vehicleRepository } from '@/api/repositories/vehicle-repository';
 import type { Vehicle } from '@/shared/types';
 import { VehicleForm } from './vehicle-form';
 
@@ -27,14 +26,12 @@ function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
 }
 
 export function GarageScreen() {
-  const db = useDatabase();
-  const repo = useMemo(() => new VehicleRepository(db), [db]);
   const [vehicles, setVehicles] = useState<Vehicle[] | null>(null);
   const [adding, setAdding] = useState(false);
 
   const reload = useCallback(async () => {
-    setVehicles(await repo.list());
-  }, [repo]);
+    setVehicles(await vehicleRepository.list());
+  }, []);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -65,7 +62,7 @@ export function GarageScreen() {
           <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-4">New vehicle</p>
           <VehicleForm
             onSubmit={async (input) => {
-              await repo.create(input);
+              await vehicleRepository.create(input);
               setAdding(false);
               await reload();
             }}

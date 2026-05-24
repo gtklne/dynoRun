@@ -1,6 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useDatabase } from '@/storage/db-context';
-import { exportDatabase, downloadDump } from '@/app/export';
 import { ensureGeolocation, type GeolocationStatus } from '@/app/geolocation-permission';
 import { WakeLock } from '@/app/wake-lock';
 
@@ -11,10 +9,8 @@ const statusColor: Record<string, string> = {
 };
 
 export function SettingsScreen() {
-  const db = useDatabase();
   const [geoStatus, setGeoStatus] = useState<GeolocationStatus | null>(null);
   const [wakeSupported, setWakeSupported] = useState<boolean>(false);
-  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -22,16 +18,6 @@ export function SettingsScreen() {
       setWakeSupported(new WakeLock().supported);
     })();
   }, []);
-
-  async function onExport() {
-    setExporting(true);
-    try {
-      const dump = await exportDatabase(db);
-      await downloadDump(dump);
-    } finally {
-      setExporting(false);
-    }
-  }
 
   return (
     <div className="space-y-6">
@@ -59,23 +45,6 @@ export function SettingsScreen() {
               {wakeSupported ? 'Supported' : 'Not available'}
             </span>
           </div>
-        </div>
-      </div>
-
-      {/* Data */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Data</p>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
-          <p className="text-zinc-400 text-sm">
-            Download a JSON backup of all vehicles, calibrations, runs, and power curves.
-          </p>
-          <button
-            onClick={onExport}
-            disabled={exporting}
-            className="w-full bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed text-zinc-100 font-medium py-3 rounded-xl transition-colors border border-zinc-700 text-sm"
-          >
-            {exporting ? 'Exporting…' : 'Export data'}
-          </button>
         </div>
       </div>
 

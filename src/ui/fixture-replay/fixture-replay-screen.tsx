@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { analyzeRun } from '@/analysis/pipeline';
-import { computeRollout } from '@/storage/repositories/calibration-repository';
+import { computeRollout } from '@/shared/units';
 import { PowerCurveChart } from '@/ui/components/power-curve-chart';
 import type { AnalyzedRun } from '@/analysis/types';
 

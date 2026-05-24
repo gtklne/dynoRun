@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useDatabase } from '@/storage/db-context';
-import { CalibrationRepository } from '@/storage/repositories/calibration-repository';
+import { calibrationRepository } from '@/api/repositories/calibration-repository';
 import { CalibrationController } from '@/run/calibration-controller';
 import { useSpeedSourceFactory } from './speed-source-context';
 import type { GearInput } from './calibration-step-gear';
@@ -15,7 +14,6 @@ interface Props {
 }
 
 export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel }: Props) {
-  const db = useDatabase();
   const speedSourceFactory = useSpeedSourceFactory();
   const [state, setState] = useState<CalibrationState>({ kind: 'idle' });
   const ctrlRef = useRef<CalibrationController | null>(null);
@@ -32,7 +30,7 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
     const ctrl = new CalibrationController({
       vehicleId,
       speedSource: sensor,
-      calibrationRepository: new CalibrationRepository(db),
+      calibrationRepository,
       onStateChange: setState,
     });
     ctrlRef.current = ctrl;

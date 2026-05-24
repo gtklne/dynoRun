@@ -1,6 +1,8 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { DbProvider } from './storage/db-context';
+import { Navigate, BrowserRouter, Routes, Route } from 'react-router-dom';
+import { type ReactNode } from 'react';
+import { AuthProvider, useAuth } from './auth/auth-context';
 import { AppShell } from './ui/app-shell';
+import { LoginScreen } from './ui/auth/login-screen';
 import { GarageScreen } from './ui/garage/garage-screen';
 import { VehicleDetail } from './ui/garage/vehicle-detail';
 import { FixtureReplayScreen } from './ui/fixture-replay/fixture-replay-screen';
@@ -10,12 +12,20 @@ import { RunReviewScreen } from './ui/run/run-review-screen';
 import { CompareScreen } from './ui/compare/compare-screen';
 import { SettingsScreen } from './ui/settings/settings-screen';
 
+function RequireAuth({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="flex min-h-screen items-center justify-center">Loading…</div>;
+  if (!user) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
-    <DbProvider>
+    <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route element={<AppShell />}>
+          <Route path="/login" element={<LoginScreen />} />
+          <Route element={<RequireAuth><AppShell /></RequireAuth>}>
             <Route index element={<GarageScreen />} />
             <Route path="/vehicles/:id" element={<VehicleDetail />} />
             <Route path="/vehicles/:vehicleId/calibrations/new" element={<CalibrationWizardScreen />} />
@@ -28,6 +38,6 @@ export default function App() {
           </Route>
         </Routes>
       </BrowserRouter>
-    </DbProvider>
+    </AuthProvider>
   );
 }

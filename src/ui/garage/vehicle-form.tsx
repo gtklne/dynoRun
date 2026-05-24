@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { VehicleKind, Drivetrain } from '@/shared/types';
-import type { NewVehicle } from '@/storage/repositories/vehicle-repository';
+import type { NewVehicle } from '@/api/repositories/types';
 
 const labelClass = 'text-xs font-medium text-zinc-400 uppercase tracking-wider';
 const inputClass = 'w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-500 transition-colors text-sm';

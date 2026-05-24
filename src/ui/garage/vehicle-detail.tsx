@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useDatabase } from '@/storage/db-context';
-import { VehicleRepository } from '@/storage/repositories/vehicle-repository';
-import { CalibrationRepository } from '@/storage/repositories/calibration-repository';
-import { RunRepository } from '@/storage/repositories/run-repository';
+import { vehicleRepository } from '@/api/repositories/vehicle-repository';
+import { calibrationRepository } from '@/api/repositories/calibration-repository';
+import { runRepository } from '@/api/repositories/run-repository';
 import type { Vehicle, Calibration, Run } from '@/shared/types';
 
 const statusColor: Record<string, string> = {
@@ -15,7 +14,6 @@ const statusColor: Record<string, string> = {
 
 export function VehicleDetail() {
   const { id } = useParams<{ id: string }>();
-  const db = useDatabase();
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [cals, setCals] = useState<Calibration[]>([]);
   const [runs, setRuns] = useState<Run[]>([]);
@@ -23,11 +21,11 @@ export function VehicleDetail() {
   useEffect(() => {
     if (!id) return;
     (async () => {
-      setVehicle(await new VehicleRepository(db).get(id));
-      setCals(await new CalibrationRepository(db).listByVehicle(id));
-      setRuns(await new RunRepository(db).listByVehicle(id));
+      setVehicle(await vehicleRepository.get(id));
+      setCals(await calibrationRepository.listByVehicle(id));
+      setRuns(await runRepository.listByVehicle(id));
     })();
-  }, [id, db]);
+  }, [id]);
 
   if (!vehicle) {
     return (

@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useDatabase } from '@/storage/db-context';
-import { RunRepository } from '@/storage/repositories/run-repository';
-import { DerivedCurveRepository } from '@/storage/repositories/derived-curve-repository';
+import { runRepository } from '@/api/repositories/run-repository';
+import { derivedCurveRepository } from '@/api/repositories/derived-curve-repository';
 import { PowerCurveChart } from '@/ui/components/power-curve-chart';
 import type { Run, DerivedCurve } from '@/shared/types';
 
 export function RunReviewScreen() {
   const { runId = '' } = useParams();
-  const db = useDatabase();
   const navigate = useNavigate();
   const [run, setRun] = useState<Run | null>(null);
   const [curve, setCurve] = useState<DerivedCurve | null>(null);
@@ -16,13 +14,13 @@ export function RunReviewScreen() {
 
   useEffect(() => {
     (async () => {
-      const r = await new RunRepository(db).get(runId);
-      const c = await new DerivedCurveRepository(db).getByRun(runId);
+      const r = await runRepository.get(runId);
+      const c = await derivedCurveRepository.getByRun(runId);
       setRun(r);
       setCurve(c);
       if (r) setNotes(r.notes);
     })();
-  }, [db, runId]);
+  }, [runId]);
 
   if (!run || !curve) {
     return (
@@ -39,15 +37,14 @@ export function RunReviewScreen() {
 
   async function save() {
     if (!run) return;
-    const repo = new RunRepository(db);
-    await repo.updateNotes(run.id, notes);
-    await repo.markComplete(run.id);
+    await runRepository.updateNotes(run.id, notes);
+    await runRepository.markComplete(run.id);
     navigate(`/vehicles/${run.vehicle_id}`);
   }
 
   async function discard() {
     if (!run) return;
-    await new RunRepository(db).markAborted(run.id);
+    await runRepository.markAborted(run.id);
     navigate(`/vehicles/${run.vehicle_id}`);
   }
 

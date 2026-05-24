@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useDatabase } from '@/storage/db-context';
-import { VehicleRepository } from '@/storage/repositories/vehicle-repository';
-import { CalibrationRepository } from '@/storage/repositories/calibration-repository';
-import { RunRepository } from '@/storage/repositories/run-repository';
-import { SampleRepository } from '@/storage/repositories/sample-repository';
-import { DerivedCurveRepository } from '@/storage/repositories/derived-curve-repository';
+import { vehicleRepository } from '@/api/repositories/vehicle-repository';
+import { calibrationRepository } from '@/api/repositories/calibration-repository';
+import { runRepository } from '@/api/repositories/run-repository';
+import { sampleRepository } from '@/api/repositories/sample-repository';
+import { derivedCurveRepository } from '@/api/repositories/derived-curve-repository';
 import { RunController } from '@/run/run-controller';
 import { WakeLock } from '@/app/wake-lock';
 import { useSpeedSourceFactory } from '@/ui/calibration/speed-source-context';
@@ -15,7 +14,6 @@ import type { RunState } from '@/run/types';
 
 export function LiveRunScreen() {
   const { vehicleId = '', calibrationId = '' } = useParams();
-  const db = useDatabase();
   const speedSourceFactory = useSpeedSourceFactory();
   const navigate = useNavigate();
   const [state, setState] = useState<RunState>({ kind: 'idle' });
@@ -31,11 +29,11 @@ export function LiveRunScreen() {
       const sensor = await speedSourceFactory();
       const ctrl = new RunController({
         sensor,
-        vehicleRepository: new VehicleRepository(db),
-        calibrationRepository: new CalibrationRepository(db),
-        runRepository: new RunRepository(db),
-        sampleRepository: new SampleRepository(db),
-        derivedCurveRepository: new DerivedCurveRepository(db),
+        vehicleRepository,
+        calibrationRepository,
+        runRepository,
+        sampleRepository,
+        derivedCurveRepository,
         onStateChange: (s) => {
           if (cancelled) return;
           setState(s);
@@ -59,7 +57,7 @@ export function LiveRunScreen() {
       void ctrlRef.current?.stopNow();
       void wakeLockRef.current.release();
     };
-  }, [db, vehicleId, calibrationId, speedSourceFactory, navigate]);
+  }, [vehicleId, calibrationId, speedSourceFactory, navigate]);
 
   async function startRun() {
     if (!ctrlRef.current) return;
