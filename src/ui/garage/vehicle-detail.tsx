@@ -15,13 +15,10 @@ export function VehicleDetail() {
 
   useEffect(() => {
     if (!id) return;
-    const vehicles = new VehicleRepository(db);
-    const calRepo = new CalibrationRepository(db);
-    const runRepo = new RunRepository(db);
     (async () => {
-      setVehicle(await vehicles.get(id));
-      setCals(await calRepo.listByVehicle(id));
-      setRuns(await runRepo.listByVehicle(id));
+      setVehicle(await new VehicleRepository(db).get(id));
+      setCals(await new CalibrationRepository(db).listByVehicle(id));
+      setRuns(await new RunRepository(db).listByVehicle(id));
     })();
   }, [id, db]);
 
@@ -32,11 +29,27 @@ export function VehicleDetail() {
       <p><Link to="/">← Garage</Link></p>
       <h1>{vehicle.name}</h1>
       <p>{vehicle.kind}, {vehicle.mass_kg} kg, {vehicle.drivetrain}</p>
+
       <h2>Calibrations ({cals.length})</h2>
-      <ul>{cals.map((c) => <li key={c.id}>{c.gear_label}: {c.rpm} RPM @ {c.speed_kmh} km/h (rollout {c.rollout_m_per_rev.toFixed(4)} m/rev)</li>)}</ul>
+      <ul>
+        {cals.map((c) => (
+          <li key={c.id}>
+            {c.gear_label}: {c.rpm} RPM @ {c.speed_kmh.toFixed(1)} km/h{' '}
+            <Link to={`/vehicles/${vehicle.id}/calibrations/${c.id}/run`}>New run</Link>
+          </li>
+        ))}
+      </ul>
+      <p><Link to={`/vehicles/${vehicle.id}/calibrations/new`}>+ New calibration</Link></p>
+
       <h2>Runs ({runs.length})</h2>
-      <ul>{runs.map((r) => <li key={r.id}>{r.started_at} — {r.gear_label} — {r.status}</li>)}</ul>
-      <p><em>Calibration wizard and live runs ship in Plan 2.</em></p>
+      <ul>
+        {runs.map((r) => (
+          <li key={r.id}>
+            {r.started_at} — {r.gear_label} — {r.status}{' '}
+            {r.status !== 'aborted' && <Link to={`/runs/${r.id}/review`}>review</Link>}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
