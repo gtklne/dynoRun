@@ -15,7 +15,7 @@
     "resolveJsonModule": true,
     "esModuleInterop": false,
     "allowSyntheticDefaultImports": true,
-    "types": ["vitest/globals", "@testing-library/jest-dom"],
+    "types": ["vitest/globals", "@testing-library/jest-dom", "vite/client"],
     "baseUrl": ".",
     "paths": { "@/*": ["src/*"] },
     "outDir": "./dist"
