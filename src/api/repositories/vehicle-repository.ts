@@ -1,6 +1,6 @@
 import { apiFetch } from '../client';
 import type { Vehicle } from '@/shared/types';
-import type { IVehicleRepository, NewVehicle } from './types';
+import type { IVehicleRepository } from './types';
 
 export const vehicleRepository: IVehicleRepository = {
   list: () =>
