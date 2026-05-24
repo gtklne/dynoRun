@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { eq, and } from 'drizzle-orm';
 import { db } from '../db.js';
-import { runs, samples, derivedCurves } from '../schema.js';
+import { runs, samples, derivedCurves, vehicles } from '../schema.js';
 import { requireAuth, type AuthVariables } from '../middleware/require-auth.js';
 
 const route = new Hono<{ Variables: AuthVariables }>();
@@ -21,6 +21,9 @@ route.post('/runs', async (c) => {
     vehicle_id: string; calibration_id: string; gear_label: string;
     conditions?: object; notes?: string;
   }>();
+  const [vehicle] = await db.select({ id: vehicles.id }).from(vehicles)
+    .where(and(eq(vehicles.id, body.vehicle_id), eq(vehicles.userId, userId)));
+  if (!vehicle) return c.json({ error: 'Not found' }, 404);
   const now = new Date().toISOString();
   const [row] = await db.insert(runs).values({
     id: crypto.randomUUID(),
@@ -70,9 +73,11 @@ route.delete('/runs/:id', async (c) => {
   const [existing] = await db.select({ id: runs.id }).from(runs)
     .where(and(eq(runs.id, runId), eq(runs.userId, userId)));
   if (!existing) return c.json({ error: 'Not found' }, 404);
-  await db.delete(derivedCurves).where(eq(derivedCurves.run_id, runId));
-  await db.delete(samples).where(eq(samples.run_id, runId));
-  await db.delete(runs).where(eq(runs.id, runId));
+  await db.transaction(async (tx) => {
+    await tx.delete(derivedCurves).where(eq(derivedCurves.run_id, runId));
+    await tx.delete(samples).where(eq(samples.run_id, runId));
+    await tx.delete(runs).where(eq(runs.id, runId));
+  });
   return c.body(null, 204);
 });
 

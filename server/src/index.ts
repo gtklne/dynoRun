@@ -27,6 +27,10 @@ app.route('/api', curvesRoute);
 
 const port = parseInt(process.env.PORT ?? '3000', 10);
 
-serve({ fetch: app.fetch, port }, () => {
+const server = serve({ fetch: app.fetch, port }, () => {
   console.log(`DynoRun API listening on :${port}`);
+});
+server.on('error', (err: NodeJS.ErrnoException) => {
+  console.error('Server error:', err.message);
+  process.exit(1);
 });

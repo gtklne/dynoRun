@@ -7,7 +7,7 @@ import { requireAuth, type AuthVariables } from '../middleware/require-auth.js';
 const route = new Hono<{ Variables: AuthVariables }>();
 route.use(requireAuth);
 
-route.get('/', async (c) => {
+route.get('/vehicles', async (c) => {
   const userId = c.get('userId');
   const rows = await db.select().from(vehicles)
     .where(eq(vehicles.userId, userId))
@@ -15,7 +15,7 @@ route.get('/', async (c) => {
   return c.json(rows);
 });
 
-route.post('/', async (c) => {
+route.post('/vehicles', async (c) => {
   const userId = c.get('userId');
   const body = await c.req.json<{
     name: string; kind: string; mass_kg: number; drivetrain: string;
@@ -38,32 +38,41 @@ route.post('/', async (c) => {
   return c.json(row, 201);
 });
 
-route.get('/:id', async (c) => {
+route.get('/vehicles/:vehicleId', async (c) => {
   const userId = c.get('userId');
   const [row] = await db.select().from(vehicles)
-    .where(and(eq(vehicles.id, c.req.param('id')), eq(vehicles.userId, userId)));
+    .where(and(eq(vehicles.id, c.req.param('vehicleId')), eq(vehicles.userId, userId)));
   if (!row) return c.json({ error: 'Not found' }, 404);
   return c.json(row);
 });
 
-route.put('/:id', async (c) => {
+route.put('/vehicles/:vehicleId', async (c) => {
   const userId = c.get('userId');
   const body = await c.req.json<Partial<{
     name: string; kind: string; mass_kg: number; drivetrain: string;
     frontal_area_m2: number | null; drag_coefficient: number | null; notes: string;
   }>>();
   const [row] = await db.update(vehicles)
-    .set({ ...body, updated_at: new Date().toISOString() })
-    .where(and(eq(vehicles.id, c.req.param('id')), eq(vehicles.userId, userId)))
+    .set({
+      ...(body.name !== undefined && { name: body.name }),
+      ...(body.kind !== undefined && { kind: body.kind }),
+      ...(body.mass_kg !== undefined && { mass_kg: body.mass_kg }),
+      ...(body.drivetrain !== undefined && { drivetrain: body.drivetrain }),
+      ...(body.frontal_area_m2 !== undefined && { frontal_area_m2: body.frontal_area_m2 }),
+      ...(body.drag_coefficient !== undefined && { drag_coefficient: body.drag_coefficient }),
+      ...(body.notes !== undefined && { notes: body.notes }),
+      updated_at: new Date().toISOString(),
+    })
+    .where(and(eq(vehicles.id, c.req.param('vehicleId')), eq(vehicles.userId, userId)))
     .returning();
   if (!row) return c.json({ error: 'Not found' }, 404);
   return c.json(row);
 });
 
-route.delete('/:id', async (c) => {
+route.delete('/vehicles/:vehicleId', async (c) => {
   const userId = c.get('userId');
   await db.delete(vehicles)
-    .where(and(eq(vehicles.id, c.req.param('id')), eq(vehicles.userId, userId)));
+    .where(and(eq(vehicles.id, c.req.param('vehicleId')), eq(vehicles.userId, userId)));
   return c.body(null, 204);
 });
 

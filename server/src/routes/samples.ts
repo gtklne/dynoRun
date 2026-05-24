@@ -1,17 +1,12 @@
 import { Hono } from 'hono';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '../db.js';
-import { samples, runs } from '../schema.js';
+import { samples } from '../schema.js';
 import { requireAuth, type AuthVariables } from '../middleware/require-auth.js';
+import { runBelongsToUser } from '../lib/run-belongs-to-user.js';
 
 const route = new Hono<{ Variables: AuthVariables }>();
 route.use(requireAuth);
-
-async function runBelongsToUser(runId: string, userId: string): Promise<boolean> {
-  const [row] = await db.select({ id: runs.id }).from(runs)
-    .where(and(eq(runs.id, runId), eq(runs.userId, userId)));
-  return !!row;
-}
 
 route.post('/runs/:id/samples', async (c) => {
   const userId = c.get('userId');

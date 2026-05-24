@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { eq, and } from 'drizzle-orm';
 import { db } from '../db.js';
-import { calibrations } from '../schema.js';
+import { calibrations, vehicles } from '../schema.js';
 import { requireAuth, type AuthVariables } from '../middleware/require-auth.js';
 
 const route = new Hono<{ Variables: AuthVariables }>();
@@ -24,6 +24,9 @@ route.get('/vehicles/:vehicleId/calibrations', async (c) => {
 
 route.post('/vehicles/:vehicleId/calibrations', async (c) => {
   const userId = c.get('userId');
+  const [vehicle] = await db.select({ id: vehicles.id }).from(vehicles)
+    .where(and(eq(vehicles.id, c.req.param('vehicleId')), eq(vehicles.userId, userId)));
+  if (!vehicle) return c.json({ error: 'Not found' }, 404);
   const body = await c.req.json<{
     gear_label: string; rpm: number; speed_kmh: number; notes?: string;
   }>();
