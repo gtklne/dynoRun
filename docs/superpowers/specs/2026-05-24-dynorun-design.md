@@ -88,7 +88,7 @@ A `SensorRegistry` resolves the best available source per capability at run star
 
 All tables carry `id` (UUID), `user_id` (nullable, populated on future cloud migration), `created_at`, `updated_at`, and `synced_at` (nullable, used by the future sync engine).
 
-- **`vehicles`** — `name`, `kind` (`car` | `motorcycle`), `mass_kg`, `drivetrain` (`fwd` | `rwd` | `awd` | `chain` | `shaft`), `frontal_area_m2` (nullable, reserved for future drag model), `drag_coefficient` (nullable, same), `notes`.
+- **`vehicles`** — `name`, `kind` (`car` | `motorcycle`), `mass_kg` (**total moving mass: vehicle curb weight + driver + typical fuel + cargo**; the form prompts for this explicitly), `drivetrain` (`fwd` | `rwd` | `awd` | `chain` | `shaft`), `frontal_area_m2` (nullable, reserved for future drag model), `drag_coefficient` (nullable, same), `notes`.
 - **`calibrations`** — `vehicle_id`, `gear_label` (free text, e.g. "3rd"), `rpm`, `speed_kmh`, derived `rollout_m_per_rev`, `recorded_at`, `notes`.
 - **`runs`** — `vehicle_id`, `calibration_id`, `started_at`, `ended_at`, `gear_label` (denormalized for safety against calibration deletion), `conditions` (JSON: ambient temp, wind, road slope, surface), `notes`, `status` (`complete` | `degraded` | `aborted`).
 - **`samples`** — `run_id`, `t_ms`, `speed_mps`, `accel_long_ms2`, `accel_vert_ms2`, `lat` (nullable), `lon` (nullable), `hdop` (nullable). Indexed on `(run_id, t_ms)`.
