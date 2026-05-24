@@ -1,10 +1,14 @@
 import initSqlJs, { Database as SqlJsDb } from 'sql.js';
+import sqlWasmUrl from 'sql.js/dist/sql-wasm.wasm?url';
 import type { Database, Row, SqlParam } from './database';
 
 export async function createWebDatabase(_name: string): Promise<Database> {
+  const injectedConfig = (globalThis as Record<string, unknown>).__sqlJsConfig as
+    | Parameters<typeof initSqlJs>[0]
+    | undefined;
   const SQL = await initSqlJs(
-    (globalThis as Record<string, unknown>).__sqlJsConfig as Parameters<typeof initSqlJs>[0] ?? {
-      locateFile: (file) => `https://sql.js.org/dist/${file}`,
+    injectedConfig ?? {
+      locateFile: () => sqlWasmUrl,
     },
   );
   const sqlDb: SqlJsDb = new SQL.Database();
