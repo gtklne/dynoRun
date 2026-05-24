@@ -1,10 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { MockSpeedSource } from '@/sensors/mock-speed-source';
 import { DerivedRpmSource } from '@/sensors/derived-rpm-source';
 import type { SensorSample, RpmValue } from '@/sensors/types';
 
 describe('DerivedRpmSource', () => {
   it('emits rpm = speed_mps / rollout * 60', async () => {
+    vi.useFakeTimers();
     const rollout = 80 / 3.6 / 50;
     const speedSrc = new MockSpeedSource('mock-speed', [
       { t_ms: 0, value: { speed_mps: 0 }, quality: 1 },
@@ -16,12 +17,13 @@ describe('DerivedRpmSource', () => {
     rpmSrc.samples$.subscribe((s) => received.push(s));
     await rpmSrc.start();
     await speedSrc.start();
-    await new Promise((r) => setTimeout(r, 200));
+    await vi.advanceTimersByTimeAsync(200);
     expect(received).toHaveLength(3);
     expect(received[0].value.rpm).toBe(0);
     expect(received[1].value.rpm).toBeCloseTo(3000, 1);
     expect(received[2].value.rpm).toBeCloseTo(3750, 1);
     await speedSrc.stop();
     await rpmSrc.stop();
+    vi.useRealTimers();
   });
 });
