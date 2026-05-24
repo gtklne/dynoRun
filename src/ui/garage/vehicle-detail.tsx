@@ -46,7 +46,7 @@ export function VehicleDetail() {
         {runs.map((r) => (
           <li key={r.id}>
             {r.started_at} — {r.gear_label} — {r.status}{' '}
-            {r.status !== 'aborted' && <Link to={`/runs/${r.id}/review`}>review</Link>}
+            {r.status === 'complete' && <Link to={`/runs/${r.id}/review`}>review</Link>}
           </li>
         ))}
       </ul>
