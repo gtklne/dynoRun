@@ -13,6 +13,15 @@ describe('differentiate', () => {
     }
   });
 
+  it('returns zero acceleration for a single sample', () => {
+    const out = differentiate([{ t_ms: 0, speed_mps: 5 }]);
+    expect(out).toEqual([{ t_ms: 0, speed_mps: 5, accel_ms2: 0 }]);
+  });
+
+  it('returns empty for empty input', () => {
+    expect(differentiate([])).toEqual([]);
+  });
+
   it('uses forward/backward at edges', () => {
     const input = [
       { t_ms: 0, speed_mps: 0 },

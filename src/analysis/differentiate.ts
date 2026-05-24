@@ -3,6 +3,7 @@ import type { SmoothedSample, DifferentiatedSample } from './types';
 export function differentiate(input: SmoothedSample[]): DifferentiatedSample[] {
   const n = input.length;
   if (n === 0) return [];
+  if (n === 1) return [{ t_ms: input[0].t_ms, speed_mps: input[0].speed_mps, accel_ms2: 0 }];
   const out: DifferentiatedSample[] = new Array(n);
   for (let i = 0; i < n; i++) {
     let accel: number;
