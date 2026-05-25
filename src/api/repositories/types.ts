@@ -66,3 +66,40 @@ export interface IDerivedCurveRepository {
   upsert(curve: DerivedCurve): Promise<void>;
   getByRun(runId: string): Promise<DerivedCurve | null>;
 }
+
+export interface RecordingSummary {
+  id: string;
+  kind: 'run' | 'calibration';
+  vehicle_id: string | null;
+  calibration_id: string | null;
+  run_id: string | null;
+  gear_label: string | null;
+  user_rpm: number | null;
+  label: string | null;
+  recorded_at: string;
+  duration_ms: number;
+  gps_count: number;
+  motion_count: number;
+  created_at: string;
+}
+
+export interface NewRecording {
+  kind: 'run' | 'calibration';
+  vehicle_id?: string | null;
+  calibration_id?: string | null;
+  run_id?: string | null;
+  gear_label?: string | null;
+  user_rpm?: number | null;
+  label?: string | null;
+  recorded_at: string;
+  duration_ms: number;
+  data: { gps_fixes: unknown[]; motion_fixes: unknown[] };
+}
+
+export interface IRecordingRepository {
+  list(): Promise<RecordingSummary[]>;
+  get(id: string): Promise<(RecordingSummary & { data: { gps_fixes: unknown[]; motion_fixes: unknown[] } }) | null>;
+  create(input: NewRecording): Promise<RecordingSummary>;
+  setLabel(id: string, label: string | null): Promise<void>;
+  delete(id: string): Promise<void>;
+}

@@ -7,6 +7,7 @@ import { calibrationsRoute } from './routes/calibrations.js';
 import { runsRoute } from './routes/runs.js';
 import { samplesRoute } from './routes/samples.js';
 import { curvesRoute } from './routes/curves.js';
+import { recordingsRoute } from './routes/recordings.js';
 
 const app = new Hono();
 
@@ -24,6 +25,7 @@ app.route('/api', calibrationsRoute);
 app.route('/api', runsRoute);
 app.route('/api', samplesRoute);
 app.route('/api', curvesRoute);
+app.route('/api', recordingsRoute);
 
 const port = parseInt(process.env.PORT ?? '3000', 10);
 

@@ -1,5 +1,6 @@
 import {
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   real,
@@ -59,6 +60,24 @@ export const samples = pgTable('samples', {
   lon: real('lon'),
   hdop: real('hdop'),
 }, (t) => [primaryKey({ columns: [t.run_id, t.t_ms] })]);
+
+export const recordings = pgTable('recordings', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  kind: text('kind').notNull(),
+  vehicle_id: text('vehicle_id'),
+  calibration_id: text('calibration_id'),
+  run_id: text('run_id'),
+  gear_label: text('gear_label'),
+  user_rpm: real('user_rpm'),
+  label: text('label'),
+  recorded_at: text('recorded_at').notNull(),
+  duration_ms: integer('duration_ms').notNull(),
+  gps_count: integer('gps_count').notNull(),
+  motion_count: integer('motion_count').notNull(),
+  data: jsonb('data').notNull(),
+  created_at: text('created_at').notNull(),
+});
 
 export const derivedCurves = pgTable('derived_curves', {
   run_id: text('run_id').primaryKey(),

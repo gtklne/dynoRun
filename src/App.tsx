@@ -6,6 +6,7 @@ import { LoginScreen } from './ui/auth/login-screen';
 import { GarageScreen } from './ui/garage/garage-screen';
 import { VehicleDetail } from './ui/garage/vehicle-detail';
 import { FixtureReplayScreen } from './ui/fixture-replay/fixture-replay-screen';
+import { RecordingsScreen } from './ui/recordings/recordings-screen';
 import { CalibrationWizardScreen } from './ui/calibration/calibration-wizard-screen';
 import { LiveRunScreen } from './ui/run/live-run-screen';
 import { RunReviewScreen } from './ui/run/run-review-screen';
@@ -31,6 +32,7 @@ export default function App() {
             <Route path="/vehicles/:vehicleId/calibrations/new" element={<CalibrationWizardScreen />} />
             <Route path="/vehicles/:vehicleId/calibrations/:calibrationId/run" element={<LiveRunScreen />} />
             <Route path="/runs/:runId/review" element={<RunReviewScreen />} />
+            <Route path="/recordings" element={<RecordingsScreen />} />
             <Route path="/replay" element={<FixtureReplayScreen />} />
             <Route path="/vehicles/:vehicleId/compare" element={<CompareScreen />} />
             <Route path="/settings" element={<SettingsScreen />} />

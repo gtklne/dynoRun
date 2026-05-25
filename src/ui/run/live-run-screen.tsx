@@ -12,6 +12,7 @@ import { StreamingChart, type StreamingChartHandle } from '@/ui/components/strea
 import { mpsToKmh } from '@/shared/units';
 import type { RunState } from '@/run/types';
 import { setLastRecording } from '@/sensors/replay-state';
+import { recordingRepository } from '@/api/repositories/recording-repository';
 
 export function LiveRunScreen() {
   const { vehicleId = '', calibrationId = '' } = useParams();
@@ -51,6 +52,20 @@ export function LiveRunScreen() {
         },
         onRecordingFinished: (rec) => {
           setLastRecording(rec);
+          recordingRepository.create({
+            kind: rec.kind,
+            vehicle_id: rec.meta.vehicle_id ?? null,
+            calibration_id: rec.meta.calibration_id ?? null,
+            run_id: rec.meta.run_id ?? null,
+            gear_label: rec.meta.gear_label ?? null,
+            user_rpm: rec.meta.user_rpm ?? null,
+            label: rec.meta.label ?? null,
+            recorded_at: rec.recorded_at,
+            duration_ms: Math.round(rec.duration_ms),
+            data: { gps_fixes: rec.gps_fixes, motion_fixes: rec.motion_fixes },
+          }).catch((err) => {
+            console.error('Failed to upload recording:', err);
+          });
         },
       });
       ctrlRef.current = ctrl;

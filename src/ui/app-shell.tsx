@@ -12,10 +12,11 @@ function GarageIcon() {
   );
 }
 
-function ReplayIcon() {
+function RecordingsIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      <circle cx="12" cy="12" r="9"/>
+      <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>
     </svg>
   );
 }
@@ -60,9 +61,9 @@ export function AppShell() {
           <GarageIcon />
           <span className="text-[10px] font-medium">Garage</span>
         </NavLink>
-        <NavLink to="/replay" className={navLinkClass}>
-          <ReplayIcon />
-          <span className="text-[10px] font-medium">Replay</span>
+        <NavLink to="/recordings" className={navLinkClass}>
+          <RecordingsIcon />
+          <span className="text-[10px] font-medium">Recordings</span>
         </NavLink>
         <NavLink to="/settings" className={navLinkClass}>
           <SettingsIcon />
