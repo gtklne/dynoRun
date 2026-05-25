@@ -79,13 +79,25 @@ jobs:
         run: |
           # Install full deps (incl. drizzle-kit) as root so we can also read
           # /etc/dynorun.env for DATABASE_URL. Pruned back to prod-only after.
-          ssh -i ~/.ssh/id_ed25519 "root@${{ secrets.DEPLOY_HOST }}" "set -euo pipefail; \
-            cd /opt/dynorun-api && \
-            npm ci && \
-            set -a && . /etc/dynorun.env && set +a && \
-            npx drizzle-kit push && \
-            npm prune --omit=dev && \
-            chown -R deploy:deploy /opt/dynorun-api"
+          # drizzle-kit push sometimes exits 0 even when it bailed on an
+          # interactive prompt or data-loss warning, so we capture the output
+          # and explicitly fail on those phrases.
+          ssh -i ~/.ssh/id_ed25519 "root@${{ secrets.DEPLOY_HOST }}" '
+            set -euo pipefail
+            cd /opt/dynorun-api
+            npm ci
+            set -a && . /etc/dynorun.env && set +a
+            OUTPUT=$(npx drizzle-kit push 2>&1)
+            echo "$OUTPUT"
+            if echo "$OUTPUT" | grep -qE "Error:|data-loss|cannot be reverted|Interactive prompts"; then
+              echo ""
+              echo "ERROR: drizzle-kit push reported a problem (see above)."
+              echo "       Inspect the diff, apply destructive changes manually, then re-deploy."
+              exit 1
+            fi
+            npm prune --omit=dev
+            chown -R deploy:deploy /opt/dynorun-api
+          '
 
       - name: Restart API
         run: |
