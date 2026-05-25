@@ -1,4 +1,6 @@
+import { sql } from 'drizzle-orm';
 import {
+  index,
   integer,
   jsonb,
   pgTable,
@@ -77,7 +79,10 @@ export const recordings = pgTable('recordings', {
   motion_count: integer('motion_count').notNull(),
   data: jsonb('data').notNull(),
   created_at: text('created_at').notNull(),
-});
+}, (t) => [
+  index('recordings_user_recorded_idx').on(t.userId, sql`${t.recorded_at} DESC`),
+  index('recordings_user_run_idx').on(t.userId, t.run_id),
+]);
 
 export const derivedCurves = pgTable('derived_curves', {
   run_id: text('run_id').primaryKey(),

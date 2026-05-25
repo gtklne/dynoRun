@@ -40,7 +40,7 @@ jobs:
   deploy-api:
     needs: deploy
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -67,12 +67,27 @@ jobs:
             --exclude 'node_modules' \
             server/dist/ "deploy@${{ secrets.DEPLOY_HOST }}:/opt/dynorun-api/dist/"
           rsync -rlgoDzv -e "ssh -i ~/.ssh/id_ed25519" \
-            server/package.json server/package-lock.json \
+            server/package.json server/package-lock.json server/drizzle.config.ts \
             "deploy@${{ secrets.DEPLOY_HOST }}:/opt/dynorun-api/"
-
-      - name: Install prod deps and restart
-        run: |
           ssh -i ~/.ssh/id_ed25519 "deploy@${{ secrets.DEPLOY_HOST }}" \
-            "cd /opt/dynorun-api && npm ci --omit=dev"
+            "mkdir -p /opt/dynorun-api/src"
+          rsync -rlgoDzv -e "ssh -i ~/.ssh/id_ed25519" \
+            server/src/schema.ts \
+            "deploy@${{ secrets.DEPLOY_HOST }}:/opt/dynorun-api/src/schema.ts"
+
+      - name: Migrate database schema
+        run: |
+          # Install full deps (incl. drizzle-kit) as root so we can also read
+          # /etc/dynorun.env for DATABASE_URL. Pruned back to prod-only after.
+          ssh -i ~/.ssh/id_ed25519 "root@${{ secrets.DEPLOY_HOST }}" "set -euo pipefail; \
+            cd /opt/dynorun-api && \
+            npm ci && \
+            set -a && . /etc/dynorun.env && set +a && \
+            npx drizzle-kit push && \
+            npm prune --omit=dev && \
+            chown -R deploy:deploy /opt/dynorun-api"
+
+      - name: Restart API
+        run: |
           ssh -i ~/.ssh/id_ed25519 "deploy@${{ secrets.DEPLOY_HOST }}" \
             "sudo systemctl restart dynorun-api"

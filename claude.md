@@ -17,7 +17,13 @@ commit and push after every implementation
 - API service: `dynorun-api` systemd unit, Node.js Hono server at `/opt/dynorun-api/`, reads `/etc/dynorun.env`
 - Database: PostgreSQL 16 in Docker (`docker exec postgres psql -U dynorun -d dynorun`), data at `/var/lib/pg-data`
 - Deploy user: `deploy` (`/home/deploy`), used to rsync built frontend into `/var/www/dynorun`
-- **Deploy = `git push origin main`** → GitHub Actions builds frontend + API, rsyncs both to server, restarts `dynorun-api`.
+- **Deploy = `git push origin main`** → GitHub Actions builds frontend + API, rsyncs both to server, runs `drizzle-kit push` against Postgres to apply schema changes, then restarts `dynorun-api`.
+
+## Database migrations
+
+- Source of truth: `server/src/schema.ts` (drizzle-orm).
+- On every deploy, the workflow rsyncs `schema.ts` + `drizzle.config.ts` to the server and runs `npx drizzle-kit push` as root (so it can source `/etc/dynorun.env`). Additive changes (new tables, new columns, new indexes) apply automatically. Destructive changes (drop column, rename) require `--force` and will fail in CI — apply those manually first via `docker exec postgres psql -U dynorun -d dynorun`.
+- To preview migrations locally: `cd server && DATABASE_URL=... npx drizzle-kit push --verbose` (read-only with `--dry-run` is not supported by drizzle-kit; use a scratch DB if you want to test).
 
 ## Public URL & TLS
 
