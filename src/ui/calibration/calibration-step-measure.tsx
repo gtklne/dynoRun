@@ -5,6 +5,7 @@ import { useSpeedSourceFactory } from './speed-source-context';
 import type { GearInput } from './calibration-step-gear';
 import type { Calibration } from '@/shared/types';
 import type { CalibrationState } from '@/run/types';
+import { setLastRecording } from '@/sensors/replay-state';
 
 interface Props {
   vehicleId: string;
@@ -158,6 +159,9 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
 
         setLive(sample);
         setDisplaySpeed(sample.speed_kmh);
+      },
+      onRecordingFinished: (rec) => {
+        setLastRecording(rec);
       },
     });
     ctrlRef.current = ctrl;

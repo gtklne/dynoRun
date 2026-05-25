@@ -17,6 +17,17 @@ export interface SpeedValue {
 export interface RpmValue { rpm: number; }
 export interface AccelValue { ax: number; ay: number; az: number; }
 
+export interface GpsPosition {
+  lat: number;
+  lng: number;
+  altitude_m: number | null;
+  altitude_accuracy_m: number | null;
+  accuracy_m: number | null;
+  speed_native_mps: number | null;
+  heading_deg: number | null;
+  pos_ms: number | null;
+}
+
 export interface SensorSource<T> {
   readonly id: string;
   readonly capabilities: Capability[];
@@ -25,6 +36,8 @@ export interface SensorSource<T> {
   readonly samples$: Observable<SensorSample<T>>;
 }
 
-export type SpeedSource = SensorSource<SpeedValue>;
+export interface SpeedSource extends SensorSource<SpeedValue> {
+  readonly rawPosition$?: Observable<GpsPosition>;
+}
 export type RpmSource = SensorSource<RpmValue>;
 export type AccelSource = SensorSource<AccelValue>;

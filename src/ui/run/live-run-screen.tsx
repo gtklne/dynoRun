@@ -11,6 +11,7 @@ import { useSpeedSourceFactory } from '@/ui/calibration/speed-source-context';
 import { StreamingChart, type StreamingChartHandle } from '@/ui/components/streaming-chart';
 import { mpsToKmh } from '@/shared/units';
 import type { RunState } from '@/run/types';
+import { setLastRecording } from '@/sensors/replay-state';
 
 export function LiveRunScreen() {
   const { vehicleId = '', calibrationId = '' } = useParams();
@@ -47,6 +48,9 @@ export function LiveRunScreen() {
           setCurrentSpeed(sKmh);
           setCurrentRpm(rpm);
           chartRef.current?.pushSample(t_ms, sKmh, rpm);
+        },
+        onRecordingFinished: (rec) => {
+          setLastRecording(rec);
         },
       });
       ctrlRef.current = ctrl;

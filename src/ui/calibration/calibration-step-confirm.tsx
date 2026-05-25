@@ -1,6 +1,28 @@
 import type { Calibration } from '@/shared/types';
+import { useReplayState, setActiveReplay } from '@/sensors/replay-state';
+import { describeRecording } from '@/sensors/recording';
 
 export function CalibrationStepConfirm({ calibration, onDone }: { calibration: Calibration; onDone: () => void }) {
+  const { last: lastRecording } = useReplayState();
+  const recordingMatches = lastRecording?.kind === 'calibration' && lastRecording.meta.vehicle_id === calibration.vehicle_id;
+
+  function downloadRecording() {
+    if (!lastRecording) return;
+    const blob = new Blob([JSON.stringify(lastRecording, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const ts = lastRecording.recorded_at.replace(/[:.]/g, '-');
+    a.download = `dynorun-${lastRecording.kind}-${ts}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function useRecordingForReplay() {
+    if (!lastRecording) return;
+    setActiveReplay(lastRecording);
+  }
+
   return (
     <div className="space-y-5">
       {/* Success header */}
@@ -40,6 +62,30 @@ export function CalibrationStepConfirm({ calibration, onDone }: { calibration: C
           </div>
         </div>
       </div>
+
+      {/* Raw sensor recording */}
+      {recordingMatches && lastRecording && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+          <div>
+            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Raw sensor recording</p>
+            <p className="text-zinc-400 text-xs mt-1.5 font-mono">{describeRecording(lastRecording)}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={downloadRecording}
+              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium py-2.5 rounded-xl transition-colors text-sm border border-zinc-700"
+            >
+              Download JSON
+            </button>
+            <button
+              onClick={useRecordingForReplay}
+              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium py-2.5 rounded-xl transition-colors text-sm border border-zinc-700"
+            >
+              Use for replay
+            </button>
+          </div>
+        </div>
+      )}
 
       <button
         onClick={onDone}

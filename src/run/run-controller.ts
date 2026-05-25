@@ -7,6 +7,7 @@ import type { IVehicleRepository, ICalibrationRepository, IRunRepository, ISampl
 import type { Calibration, Sample } from '@/shared/types';
 import { analyzeRun } from '@/analysis/pipeline';
 import { nowIso } from '@/shared/iso-time';
+import { SensorRecorder, type SensorRecording } from '@/sensors/recording';
 
 export interface RunControllerOptions {
   sensor: SpeedSource;
@@ -19,6 +20,7 @@ export interface RunControllerOptions {
   onStateChange: (state: RunState) => void;
   onLiveSample?: (s: { t_ms: number; speed_mps: number; rpm: number }) => void;
   onError?: (err: unknown) => void;
+  onRecordingFinished?: (rec: SensorRecording) => void;
 }
 
 export class RunController {
@@ -29,6 +31,7 @@ export class RunController {
   private calibration: Calibration | null = null;
   private hasSeen_positive_accel = false;
   private finishingRun = false;
+  private recorder: SensorRecorder | null = null;
 
   constructor(private readonly opts: RunControllerOptions) {
     this.detector = new AutoStopDetector(opts.autoStop ?? DEFAULT_AUTO_STOP_CONFIG);
@@ -53,10 +56,13 @@ export class RunController {
   async start(): Promise<void> {
     if (this.state.kind !== 'ready') throw new Error('start() requires ready state');
     if (!this.calibration) throw new Error('no calibration');
+    const vehicleId = this.state.vehicle_id;
+    const calibrationId = this.state.calibration_id;
+    const gearLabel = this.state.gear_label;
     const run = await this.opts.runRepository.create({
-      vehicle_id: this.state.vehicle_id,
-      calibration_id: this.state.calibration_id,
-      gear_label: this.state.gear_label,
+      vehicle_id: vehicleId,
+      calibration_id: calibrationId,
+      gear_label: gearLabel,
       conditions: {},
       notes: '',
     });
@@ -65,6 +71,17 @@ export class RunController {
     this.hasSeen_positive_accel = false;
     this.finishingRun = false;
     this.transition({ type: 'START', run_id: run.id, now_ms: 0 });
+
+    if (this.opts.onRecordingFinished) {
+      this.recorder = new SensorRecorder();
+      this.recorder.start('run', {
+        run_id: run.id,
+        vehicle_id: vehicleId,
+        calibration_id: calibrationId,
+        gear_label: gearLabel,
+      });
+      this.recorder.attachGps(this.opts.sensor);
+    }
 
     this.unsub = this.opts.sensor.samples$.subscribe((s) => this.onSample(s, run.id));
     await this.opts.sensor.start();
@@ -89,6 +106,11 @@ export class RunController {
       this.unsub?.();
       this.unsub = null;
       await this.opts.sensor.stop();
+      if (this.recorder) {
+        const rec = this.recorder.finish({ run_id: runId });
+        this.recorder = null;
+        if (rec) this.opts.onRecordingFinished?.(rec);
+      }
       await this.opts.runRepository.markAborted(runId);
       this.transition({ type: 'ABORT' });
     }
@@ -152,6 +174,11 @@ export class RunController {
     this.unsub?.();
     this.unsub = null;
     await this.opts.sensor.stop();
+    if (this.recorder) {
+      const rec = this.recorder.finish({ run_id: runId });
+      this.recorder = null;
+      if (rec) this.opts.onRecordingFinished?.(rec);
+    }
     await this.opts.runRepository.finalize(runId, nowIso());
     this.transition({ type: 'STOP' });
 

@@ -4,6 +4,8 @@ import { runRepository } from '@/api/repositories/run-repository';
 import { derivedCurveRepository } from '@/api/repositories/derived-curve-repository';
 import { PowerCurveChart } from '@/ui/components/power-curve-chart';
 import type { Run, DerivedCurve } from '@/shared/types';
+import { useReplayState, setActiveReplay } from '@/sensors/replay-state';
+import { describeRecording } from '@/sensors/recording';
 
 export function RunReviewScreen() {
   const { runId = '' } = useParams();
@@ -11,6 +13,8 @@ export function RunReviewScreen() {
   const [run, setRun] = useState<Run | null>(null);
   const [curve, setCurve] = useState<DerivedCurve | null>(null);
   const [notes, setNotes] = useState('');
+  const { last: lastRecording } = useReplayState();
+  const recordingMatchesRun = lastRecording?.meta.run_id === runId;
 
   useEffect(() => {
     (async () => {
@@ -48,6 +52,23 @@ export function RunReviewScreen() {
     navigate(`/vehicles/${run.vehicle_id}`);
   }
 
+  function downloadRecording() {
+    if (!lastRecording) return;
+    const blob = new Blob([JSON.stringify(lastRecording, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const ts = lastRecording.recorded_at.replace(/[:.]/g, '-');
+    a.download = `dynorun-${lastRecording.kind}-${ts}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function useRecordingForReplay() {
+    if (!lastRecording) return;
+    setActiveReplay(lastRecording);
+  }
+
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-bold text-zinc-100">Run review</h1>
@@ -75,6 +96,30 @@ export function RunReviewScreen() {
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden p-2">
         <PowerCurveChart series={[{ label: 'Power', points: curve.points }]} />
       </div>
+
+      {/* Raw sensor recording */}
+      {recordingMatchesRun && lastRecording && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+          <div>
+            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Raw sensor recording</p>
+            <p className="text-zinc-400 text-xs mt-1.5 font-mono">{describeRecording(lastRecording)}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={downloadRecording}
+              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium py-2.5 rounded-xl transition-colors text-sm border border-zinc-700"
+            >
+              Download JSON
+            </button>
+            <button
+              onClick={useRecordingForReplay}
+              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium py-2.5 rounded-xl transition-colors text-sm border border-zinc-700"
+            >
+              Use for replay
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Notes */}
       <div className="flex flex-col gap-1.5">

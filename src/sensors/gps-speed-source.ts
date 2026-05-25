@@ -1,4 +1,4 @@
-import type { Capability, SensorSample, SpeedSource, SpeedValue } from './types';
+import type { Capability, GpsPosition, SensorSample, SpeedSource, SpeedValue } from './types';
 import { Subject } from '@/shared/observable';
 import { haversineDistance } from '@/shared/geo';
 
@@ -8,6 +8,7 @@ export class GpsSpeedSource implements SpeedSource {
   readonly id = 'gps';
   readonly capabilities: Capability[] = ['speed'];
   readonly samples$ = new Subject<SensorSample<SpeedValue>>();
+  readonly rawPosition$ = new Subject<GpsPosition>();
   readonly errors$ = new Subject<GeolocationPositionError>();
   private watchId: number | null = null;
   private startMs = 0;
@@ -30,6 +31,17 @@ export class GpsSpeedSource implements SpeedSource {
 
         speed_mps = Math.max(0, speed_mps);
         this.lastFix = { lat: pos.coords.latitude, lng: pos.coords.longitude, ts: pos.timestamp };
+
+        this.rawPosition$.next({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          altitude_m: pos.coords.altitude,
+          altitude_accuracy_m: pos.coords.altitudeAccuracy,
+          accuracy_m: pos.coords.accuracy,
+          speed_native_mps: pos.coords.speed,
+          heading_deg: pos.coords.heading,
+          pos_ms: pos.timestamp,
+        });
 
         this.samples$.next({
           t_ms,

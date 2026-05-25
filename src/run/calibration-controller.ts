@@ -5,6 +5,7 @@ import type { SpeedSource, SensorSample, SpeedValue } from '@/sensors/types';
 import type { ICalibrationRepository } from '@/api/repositories/types';
 import type { Calibration } from '@/shared/types';
 import type { Unsubscribe } from '@/shared/observable';
+import { SensorRecorder, type SensorRecording } from '@/sensors/recording';
 
 export interface CalibrationLiveSample {
   t_ms: number;
@@ -29,6 +30,7 @@ export interface CalibrationControllerOptions {
   window?: StabilityWindow;
   onStateChange: (state: CalibrationState) => void;
   onLiveSample?: (sample: CalibrationLiveSample) => void;
+  onRecordingFinished?: (rec: SensorRecording) => void;
 }
 
 export class CalibrationController {
@@ -37,6 +39,7 @@ export class CalibrationController {
   private unsub: Unsubscribe | null = null;
   private running = false;
   private fixTimestamps: number[] = [];
+  private recorder: SensorRecorder | null = null;
 
   constructor(private readonly opts: CalibrationControllerOptions) {
     this.detector = new CalibrationStabilityDetector(opts.window ?? DEFAULT_STABILITY_WINDOW);
@@ -51,6 +54,17 @@ export class CalibrationController {
     this.running = true;
     this.detector.reset();
     this.transition({ type: 'START', gear_label: input.gear_label, user_rpm: input.user_rpm, now_ms: 0 });
+
+    if (this.opts.onRecordingFinished) {
+      this.recorder = new SensorRecorder();
+      this.recorder.start('calibration', {
+        vehicle_id: this.opts.vehicleId,
+        gear_label: input.gear_label,
+        user_rpm: input.user_rpm,
+      });
+      this.recorder.attachGps(this.opts.speedSource);
+    }
+
     this.unsub = this.opts.speedSource.samples$.subscribe((s) => this.onSample(s));
     await this.opts.speedSource.start();
   }
@@ -59,6 +73,11 @@ export class CalibrationController {
     this.unsub?.();
     this.unsub = null;
     await this.opts.speedSource.stop();
+    if (this.recorder) {
+      const rec = this.recorder.finish();
+      this.recorder = null;
+      if (rec) this.opts.onRecordingFinished?.(rec);
+    }
     this.running = false;
   }
 
