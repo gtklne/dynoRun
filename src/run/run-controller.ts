@@ -9,6 +9,18 @@ import { analyzeRun } from '@/analysis/pipeline';
 import { nowIso } from '@/shared/iso-time';
 import { SensorRecorder, type SensorRecording } from '@/sensors/recording';
 
+export interface RunLiveSample {
+  t_ms: number;
+  speed_mps: number;
+  rpm: number;
+  accuracy_m: number | null;
+  altitude_m: number | null;
+  heading_deg: number | null;
+  quality: number;
+  fix_rate_hz: number;
+  recording: boolean;
+}
+
 export interface RunControllerOptions {
   sensor: SpeedSource;
   vehicleRepository: IVehicleRepository;
@@ -18,7 +30,7 @@ export interface RunControllerOptions {
   derivedCurveRepository: IDerivedCurveRepository;
   autoStop?: AutoStopConfig;
   onStateChange: (state: RunState) => void;
-  onLiveSample?: (s: { t_ms: number; speed_mps: number; rpm: number }) => void;
+  onLiveSample?: (s: RunLiveSample) => void;
   onError?: (err: unknown) => void;
   onRecordingFinished?: (rec: SensorRecording) => void;
 }
@@ -32,6 +44,8 @@ export class RunController {
   private hasSeen_positive_accel = false;
   private finishingRun = false;
   private recorder: SensorRecorder | null = null;
+  private sensorRunning = false;
+  private fixTimestamps: number[] = [];
 
   constructor(private readonly opts: RunControllerOptions) {
     this.detector = new AutoStopDetector(opts.autoStop ?? DEFAULT_AUTO_STOP_CONFIG);
@@ -51,6 +65,19 @@ export class RunController {
       calibration_id: cal.id,
       gear_label: cal.gear_label,
     });
+  }
+
+  /**
+   * Start the sensor in warmup mode: live samples flow through onLiveSample
+   * (so the UI can show GPS quality) but nothing is recorded to the DB.
+   * Call start() once GPS is locked to promote to a recorded run.
+   */
+  async warmup(vehicleId: string, calibrationId: string): Promise<void> {
+    if (this.sensorRunning) return;
+    await this.ready(vehicleId, calibrationId);
+    this.unsub = this.opts.sensor.samples$.subscribe((s) => this.onSample(s));
+    await this.opts.sensor.start();
+    this.sensorRunning = true;
   }
 
   async start(): Promise<void> {
@@ -83,8 +110,31 @@ export class RunController {
       this.recorder.attachGps(this.opts.sensor);
     }
 
-    this.unsub = this.opts.sensor.samples$.subscribe((s) => this.onSample(s, run.id));
-    await this.opts.sensor.start();
+    // If warmup() was called, the sensor is already running and subscribed.
+    // Otherwise wire it up now.
+    if (!this.sensorRunning) {
+      this.unsub = this.opts.sensor.samples$.subscribe((s) => this.onSample(s));
+      await this.opts.sensor.start();
+      this.sensorRunning = true;
+    }
+  }
+
+  /**
+   * Tear down sensor/recorder regardless of state. Safe to call on screen
+   * unmount whether or not a run is in progress.
+   */
+  async dispose(): Promise<void> {
+    this.unsub?.();
+    this.unsub = null;
+    if (this.recorder) {
+      const rec = this.recorder.finish();
+      this.recorder = null;
+      if (rec) this.opts.onRecordingFinished?.(rec);
+    }
+    if (this.sensorRunning) {
+      try { await this.opts.sensor.stop(); } catch { /* noop */ }
+      this.sensorRunning = false;
+    }
   }
 
   async save(notes: string): Promise<void> {
@@ -106,6 +156,7 @@ export class RunController {
       this.unsub?.();
       this.unsub = null;
       await this.opts.sensor.stop();
+      this.sensorRunning = false;
       if (this.recorder) {
         const rec = this.recorder.finish({ run_id: runId });
         this.recorder = null;
@@ -122,9 +173,37 @@ export class RunController {
     this.calibration = null;
   }
 
-  private onSample(s: SensorSample<SpeedValue>, run_id: string): void {
-    if (this.state.kind !== 'running') return;
+  private onSample(s: SensorSample<SpeedValue>): void {
     if (!this.calibration) return;
+
+    this.fixTimestamps.push(s.t_ms);
+    if (this.fixTimestamps.length > 10) this.fixTimestamps.shift();
+    const span_ms = this.fixTimestamps.length > 1
+      ? this.fixTimestamps[this.fixTimestamps.length - 1] - this.fixTimestamps[0]
+      : 0;
+    const fix_rate_hz = span_ms > 0 ? (this.fixTimestamps.length - 1) / (span_ms / 1000) : 0;
+
+    const recording = this.state.kind === 'running';
+
+    if (this.opts.onLiveSample) {
+      const rpm = (s.value.speed_mps / this.calibration.rollout_m_per_rev) * 60;
+      this.opts.onLiveSample({
+        t_ms: s.t_ms,
+        speed_mps: s.value.speed_mps,
+        rpm,
+        accuracy_m: s.value.accuracy_m ?? null,
+        altitude_m: s.value.altitude_m ?? null,
+        heading_deg: s.value.heading_deg ?? null,
+        quality: s.quality,
+        fix_rate_hz,
+        recording,
+      });
+    }
+
+    if (!recording) return;
+
+    const run_id = this.state.kind === 'running' ? this.state.run_id : null;
+    if (!run_id) return;
 
     const prevSpeed = this.samples.length > 0 ? this.samples[this.samples.length - 1].speed_mps : null;
     if (prevSpeed !== null && s.value.speed_mps > prevSpeed) {
@@ -143,11 +222,6 @@ export class RunController {
     };
     this.samples.push(sample);
     this.detector.push({ t_ms: s.t_ms, speed_mps: s.value.speed_mps });
-
-    if (this.opts.onLiveSample) {
-      const rpm = (s.value.speed_mps / this.calibration.rollout_m_per_rev) * 60;
-      this.opts.onLiveSample({ t_ms: s.t_ms, speed_mps: s.value.speed_mps, rpm });
-    }
 
     if (this.hasSeen_positive_accel && this.detector.check(s.t_ms)) {
       void this.finishRun().catch((err) => {
@@ -174,6 +248,7 @@ export class RunController {
     this.unsub?.();
     this.unsub = null;
     await this.opts.sensor.stop();
+    this.sensorRunning = false;
     if (this.recorder) {
       const rec = this.recorder.finish({ run_id: runId });
       this.recorder = null;
