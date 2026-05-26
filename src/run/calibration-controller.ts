@@ -37,7 +37,7 @@ export class CalibrationController {
   private state: CalibrationState = initialCalibrationState();
   private detector: CalibrationStabilityDetector;
   private unsub: Unsubscribe | null = null;
-  private running = false;
+  private sensorRunning = false;
   private fixTimestamps: number[] = [];
   private recorder: SensorRecorder | null = null;
 
@@ -49,9 +49,21 @@ export class CalibrationController {
     return this.state;
   }
 
+  /**
+   * Start the GPS in preview mode — samples flow through onLiveSample so the
+   * UI can show GPS quality, but no recording, stability detection, or DB
+   * write happens. Call start() to promote to a real calibration once GPS
+   * is locked.
+   */
+  async warmup(): Promise<void> {
+    if (this.sensorRunning) return;
+    this.unsub = this.opts.speedSource.samples$.subscribe((s) => this.onSample(s));
+    await this.opts.speedSource.start();
+    this.sensorRunning = true;
+  }
+
   async start(input: { gear_label: string; user_rpm: number }): Promise<void> {
-    if (this.running) return;
-    this.running = true;
+    if (this.state.kind === 'measuring') return;
     this.detector.reset();
     this.transition({ type: 'START', gear_label: input.gear_label, user_rpm: input.user_rpm, now_ms: 0 });
 
@@ -65,20 +77,31 @@ export class CalibrationController {
       this.recorder.attachGps(this.opts.speedSource);
     }
 
-    this.unsub = this.opts.speedSource.samples$.subscribe((s) => this.onSample(s));
-    await this.opts.speedSource.start();
+    // If warmup() was called, the sensor is already running and subscribed.
+    if (!this.sensorRunning) {
+      this.unsub = this.opts.speedSource.samples$.subscribe((s) => this.onSample(s));
+      await this.opts.speedSource.start();
+      this.sensorRunning = true;
+    }
   }
 
   async stop(): Promise<void> {
     this.unsub?.();
     this.unsub = null;
-    await this.opts.speedSource.stop();
+    if (this.sensorRunning) {
+      try { await this.opts.speedSource.stop(); } catch { /* noop */ }
+      this.sensorRunning = false;
+    }
     if (this.recorder) {
       const rec = this.recorder.finish();
       this.recorder = null;
       if (rec) this.opts.onRecordingFinished?.(rec);
     }
-    this.running = false;
+  }
+
+  /** Alias for stop(); for symmetry with RunController.dispose(). */
+  async dispose(): Promise<void> {
+    return this.stop();
   }
 
   async confirm(): Promise<Calibration> {
