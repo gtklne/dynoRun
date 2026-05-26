@@ -5,6 +5,8 @@ interface Sample {
   speed_mps: number;
 }
 
+const MIN_AGE_FRACTION = 0.8;
+
 export class AutoStopDetector {
   private buffer: Sample[] = [];
 
@@ -23,13 +25,20 @@ export class AutoStopDetector {
   }
 
   check(now_ms: number): boolean {
-    const cutoff = now_ms - this.config.zero_accel_window_ms;
-    const window = this.buffer.filter((s) => s.t_ms >= cutoff);
-    if (window.length < 2) return false;
-    const first = window[0];
-    const last = window[window.length - 1];
-    if (last.t_ms - first.t_ms < this.config.zero_accel_window_ms) return false;
-    // Non-positive acceleration over the window: last speed <= first speed
-    return last.speed_mps <= first.speed_mps;
+    if (this.buffer.length < 2) return false;
+    const last = this.buffer[this.buffer.length - 1];
+    // Find the most recent sample that's at least minAge older than now.
+    // Using a fraction of the window tolerates GPS jitter at 1 Hz, where
+    // consecutive samples are ~1000ms ± a few ms apart.
+    const minAge = this.config.zero_accel_window_ms * MIN_AGE_FRACTION;
+    let baseline: Sample | null = null;
+    for (let i = this.buffer.length - 2; i >= 0; i--) {
+      if (now_ms - this.buffer[i].t_ms >= minAge) {
+        baseline = this.buffer[i];
+        break;
+      }
+    }
+    if (!baseline) return false;
+    return last.speed_mps <= baseline.speed_mps;
   }
 }

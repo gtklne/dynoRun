@@ -1,5 +1,6 @@
 import type { AnalyzedRun, RawSpeedSample } from './types';
 import { PIPELINE_VERSION } from './types';
+import { trimToAccelPhase } from './trim-to-peak';
 import { resample } from './resample';
 import { smoothSavitzkyGolay } from './smooth';
 import { differentiate } from './differentiate';
@@ -20,7 +21,8 @@ export function analyzeRun(input: AnalyzeInput): AnalyzedRun {
   const window = input.smooth_window ?? 11;
   const bin = input.bin_width_rpm ?? 100;
 
-  const resampled = resample(input.samples, step);
+  const trimmed = trimToAccelPhase(input.samples);
+  const resampled = resample(trimmed, step);
   const smoothed = smoothSavitzkyGolay(resampled, window);
   const differentiated = differentiate(smoothed);
   const ptPoints = powerAndTorque(differentiated, input.mass_kg, input.rollout_m_per_rev);
