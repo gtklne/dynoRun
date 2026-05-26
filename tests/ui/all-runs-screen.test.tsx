@@ -64,6 +64,7 @@ function makeRun(overrides: Partial<Run> & { id: string; vehicle_id: string }): 
     peak_power_kw: 100,
     peak_torque_nm: 200,
     peak_power_rpm: 5000,
+    share_token: null,
     created_at: '2026-01-01T10:00:00.000Z',
     updated_at: '2026-01-01T10:00:30.000Z',
     synced_at: null,
