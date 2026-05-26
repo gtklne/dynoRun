@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { RunConditions } from '@/shared/types';
 
 export interface ConditionsModalProps {
@@ -72,6 +72,8 @@ export function ConditionsModal({ open, initial, onClose, onSave }: ConditionsMo
   const [form, setForm] = useState<FormState>(() => fromInitial(initial));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const firstInputRef = useRef<HTMLInputElement | null>(null);
+  const dirtyRef = useRef(false);
 
   useEffect(() => {
     if (open) {
@@ -82,6 +84,40 @@ export function ConditionsModal({ open, initial, onClose, onSave }: ConditionsMo
   }, [open, initial]);
 
   const dirty = useMemo(() => isDirty(form, initial), [form, initial]);
+  // Mirror dirty into a ref so the escape-key handler doesn't have to be
+  // re-registered on every keystroke.
+  useEffect(() => {
+    dirtyRef.current = dirty;
+  }, [dirty]);
+
+  // Lock body scroll while open so the page behind doesn't scroll on iOS.
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
+  // Escape closes (with the dirty-confirm guard) — matches HelpDrawer.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (dirtyRef.current && !window.confirm('Discard unsaved condition changes?')) return;
+      onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
+  // Focus the first input when the modal opens.
+  useEffect(() => {
+    if (!open) return;
+    const id = window.setTimeout(() => firstInputRef.current?.focus(), 0);
+    return () => window.clearTimeout(id);
+  }, [open]);
 
   if (!open) return null;
 
@@ -151,6 +187,7 @@ export function ConditionsModal({ open, initial, onClose, onSave }: ConditionsMo
             Ambient temperature (°C)
           </label>
           <input
+            ref={firstInputRef}
             id="cond-temp"
             type="number"
             inputMode="decimal"
