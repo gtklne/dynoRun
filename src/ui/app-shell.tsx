@@ -1,5 +1,4 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { isNative } from '@/app/platform';
 
 function GarageIcon() {
   return (
@@ -42,13 +41,6 @@ export function AppShell() {
       <header className="pt-safe bg-zinc-950 border-b border-zinc-800/60 px-4 py-3 flex items-center">
         <span className="text-amber-400 font-bold text-xl tracking-tight">dyno<span className="text-zinc-100">Run</span></span>
       </header>
-
-      {/* Web-only session warning */}
-      {!isNative() && (
-        <div className="bg-amber-950/40 border-b border-amber-800/40 px-4 py-2 text-amber-300 text-xs">
-          Web preview — data is session-only and will be lost on reload. Use the iOS or Android app for persistent storage.
-        </div>
-      )}
 
       {/* Main content */}
       <main className="flex-1 overflow-y-auto pb-20 px-4 pt-4">
