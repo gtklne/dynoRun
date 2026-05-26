@@ -42,7 +42,7 @@ export class RecordedSpeedSource implements SpeedSource {
     prev: SensorRecording['gps_fixes'][number] | null,
   ): void {
     if (!this.running) return;
-    const t_ms = performance.now() - this.startMs;
+    const t_ms = Math.round(performance.now() - this.startMs);
 
     let speed_mps = fix.speed_native_mps != null && fix.speed_native_mps > 0
       ? fix.speed_native_mps

@@ -19,7 +19,10 @@ route.post('/runs/:id/samples', async (c) => {
   if (body.length === 0) return c.json({ inserted: 0 });
   await db.insert(samples).values(body.map((s) => ({
     run_id: runId,
-    t_ms: s.t_ms,
+    // t_ms is an integer column; clients derive it from performance.now() which
+    // can carry sub-ms float drift (e.g. 9197.000000000002). Round defensively so
+    // a stray float never rejects the whole batch and strands the run mid-analysis.
+    t_ms: Math.round(s.t_ms),
     speed_mps: s.speed_mps,
     accel_long_ms2: s.accel_long_ms2 ?? null,
     accel_vert_ms2: s.accel_vert_ms2 ?? null,

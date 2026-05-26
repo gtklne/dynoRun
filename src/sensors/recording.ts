@@ -76,7 +76,7 @@ export class SensorRecorder {
   private recordGps(p: GpsPosition): void {
     if (!this.rec) return;
     this.rec.gps_fixes.push({
-      t_ms: performance.now() - this.startMs,
+      t_ms: Math.round(performance.now() - this.startMs),
       wall_ms: Date.now(),
       pos_ms: p.pos_ms,
       lat: p.lat,
@@ -95,7 +95,7 @@ export class SensorRecorder {
     const ag = e.accelerationIncludingGravity;
     const r = e.rotationRate;
     this.rec.motion_fixes.push({
-      t_ms: performance.now() - this.startMs,
+      t_ms: Math.round(performance.now() - this.startMs),
       accel_x: a?.x ?? null,
       accel_y: a?.y ?? null,
       accel_z: a?.z ?? null,
@@ -111,7 +111,7 @@ export class SensorRecorder {
 
   finish(metaPatch: SensorRecordingMeta = {}): SensorRecording | null {
     if (!this.rec) return null;
-    this.rec.duration_ms = performance.now() - this.startMs;
+    this.rec.duration_ms = Math.round(performance.now() - this.startMs);
     this.rec.meta = { ...this.rec.meta, ...metaPatch };
     if (this.motionHandler) {
       window.removeEventListener('devicemotion', this.motionHandler);

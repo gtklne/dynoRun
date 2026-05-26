@@ -22,7 +22,7 @@ export class GpsSpeedSource implements SpeedSource {
     this.lastFix = null;
     this.watchId = navigator.geolocation.watchPosition(
       (pos) => {
-        const t_ms = performance.now() - this.startMs;
+        const t_ms = Math.round(performance.now() - this.startMs);
         const quality = pos.coords.accuracy ? Math.max(0, 1 - pos.coords.accuracy / 30) : 0.5;
 
         let speed_mps = pos.coords.speed != null && pos.coords.speed > 0

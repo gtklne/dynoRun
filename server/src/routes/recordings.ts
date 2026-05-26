@@ -75,7 +75,7 @@ route.post('/recordings', async (c) => {
     user_rpm: body.user_rpm ?? null,
     label: body.label ?? null,
     recorded_at: body.recorded_at,
-    duration_ms: body.duration_ms,
+    duration_ms: Math.round(body.duration_ms), // integer column; guard against performance.now() float drift
     gps_count: body.data.gps_fixes.length,
     motion_count: body.data.motion_fixes.length,
     data: body.data,

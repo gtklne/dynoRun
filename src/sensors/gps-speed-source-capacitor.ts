@@ -31,7 +31,7 @@ export class CapacitorGpsSpeedSource implements SpeedSource {
       }
       if (!pos) return;
 
-      const t_ms = performance.now() - this.startMs;
+      const t_ms = Math.round(performance.now() - this.startMs);
       const quality = pos.coords.accuracy ? Math.max(0, 1 - pos.coords.accuracy / 30) : 0.5;
 
       // iOS returns -1 for unknown speed; treat null/-1/0 all as "unavailable"
