@@ -6,7 +6,9 @@ describe('createDatabaseDump', () => {
   it('returns a JSON object with all 5 tables and a format version', () => {
     const vehicle: Vehicle = {
       id: '1', user_id: null, name: 'Civic', kind: 'car', mass_kg: 1300, drivetrain: 'fwd',
-      frontal_area_m2: null, drag_coefficient: null, notes: '', created_at: '2026-01-01T00:00:00Z',
+      frontal_area_m2: null, drag_coefficient: null, notes: '',
+      make: null, model: null, year: null, tire_label: null, power_hp_factory: null, transmission: null,
+      created_at: '2026-01-01T00:00:00Z',
       updated_at: '2026-01-01T00:00:00Z', synced_at: null,
     };
     const calibration: Calibration = {
@@ -48,7 +50,9 @@ describe('createDatabaseDump', () => {
   it('preserves runs.conditions and derived_curves.points as objects', () => {
     const vehicle: Vehicle = {
       id: '1', user_id: null, name: 'Civic', kind: 'car', mass_kg: 1300, drivetrain: 'fwd',
-      frontal_area_m2: null, drag_coefficient: null, notes: '', created_at: '2026-01-01T00:00:00Z',
+      frontal_area_m2: null, drag_coefficient: null, notes: '',
+      make: null, model: null, year: null, tire_label: null, power_hp_factory: null, transmission: null,
+      created_at: '2026-01-01T00:00:00Z',
       updated_at: '2026-01-01T00:00:00Z', synced_at: null,
     };
     const calibration: Calibration = {
