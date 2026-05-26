@@ -17,6 +17,7 @@ import { CompareScreen } from './ui/compare/compare-screen';
 import { SettingsScreen } from './ui/settings/settings-screen';
 import { AllRunsScreen } from './ui/runs/all-runs-screen';
 import { PublicShareScreen } from './ui/share/public-share-screen';
+import { DemoRunScreen } from './ui/demo/demo-run-screen';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -35,6 +36,7 @@ export default function App() {
               <Routes>
                 <Route path="/login" element={<LoginScreen />} />
                 <Route path="/share/:token" element={<PublicShareScreen />} />
+                <Route path="/demo" element={<DemoRunScreen />} />
                 <Route element={<RequireAuth><AppShell /></RequireAuth>}>
                   <Route index element={<GarageScreen />} />
                   <Route path="/vehicles/:id" element={<VehicleDetail />} />

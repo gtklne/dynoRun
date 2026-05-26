@@ -117,6 +117,14 @@ function OnboardingCard() {
           </li>
         ))}
       </ol>
+      <div className="pt-1">
+        <Link
+          to="/demo"
+          className="text-amber-400 hover:text-amber-300 text-sm font-semibold"
+        >
+          See an example run →
+        </Link>
+      </div>
     </div>
   );
 }

@@ -5,13 +5,45 @@ import { BrandLogo } from '@/ui/components/brand-logo';
 import { PowerCurveChart } from '@/ui/components/power-curve-chart';
 import { ConditionsChips } from '@/ui/run/conditions-chips';
 import { useUnits } from '@/app/units-context';
-import { formatPower } from '@/shared/format-power';
+import { formatPower, type PowerUnit } from '@/shared/format-power';
 import { formatShortDateTime } from '@/shared/format-time';
 
 type LoadState =
   | { kind: 'loading' }
   | { kind: 'error' }
   | { kind: 'ready'; data: PublicShareData };
+
+const DEFAULT_TITLE = 'DynoRun';
+
+function setMetaContent(selector: string, content: string): void {
+  const el = document.head.querySelector<HTMLMetaElement>(selector);
+  if (el) el.setAttribute('content', content);
+}
+
+function applyShareMeta(title: string, description: string): void {
+  document.title = title;
+  setMetaContent('meta[name="description"]', description);
+  setMetaContent('meta[property="og:title"]', title);
+  setMetaContent('meta[property="og:description"]', description);
+  setMetaContent('meta[name="twitter:title"]', title);
+  setMetaContent('meta[name="twitter:description"]', description);
+}
+
+function buildShareMeta(data: PublicShareData, unit: PowerUnit): { title: string; description: string } {
+  const { run, vehicle, curve } = data;
+  const peak = curve.points.reduce<{ wheel_power_kw: number; rpm: number } | null>((best, p) => {
+    if (best == null || p.wheel_power_kw > best.wheel_power_kw) return p;
+    return best;
+  }, null);
+  const baseTitle = run.title ?? `${vehicle.name} · ${run.gear_label}`;
+  const title = peak
+    ? `${baseTitle} — ${formatPower(peak.wheel_power_kw, unit)}`
+    : baseTitle;
+  const description = peak
+    ? `Peak ${formatPower(peak.wheel_power_kw, unit)} @ ${peak.rpm.toFixed(0)} RPM · ${vehicle.name} · DynoRun`
+    : `${vehicle.name} run · DynoRun`;
+  return { title, description };
+}
 
 function Frame({ children }: { children: React.ReactNode }) {
   return (
@@ -68,6 +100,16 @@ export function PublicShareScreen() {
       cancelled = true;
     };
   }, [token]);
+
+  useEffect(() => {
+    if (state.kind === 'ready') {
+      const meta = buildShareMeta(state.data, units.unit);
+      applyShareMeta(meta.title, meta.description);
+    }
+    return () => {
+      document.title = DEFAULT_TITLE;
+    };
+  }, [state, units.unit]);
 
   const peak = useMemo(() => {
     if (state.kind !== 'ready') return null;
