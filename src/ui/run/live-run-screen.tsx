@@ -43,12 +43,15 @@ export function LiveRunScreen() {
   const [forceStart, setForceStart] = useState(false);
   const [countingDown, setCountingDown] = useState(false);
   const [livePeakKw, setLivePeakKw] = useState<number | null>(null);
+  const [liveZeroToHundred, setLiveZeroToHundred] = useState<number | null>(null);
   const ctrlRef = useRef<RunController | null>(null);
   const chartRef = useRef<StreamingChartHandle>(null);
   const wakeLockRef = useRef(new WakeLock());
   const prevStateRef = useRef<RunState['kind']>('idle');
   const ringRef = useRef<{ t_ms: number; speed_mps: number }[]>([]);
   const massRef = useRef<number | null>(null);
+  const startTimeRef = useRef<{ t_ms: number; speed_mps: number } | null>(null);
+  const hundredCrossedRef = useRef(false);
 
   // Tick the clock so "lock progress" and "poor GPS" timers update even
   // when no new GPS sample arrives.
@@ -115,6 +118,21 @@ export function LiveRunScreen() {
                 setLivePeakKw((prev) => (prev == null || p_kw > prev ? p_kw : prev));
               }
             }
+
+            // Live 0-100: only meaningful if the recording started below ~5 km/h
+            // (matches accel-times.ts ZERO_START_TOLERANCE_KMH). We freeze the
+            // first crossing so the displayed time doesn't keep updating after
+            // the milestone is hit.
+            if (!startTimeRef.current) {
+              startTimeRef.current = { t_ms, speed_mps };
+            }
+            if (!hundredCrossedRef.current && startTimeRef.current.speed_mps * 3.6 <= 5) {
+              if (sKmh >= 100) {
+                const elapsed = (t_ms - startTimeRef.current.t_ms) / 1000;
+                hundredCrossedRef.current = true;
+                setLiveZeroToHundred(elapsed);
+              }
+            }
           }
         },
         onRecordingFinished: (rec) => {
@@ -169,7 +187,10 @@ export function LiveRunScreen() {
   async function beginRecording() {
     if (!ctrlRef.current) return;
     setLivePeakKw(null);
+    setLiveZeroToHundred(null);
     ringRef.current = [];
+    startTimeRef.current = null;
+    hundredCrossedRef.current = false;
     await wakeLockRef.current.acquire();
     chartRef.current?.reset();
     pulseStart();
@@ -240,6 +261,15 @@ export function LiveRunScreen() {
               </p>
             </div>
           </div>
+          {liveZeroToHundred != null && (
+            <div className="mt-3 pt-3 border-t border-zinc-800 flex items-baseline justify-between">
+              <span className="text-zinc-500 text-xs uppercase tracking-wider">0–100 km/h</span>
+              <span className="tabular-nums">
+                <span className="text-2xl font-bold text-amber-400">{liveZeroToHundred.toFixed(1)}</span>
+                <span className="text-xs text-zinc-400 ml-1">s</span>
+              </span>
+            </div>
+          )}
         </div>
       )}
 

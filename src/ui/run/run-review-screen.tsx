@@ -2,16 +2,20 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { runRepository } from '@/api/repositories/run-repository';
 import { derivedCurveRepository } from '@/api/repositories/derived-curve-repository';
-import { ensureCurrentCurve } from '@/analysis/re-analyze';
+import { vehicleRepository } from '@/api/repositories/vehicle-repository';
+import { ensureCurrentCurve, loadAnalyzedRun } from '@/analysis/re-analyze';
+import type { AnalyzedRun } from '@/analysis/types';
 import { PowerCurveChart, type CurveDisplayMode } from '@/ui/components/power-curve-chart';
 import { SegmentedControl } from '@/ui/components/segmented-control';
-import type { Run, DerivedCurve } from '@/shared/types';
+import { AccelTimesCard } from '@/ui/components/accel-times-card';
+import { RunQualityBadge } from '@/ui/components/run-quality-badge';
+import type { Run, DerivedCurve, Vehicle } from '@/shared/types';
 import { useReplayState, setActiveReplay } from '@/sensors/replay-state';
 import { describeRecording } from '@/sensors/recording';
 import { useUnits } from '@/app/units-context';
 import { convertPower, formatPower, type PowerUnit } from '@/shared/format-power';
 import { formatShortDateTime } from '@/shared/format-time';
-import { shareRun } from '@/app/share-image';
+import { shareRun, shareRunCard } from '@/app/share-image';
 
 const CHART_MODE_OPTIONS = [
   { value: 'power', label: 'Power' },
@@ -28,7 +32,9 @@ export function RunReviewScreen() {
   const navigate = useNavigate();
   const units = useUnits();
   const [run, setRun] = useState<Run | null>(null);
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [curve, setCurve] = useState<DerivedCurve | null>(null);
+  const [analyzed, setAnalyzed] = useState<AnalyzedRun | null>(null);
   const [notes, setNotes] = useState('');
   const [title, setTitle] = useState('');
   const [chartMode, setChartMode] = useState<CurveDisplayMode>('power');
@@ -46,7 +52,13 @@ export function RunReviewScreen() {
       if (r) {
         setNotes(r.notes);
         setTitle(r.title ?? `${r.gear_label} · ${formatShortDateTime(r.started_at)}`);
+        const v = await vehicleRepository.get(r.vehicle_id);
+        setVehicle(v);
       }
+      // accel-times + quality aren't in the persisted DerivedCurve, so
+      // re-run analyzeRun in-memory from raw samples.
+      const a = await loadAnalyzedRun(runId);
+      setAnalyzed(a);
     })();
   }, [runId]);
 
@@ -150,13 +162,31 @@ export function RunReviewScreen() {
   }
 
   async function share() {
-    if (!peak) {
+    if (!peak || !run || !curve) {
       exportCsv();
       return;
     }
-    const titleStr = title || `${run!.gear_label} run`;
+    const titleStr = title || `${run.gear_label} run`;
     const text = `Peak ${units.format(peak.wheel_power_kw)} @ ${peak.rpm.toFixed(0)} RPM`;
-    await shareRun({ title: titleStr, text }, exportCsv);
+    try {
+      await shareRunCard(
+        {
+          title: titleStr,
+          text,
+          vehicleName: vehicle?.name ?? 'Vehicle',
+          gearLabel: run.gear_label,
+          unit: units.unit,
+          peakPowerKw: peak.wheel_power_kw,
+          peakTorqueNm: peakTorque?.wheel_torque_nm ?? null,
+          peakPowerRpm: peak.rpm,
+          curvePoints: curve.points,
+          accelTimes: analyzed?.accel_times ?? null,
+        },
+        () => shareRun({ title: titleStr, text }, exportCsv),
+      );
+    } catch {
+      await shareRun({ title: titleStr, text }, exportCsv);
+    }
   }
 
   const opp = oppositeUnit(units.unit);
@@ -175,7 +205,10 @@ export function RunReviewScreen() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold text-zinc-100">Run review</h1>
+      <div className="flex items-center gap-3 flex-wrap">
+        <h1 className="text-2xl font-bold text-zinc-100">Run review</h1>
+        {analyzed && <RunQualityBadge quality={analyzed.quality} />}
+      </div>
 
       {/* Peak stats — 2x2 grid */}
       <div className="grid grid-cols-2 gap-3">
@@ -237,6 +270,8 @@ export function RunReviewScreen() {
           )}
         </div>
       </div>
+
+      {analyzed && <AccelTimesCard accel={analyzed.accel_times} />}
 
       {/* Chart mode toggle */}
       <div className="flex justify-center">

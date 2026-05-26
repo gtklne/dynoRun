@@ -1,5 +1,6 @@
 import { PIPELINE_VERSION } from './types';
 import { analyzeRun } from './pipeline';
+import type { AnalyzedRun } from './types';
 import { runRepository } from '@/api/repositories/run-repository';
 import { vehicleRepository } from '@/api/repositories/vehicle-repository';
 import { calibrationRepository } from '@/api/repositories/calibration-repository';
@@ -57,4 +58,25 @@ export async function ensureCurrentCurve(
 ): Promise<DerivedCurve | null> {
   if (current && current.pipeline_version >= PIPELINE_VERSION) return current;
   return reanalyzeRun(runId);
+}
+
+// AnalyzedRun carries the extra accel-times + quality data that DerivedCurve
+// (which is what's persisted) does NOT include. The review screen needs both,
+// so we re-run analyzeRun in-memory from raw samples whenever it's mounted.
+export async function loadAnalyzedRun(runId: string): Promise<AnalyzedRun | null> {
+  const run = await runRepository.get(runId);
+  if (!run) return null;
+  const calibration = await calibrationRepository.get(run.calibration_id);
+  if (!calibration) return null;
+  const [vehicle, samples] = await Promise.all([
+    vehicleRepository.get(calibration.vehicle_id),
+    sampleRepository.listByRun(runId),
+  ]);
+  if (!vehicle) return null;
+  if (samples.length === 0) return null;
+  return analyzeRun({
+    samples: samples.map((s) => ({ t_ms: s.t_ms, speed_mps: s.speed_mps })),
+    mass_kg: vehicle.mass_kg,
+    rollout_m_per_rev: calibration.rollout_m_per_rev,
+  });
 }
