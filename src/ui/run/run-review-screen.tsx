@@ -11,7 +11,8 @@ import { SegmentedControl } from '@/ui/components/segmented-control';
 import { AccelTimesCard } from '@/ui/components/accel-times-card';
 import { RunQualityBadge } from '@/ui/components/run-quality-badge';
 import { useToast } from '@/ui/components/toast';
-import type { Run, DerivedCurve, Vehicle } from '@/shared/types';
+import { ConditionsModal } from '@/ui/run/conditions-modal';
+import type { Run, DerivedCurve, Vehicle, RunConditions } from '@/shared/types';
 import { useReplayState, setActiveReplay } from '@/sensors/replay-state';
 import { describeRecording } from '@/sensors/recording';
 import { useUnits } from '@/app/units-context';
@@ -36,6 +37,34 @@ function shareUrlFor(token: string): string {
   return `https://wasgoht.ch/share/${token}`;
 }
 
+function formatSurface(surface: string): string {
+  return surface
+    .split(/\s+/)
+    .map((word) => (word.length > 0 ? word[0].toUpperCase() + word.slice(1) : word))
+    .join(' ');
+}
+
+function conditionPills(c: RunConditions): string[] {
+  const pills: string[] = [];
+  if (typeof c.ambient_temp_c === 'number') pills.push(`${c.ambient_temp_c}°C`);
+  if (typeof c.wind_kmh === 'number') {
+    const sign = c.wind_kmh > 0 ? '+' : '';
+    pills.push(`${sign}${c.wind_kmh} km/h wind`);
+  }
+  if (typeof c.road_slope_pct === 'number') pills.push(`${c.road_slope_pct}% slope`);
+  if (c.surface) pills.push(formatSurface(c.surface));
+  return pills;
+}
+
+function hasAnyCondition(c: RunConditions): boolean {
+  return (
+    typeof c.ambient_temp_c === 'number' ||
+    typeof c.wind_kmh === 'number' ||
+    typeof c.road_slope_pct === 'number' ||
+    !!c.surface
+  );
+}
+
 export function RunReviewScreen() {
   const { runId = '' } = useParams();
   const navigate = useNavigate();
@@ -50,6 +79,7 @@ export function RunReviewScreen() {
   const [chartMode, setChartMode] = useState<CurveDisplayMode>('power');
   const [prevBest, setPrevBest] = useState<number | null>(null);
   const [shareBusy, setShareBusy] = useState(false);
+  const [conditionsOpen, setConditionsOpen] = useState(false);
   const { last: lastRecording } = useReplayState();
   const recordingMatchesRun = lastRecording?.meta.run_id === runId;
 
@@ -221,6 +251,18 @@ export function RunReviewScreen() {
       // toast surfaced via apiErrors$
     } finally {
       setShareBusy(false);
+    }
+  }
+
+  async function saveConditions(next: RunConditions) {
+    if (!run) return;
+    try {
+      await runRepository.update(run.id, { conditions: next });
+      setRun({ ...run, conditions: next });
+      toast.show('Conditions saved', { variant: 'success' });
+    } catch (err) {
+      toast.show('Could not save conditions', { variant: 'error' });
+      throw err;
     }
   }
 
@@ -400,10 +442,58 @@ export function RunReviewScreen() {
           className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-500 transition-colors text-sm resize-none"
           rows={3}
           value={notes}
-          placeholder="Conditions, modifications, observations…"
+          placeholder="Modifications, observations…"
           onChange={(e) => setNotes(e.target.value)}
         />
       </div>
+
+      {/* Conditions */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Conditions</p>
+          {hasAnyCondition(run.conditions) && (
+            <button
+              type="button"
+              onClick={() => setConditionsOpen(true)}
+              className="text-xs text-amber-400 hover:text-amber-300 font-medium"
+            >
+              Edit
+            </button>
+          )}
+        </div>
+        {hasAnyCondition(run.conditions) ? (
+          <div className="flex flex-wrap gap-2">
+            {conditionPills(run.conditions).map((pill) => (
+              <span
+                key={pill}
+                className="bg-zinc-800 border border-zinc-700 rounded-full px-3 py-1 text-xs text-zinc-200 tabular-nums"
+              >
+                {pill}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-zinc-500 text-xs">
+              Log temp, wind, tires, or surface to make this run comparable later.
+            </p>
+            <button
+              type="button"
+              onClick={() => setConditionsOpen(true)}
+              className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium py-2.5 rounded-xl transition-colors text-sm border border-zinc-700"
+            >
+              Add conditions
+            </button>
+          </div>
+        )}
+      </div>
+
+      <ConditionsModal
+        open={conditionsOpen}
+        initial={run.conditions}
+        onClose={() => setConditionsOpen(false)}
+        onSave={saveConditions}
+      />
 
       {/* Public share link */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
