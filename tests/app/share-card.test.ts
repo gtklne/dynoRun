@@ -83,4 +83,39 @@ describe('renderShareCard', () => {
     });
     expect(blob.size).toBeGreaterThan(0);
   });
+
+  it('renders successfully with conditions populated', async () => {
+    const blob = await renderShareCard({
+      vehicleName: 'Civic Type R',
+      gearLabel: '3rd',
+      unit: 'kW',
+      peakPowerKw: 165,
+      peakTorqueNm: 280,
+      peakPowerRpm: 5600,
+      curvePoints: makeCurve(),
+      accelTimes: makeAccel(),
+      conditions: {
+        ambient_temp_c: 18,
+        wind_kmh: 5,
+        surface: 'summer tires',
+      },
+    });
+    expect(blob).toBeInstanceOf(Blob);
+    expect(blob.size).toBeGreaterThan(0);
+  });
+
+  it('renders successfully with empty conditions', async () => {
+    const blob = await renderShareCard({
+      vehicleName: 'Civic Type R',
+      gearLabel: '3rd',
+      unit: 'kW',
+      peakPowerKw: 165,
+      peakTorqueNm: 280,
+      peakPowerRpm: 5600,
+      curvePoints: makeCurve(),
+      accelTimes: makeAccel(),
+      conditions: {},
+    });
+    expect(blob.size).toBeGreaterThan(0);
+  });
 });

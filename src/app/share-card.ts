@@ -1,4 +1,4 @@
-import type { RpmPoint } from '@/shared/types';
+import type { RpmPoint, RunConditions } from '@/shared/types';
 import type { AccelTimes } from '@/analysis/accel-times';
 import { convertPower, type PowerUnit } from '@/shared/format-power';
 
@@ -12,6 +12,27 @@ export interface ShareCardInput {
   peakPowerRpm: number | null;
   curvePoints: RpmPoint[];
   accelTimes: AccelTimes | null;
+  conditions?: RunConditions;
+}
+
+function signedShareCardValue(n: number): string {
+  if (n > 0) return `+${n}`;
+  if (n < 0) return `−${Math.abs(n)}`;
+  return '0';
+}
+
+function formatConditionsLine(c: RunConditions | undefined): string | null {
+  if (!c) return null;
+  const parts: string[] = [];
+  if (typeof c.ambient_temp_c === 'number') parts.push(`${c.ambient_temp_c}°C`);
+  if (typeof c.wind_kmh === 'number') {
+    parts.push(`${signedShareCardValue(c.wind_kmh)} km/h`);
+  }
+  if (typeof c.road_slope_pct === 'number') {
+    parts.push(`${signedShareCardValue(c.road_slope_pct)}% grade`);
+  }
+  if (c.surface) parts.push(c.surface);
+  return parts.length > 0 ? parts.join(' · ') : null;
 }
 
 const WIDTH = 1200;
@@ -290,6 +311,15 @@ export async function renderShareCard(input: ShareCardInput): Promise<Blob> {
     ctx.font = '500 16px system-ui, -apple-system, sans-serif';
     ctx.fillText(cell.unit, x + 16, secY + 104);
   });
+
+  const conditionsLine = formatConditionsLine(input.conditions);
+  if (conditionsLine) {
+    ctx.fillStyle = TEXT_SUBTLE;
+    ctx.font = '500 18px system-ui, -apple-system, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(conditionsLine, secX, secY + 156);
+  }
 
   // Chart area — bottom strip.
   const chartBox = { x: PAD_X, y: 460, w: WIDTH - PAD_X * 2, h: 110 };

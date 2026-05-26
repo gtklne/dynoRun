@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { shareRepository, type PublicShareData } from '@/api/repositories/share-repository';
 import { BrandLogo } from '@/ui/components/brand-logo';
 import { PowerCurveChart } from '@/ui/components/power-curve-chart';
+import { ConditionsChips } from '@/ui/run/conditions-chips';
 import { useUnits } from '@/app/units-context';
 import { formatPower } from '@/shared/format-power';
 import { formatShortDateTime } from '@/shared/format-time';
@@ -127,6 +128,8 @@ export function PublicShareScreen() {
             {vehicle.name} · {run.gear_label} · {formatShortDateTime(run.started_at)}
           </p>
         </div>
+
+        <ConditionsChips conditions={run.conditions} size="md" />
 
         {/* Peak stats — 2x2 grid */}
         <div className="grid grid-cols-2 gap-3">

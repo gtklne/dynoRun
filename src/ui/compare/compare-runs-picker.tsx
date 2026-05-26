@@ -1,6 +1,7 @@
 import type { Run } from '@/shared/types';
 import { formatRelativeTime } from '@/shared/format-time';
 import { convertPower, formatPower, type PowerUnit } from '@/shared/format-power';
+import { ConditionsChips } from '@/ui/run/conditions-chips';
 
 interface Props {
   runs: Run[];
@@ -85,6 +86,9 @@ export function CompareRunsPicker({
               {secondary && (
                 <p className="text-zinc-500 text-xs mt-0.5 italic truncate">{secondary}</p>
               )}
+              <div className="mt-1">
+                <ConditionsChips conditions={r.conditions} size="sm" />
+              </div>
             </div>
           </button>
         );
