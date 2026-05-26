@@ -28,4 +28,6 @@ export interface AnalyzedRun {
   pipeline_version: number;
 }
 
-export const PIPELINE_VERSION = 1;
+// v2: trim raw samples to peak-speed before resampling so the coast-down
+// no longer pollutes the RPM bins with negative power.
+export const PIPELINE_VERSION = 2;

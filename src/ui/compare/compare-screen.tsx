@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { runRepository } from '@/api/repositories/run-repository';
 import { derivedCurveRepository } from '@/api/repositories/derived-curve-repository';
+import { ensureCurrentCurve } from '@/analysis/re-analyze';
 import { PowerCurveChart, type CurveSeries } from '@/ui/components/power-curve-chart';
 import { CompareRunsPicker } from './compare-runs-picker';
 import type { Run, DerivedCurve } from '@/shared/types';
@@ -19,7 +20,8 @@ export function CompareScreen() {
       const map = new Map<string, DerivedCurve>();
       for (const r of complete) {
         const c = await derivedCurveRepository.getByRun(r.id);
-        if (c) map.set(r.id, c);
+        const ensured = await ensureCurrentCurve(r.id, c);
+        if (ensured) map.set(r.id, ensured);
       }
       setRuns(complete.filter((r) => map.has(r.id)));
       setCurves(map);

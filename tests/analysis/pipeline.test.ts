@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { analyzeRun } from '@/analysis/pipeline';
+import { PIPELINE_VERSION } from '@/analysis/types';
 
 describe('analyzeRun', () => {
   it('produces a non-empty curve for a synthetic constant-acceleration run', () => {
@@ -18,6 +19,6 @@ describe('analyzeRun', () => {
         result.points[i - 1].wheel_power_kw - 0.5,
       );
     }
-    expect(result.pipeline_version).toBe(1);
+    expect(result.pipeline_version).toBe(PIPELINE_VERSION);
   });
 });

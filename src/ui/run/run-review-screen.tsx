@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { runRepository } from '@/api/repositories/run-repository';
 import { derivedCurveRepository } from '@/api/repositories/derived-curve-repository';
+import { ensureCurrentCurve } from '@/analysis/re-analyze';
 import { PowerCurveChart } from '@/ui/components/power-curve-chart';
 import type { Run, DerivedCurve } from '@/shared/types';
 import { useReplayState, setActiveReplay } from '@/sensors/replay-state';
@@ -20,8 +21,9 @@ export function RunReviewScreen() {
     (async () => {
       const r = await runRepository.get(runId);
       const c = await derivedCurveRepository.getByRun(runId);
+      const ensured = await ensureCurrentCurve(runId, c);
       setRun(r);
-      setCurve(c);
+      setCurve(ensured);
       if (r) setNotes(r.notes);
     })();
   }, [runId]);
