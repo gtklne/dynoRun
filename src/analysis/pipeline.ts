@@ -6,6 +6,8 @@ import { smoothSavitzkyGolay } from './smooth';
 import { differentiate } from './differentiate';
 import { powerAndTorque } from './power-torque';
 import { binByRpm } from './rpm-bin';
+import { computeAccelTimes } from './accel-times';
+import { computeRunQuality } from './run-quality';
 
 export interface AnalyzeInput {
   samples: RawSpeedSample[];
@@ -28,11 +30,16 @@ export function analyzeRun(input: AnalyzeInput): AnalyzedRun {
   const ptPoints = powerAndTorque(differentiated, input.mass_kg, input.rollout_m_per_rev);
   const points = binByRpm(ptPoints, bin);
 
+  const accel_times = computeAccelTimes(smoothed);
+  const quality = computeRunQuality({ raw: trimmed, smoothed, differentiated });
+
   const rpms = points.map((p) => p.rpm);
   return {
     rpm_min: rpms.length ? Math.min(...rpms) : 0,
     rpm_max: rpms.length ? Math.max(...rpms) : 0,
     points,
     pipeline_version: PIPELINE_VERSION,
+    accel_times,
+    quality,
   };
 }

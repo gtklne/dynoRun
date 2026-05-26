@@ -20,5 +20,8 @@ describe('analyzeRun', () => {
       );
     }
     expect(result.pipeline_version).toBe(PIPELINE_VERSION);
+    expect(result.accel_times.peak_speed_kmh).toBeGreaterThan(result.accel_times.start_speed_kmh);
+    expect(result.quality.sample_count).toBeGreaterThan(0);
+    expect(result.quality.rating).toBe('good');
   });
 });
