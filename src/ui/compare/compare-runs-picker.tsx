@@ -1,23 +1,29 @@
 import type { Run } from '@/shared/types';
+import { formatRelativeTime } from '@/shared/format-time';
+import { formatPower, type PowerUnit } from '@/shared/format-power';
 
 interface Props {
   runs: Run[];
   selectedIds: Set<string>;
   onToggle: (runId: string) => void;
+  unit: PowerUnit;
+  bestRunId: string | null;
 }
 
-export function CompareRunsPicker({ runs, selectedIds, onToggle }: Props) {
+export function CompareRunsPicker({ runs, selectedIds, onToggle, unit, bestRunId }: Props) {
   return (
     <div className="space-y-2">
       {runs.map((r) => {
-        const label = r.notes || `${r.gear_label} · ${r.started_at}`;
         const checked = selectedIds.has(r.id);
+        const isBest = r.id === bestRunId;
+        const headline = `${r.gear_label} · ${formatRelativeTime(r.started_at)} · ${formatPower(r.peak_power_kw, unit)}`;
+        const secondary = r.title ?? (r.notes || null);
         return (
           <button
             key={r.id}
             type="button"
             onClick={() => onToggle(r.id)}
-            aria-label={label}
+            aria-label={headline}
             className={`w-full text-left bg-zinc-900 border rounded-2xl p-4 flex items-center gap-3 transition-colors ${
               checked ? 'border-amber-600/60 bg-amber-950/20' : 'border-zinc-800 hover:border-zinc-700'
             }`}
@@ -31,9 +37,15 @@ export function CompareRunsPicker({ runs, selectedIds, onToggle }: Props) {
                 </svg>
               )}
             </div>
-            <span className={`text-sm font-medium truncate ${checked ? 'text-zinc-100' : 'text-zinc-400'}`}>
-              {label}
-            </span>
+            <div className="min-w-0 flex-1">
+              <p className={`text-sm font-medium truncate ${checked ? 'text-zinc-100' : 'text-zinc-300'}`}>
+                {headline}
+                {isBest && <span className="text-amber-400 ml-2">★ Best</span>}
+              </p>
+              {secondary && (
+                <p className="text-zinc-500 text-xs mt-0.5 italic truncate">{secondary}</p>
+              )}
+            </div>
           </button>
         );
       })}

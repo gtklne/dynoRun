@@ -3,6 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import { vehicleRepository } from '@/api/repositories/vehicle-repository';
 import { calibrationRepository } from '@/api/repositories/calibration-repository';
 import { runRepository } from '@/api/repositories/run-repository';
+import { useUnits } from '@/app/units-context';
+import { formatRelativeTime } from '@/shared/format-time';
 import type { Vehicle, Calibration, Run } from '@/shared/types';
 
 const statusColor: Record<string, string> = {
@@ -12,11 +14,23 @@ const statusColor: Record<string, string> = {
   aborted: 'text-zinc-500',
 };
 
+function Stat({ label, value, accent }: { label: string; value: string | number; accent?: boolean }) {
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3">
+      <p className="text-zinc-500 text-[10px] uppercase tracking-wider">{label}</p>
+      <p className={`text-sm font-semibold mt-1 tabular-nums ${accent ? 'text-amber-400' : 'text-zinc-100'}`}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
 export function VehicleDetail() {
   const { id } = useParams<{ id: string }>();
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [cals, setCals] = useState<Calibration[]>([]);
   const [runs, setRuns] = useState<Run[]>([]);
+  const { format } = useUnits();
 
   useEffect(() => {
     if (!id) return;
@@ -36,6 +50,13 @@ export function VehicleDetail() {
   }
 
   const completeRuns = runs.filter((r) => r.status === 'complete');
+  const bestPeak = completeRuns.reduce<number | null>((acc, r) => {
+    if (r.peak_power_kw == null) return acc;
+    return acc === null || r.peak_power_kw > acc ? r.peak_power_kw : acc;
+  }, null);
+  const mostRecent = runs.length > 0
+    ? runs.reduce((a, b) => (new Date(a.started_at).getTime() >= new Date(b.started_at).getTime() ? a : b))
+    : null;
 
   return (
     <div className="space-y-5">
@@ -48,14 +69,21 @@ export function VehicleDetail() {
       </Link>
 
       {/* Vehicle header */}
-      <div>
-        <h1 className="text-2xl font-bold text-zinc-100">{vehicle.name}</h1>
-        <p className="text-zinc-500 text-sm mt-1 capitalize">
-          {vehicle.kind} · {vehicle.mass_kg} kg · {vehicle.drivetrain.toUpperCase()}
-        </p>
-        {vehicle.notes && (
-          <p className="text-zinc-600 text-sm mt-1">{vehicle.notes}</p>
-        )}
+      <div className="space-y-3">
+        <div>
+          <h1 className="text-2xl font-bold text-zinc-100">{vehicle.name}</h1>
+          <p className="text-zinc-500 text-sm mt-1 capitalize">
+            {vehicle.kind} · {vehicle.mass_kg} kg · {vehicle.drivetrain.toUpperCase()}
+          </p>
+          {vehicle.notes && (
+            <p className="text-zinc-600 text-sm mt-1">{vehicle.notes}</p>
+          )}
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <Stat label="Runs" value={completeRuns.length} />
+          <Stat label="Best power" value={format(bestPeak)} accent />
+          <Stat label="Last run" value={mostRecent ? formatRelativeTime(mostRecent.started_at) : '—'} />
+        </div>
       </div>
 
       {/* Calibrations */}
@@ -124,27 +152,37 @@ export function VehicleDetail() {
           </div>
         )}
 
-        {runs.map((r) => (
-          <div key={r.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <p className="text-zinc-300 text-sm font-medium">{r.gear_label}</p>
-              <p className="text-zinc-600 text-xs mt-0.5 truncate">{r.started_at}</p>
+        {runs.map((r) => {
+          const showPeak = r.status === 'complete' && r.peak_power_kw != null;
+          return (
+            <div key={r.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-zinc-100 text-sm font-medium truncate">{r.title ?? r.gear_label}</p>
+                <p className="text-zinc-500 text-xs mt-0.5 truncate">
+                  {formatRelativeTime(r.started_at)} · {r.gear_label}
+                </p>
+              </div>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <p className="tabular-nums text-amber-400 text-sm font-semibold">
+                  {showPeak ? format(r.peak_power_kw) : '—'}
+                </p>
+                <div className="flex items-center gap-3">
+                  <span className={`text-xs font-medium capitalize ${statusColor[r.status] ?? 'text-zinc-400'}`}>
+                    {r.status.replace('_', ' ')}
+                  </span>
+                  {r.status === 'complete' && (
+                    <Link
+                      to={`/runs/${r.id}/review`}
+                      className="text-zinc-400 hover:text-zinc-200 text-xs transition-colors"
+                    >
+                      Review
+                    </Link>
+                  )}
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <span className={`text-xs font-medium capitalize ${statusColor[r.status] ?? 'text-zinc-400'}`}>
-                {r.status.replace('_', ' ')}
-              </span>
-              {r.status === 'complete' && (
-                <Link
-                  to={`/runs/${r.id}/review`}
-                  className="text-zinc-400 hover:text-zinc-200 text-xs transition-colors"
-                >
-                  Review
-                </Link>
-              )}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

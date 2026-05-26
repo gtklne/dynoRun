@@ -1,19 +1,38 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { runRepository } from '@/api/repositories/run-repository';
 import { derivedCurveRepository } from '@/api/repositories/derived-curve-repository';
 import { ensureCurrentCurve } from '@/analysis/re-analyze';
-import { PowerCurveChart } from '@/ui/components/power-curve-chart';
+import { PowerCurveChart, type CurveDisplayMode } from '@/ui/components/power-curve-chart';
+import { SegmentedControl } from '@/ui/components/segmented-control';
 import type { Run, DerivedCurve } from '@/shared/types';
 import { useReplayState, setActiveReplay } from '@/sensors/replay-state';
 import { describeRecording } from '@/sensors/recording';
+import { useUnits } from '@/app/units-context';
+import { convertPower, formatPower, type PowerUnit } from '@/shared/format-power';
+import { formatShortDateTime } from '@/shared/format-time';
+import { shareRun } from '@/app/share-image';
+
+const CHART_MODE_OPTIONS = [
+  { value: 'power', label: 'Power' },
+  { value: 'torque', label: 'Torque' },
+  { value: 'both', label: 'Both' },
+] as const satisfies ReadonlyArray<{ value: CurveDisplayMode; label: string }>;
+
+function oppositeUnit(unit: PowerUnit): PowerUnit {
+  return unit === 'kW' ? 'hp' : 'kW';
+}
 
 export function RunReviewScreen() {
   const { runId = '' } = useParams();
   const navigate = useNavigate();
+  const units = useUnits();
   const [run, setRun] = useState<Run | null>(null);
   const [curve, setCurve] = useState<DerivedCurve | null>(null);
   const [notes, setNotes] = useState('');
+  const [title, setTitle] = useState('');
+  const [chartMode, setChartMode] = useState<CurveDisplayMode>('power');
+  const [prevBest, setPrevBest] = useState<number | null>(null);
   const { last: lastRecording } = useReplayState();
   const recordingMatchesRun = lastRecording?.meta.run_id === runId;
 
@@ -24,9 +43,57 @@ export function RunReviewScreen() {
       const ensured = await ensureCurrentCurve(runId, c);
       setRun(r);
       setCurve(ensured);
-      if (r) setNotes(r.notes);
+      if (r) {
+        setNotes(r.notes);
+        setTitle(r.title ?? `${r.gear_label} · ${formatShortDateTime(r.started_at)}`);
+      }
     })();
   }, [runId]);
+
+  useEffect(() => {
+    if (!run) return;
+    let cancelled = false;
+    (async () => {
+      const siblings = await runRepository.listByVehicle(run.vehicle_id);
+      if (cancelled) return;
+      const best = siblings
+        .filter((s) => s.status === 'complete' && s.id !== run.id && s.peak_power_kw != null)
+        .reduce<number | null>((acc, s) => {
+          const pk = s.peak_power_kw;
+          if (pk == null) return acc;
+          return acc == null || pk > acc ? pk : acc;
+        }, null);
+      setPrevBest(best);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [run]);
+
+  const peak = useMemo(() => {
+    if (!curve || curve.points.length === 0) return null;
+    return curve.points.reduce(
+      (best, p) => (p.wheel_power_kw > best.wheel_power_kw ? p : best),
+      curve.points[0],
+    );
+  }, [curve]);
+
+  const peakTorque = useMemo(() => {
+    if (!curve || curve.points.length === 0) return null;
+    return curve.points.reduce(
+      (best, p) => (p.wheel_torque_nm > best.wheel_torque_nm ? p : best),
+      curve.points[0],
+    );
+  }, [curve]);
+
+  const powerBand = useMemo(() => {
+    if (!curve || curve.points.length === 0 || !peak) return null;
+    const threshold = peak.wheel_power_kw * 0.8;
+    const inBand = curve.points.filter((p) => p.wheel_power_kw >= threshold);
+    if (inBand.length === 0) return null;
+    const rpms = inBand.map((p) => p.rpm);
+    return { lo: Math.min(...rpms), hi: Math.max(...rpms) };
+  }, [curve, peak]);
 
   if (!run || !curve) {
     return (
@@ -36,14 +103,9 @@ export function RunReviewScreen() {
     );
   }
 
-  const peak = curve.points.reduce(
-    (best, p) => (p.wheel_power_kw > best.wheel_power_kw ? p : best),
-    curve.points[0],
-  );
-
   async function save() {
     if (!run) return;
-    await runRepository.updateNotes(run.id, notes);
+    await runRepository.update(run.id, { title, notes });
     await runRepository.markComplete(run.id);
     navigate(`/vehicles/${run.vehicle_id}`);
   }
@@ -71,32 +133,128 @@ export function RunReviewScreen() {
     setActiveReplay(lastRecording);
   }
 
+  function exportCsv() {
+    if (!run) return;
+    const header = 'rpm,wheel_power_kw,wheel_torque_nm';
+    const rows = curve!.points.map((p) => `${p.rpm},${p.wheel_power_kw},${p.wheel_torque_nm}`);
+    const blob = new Blob([[header, ...rows].join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const slug = (run.title || title || `dynorun-${run.id.slice(0, 8)}`)
+      .replace(/[^a-z0-9-]+/gi, '-')
+      .toLowerCase();
+    a.download = `${slug}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function share() {
+    if (!peak) {
+      exportCsv();
+      return;
+    }
+    const titleStr = title || `${run!.gear_label} run`;
+    const text = `Peak ${units.format(peak.wheel_power_kw)} @ ${peak.rpm.toFixed(0)} RPM`;
+    await shareRun({ title: titleStr, text }, exportCsv);
+  }
+
+  const opp = oppositeUnit(units.unit);
+  const currentPeakKw = peak?.wheel_power_kw ?? null;
+  const isFirstRun = prevBest == null;
+  const isNewBest = currentPeakKw != null && prevBest != null && currentPeakKw > prevBest;
+  const diffKw = currentPeakKw != null && prevBest != null ? currentPeakKw - prevBest : null;
+  const diffDisplay = diffKw != null
+    ? (() => {
+        const converted = convertPower(diffKw, units.unit);
+        const sign = converted > 0 ? '+' : '';
+        const decimals = units.unit === 'kW' ? 1 : 0;
+        return `${sign}${converted.toFixed(decimals)} ${units.unit}`;
+      })()
+    : null;
+
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-bold text-zinc-100">Run review</h1>
 
-      {/* Peak stats */}
+      {/* Peak stats — 2x2 grid */}
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
           <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Peak power</p>
           <p className="tabular-nums">
-            <span className="text-3xl font-bold text-amber-400">{peak.wheel_power_kw.toFixed(1)}</span>
-            <span className="text-sm text-zinc-400 ml-1">kW</span>
+            <span className="text-3xl font-bold text-amber-400">
+              {peak ? formatPower(peak.wheel_power_kw, units.unit, { unitSuffix: false }) : '—'}
+            </span>
+            <span className="text-sm text-zinc-400 ml-1">{units.unit}</span>
           </p>
-          <p className="text-zinc-600 text-xs mt-1">{(peak.wheel_power_kw * 1.341).toFixed(0)} hp</p>
+          <p className="text-zinc-600 text-xs mt-1">
+            {peak ? formatPower(peak.wheel_power_kw, opp) : '—'}
+          </p>
         </div>
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-          <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">At RPM</p>
+          <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Peak torque</p>
           <p className="tabular-nums">
-            <span className="text-3xl font-bold text-zinc-100">{peak.rpm.toFixed(0)}</span>
+            <span className="text-3xl font-bold text-zinc-100">
+              {peakTorque ? peakTorque.wheel_torque_nm.toFixed(0) : '—'}
+            </span>
+            <span className="text-sm text-zinc-400 ml-1">Nm</span>
           </p>
-          <p className="text-zinc-600 text-xs mt-1">{curve.points.length} data points</p>
+          <p className="text-zinc-600 text-xs mt-1">
+            {peakTorque ? `@ ${peakTorque.rpm.toFixed(0)} RPM` : '—'}
+          </p>
         </div>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+          <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Power band</p>
+          <p className="tabular-nums">
+            <span className="text-2xl font-bold text-zinc-100">
+              {powerBand
+                ? powerBand.lo === powerBand.hi
+                  ? `${powerBand.lo}`
+                  : `${powerBand.lo}–${powerBand.hi}`
+                : '—'}
+            </span>
+            <span className="text-sm text-zinc-400 ml-1">RPM</span>
+          </p>
+          <p className="text-zinc-600 text-xs mt-1">≥80% of peak</p>
+        </div>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+          <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Δ vs best</p>
+          {isFirstRun ? (
+            <>
+              <p className="text-lg font-bold text-amber-400">First run</p>
+              <p className="text-zinc-600 text-xs mt-1">Personal best</p>
+            </>
+          ) : isNewBest ? (
+            <>
+              <p className="text-2xl font-bold text-emerald-400 tabular-nums">{diffDisplay}</p>
+              <p className="text-emerald-500 text-xs mt-1">New personal best</p>
+            </>
+          ) : (
+            <>
+              <p className="text-2xl font-bold text-zinc-400 tabular-nums">{diffDisplay ?? '—'}</p>
+              <p className="text-zinc-600 text-xs mt-1">vs your best</p>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Chart mode toggle */}
+      <div className="flex justify-center">
+        <SegmentedControl<CurveDisplayMode>
+          options={CHART_MODE_OPTIONS}
+          value={chartMode}
+          onChange={setChartMode}
+          ariaLabel="Chart mode"
+        />
       </div>
 
       {/* Chart */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden p-2">
-        <PowerCurveChart series={[{ label: 'Power', points: curve.points }]} />
+        <PowerCurveChart
+          series={[{ label: 'Power', points: curve.points }]}
+          mode={chartMode}
+          unit={units.unit}
+        />
       </div>
 
       {/* Raw sensor recording */}
@@ -123,6 +281,19 @@ export function RunReviewScreen() {
         </div>
       )}
 
+      {/* Title */}
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="run-title" className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Title</label>
+        <input
+          id="run-title"
+          type="text"
+          className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-500 transition-colors text-sm"
+          value={title}
+          placeholder="Give this run a name"
+          onChange={(e) => setTitle(e.target.value)}
+        />
+      </div>
+
       {/* Notes */}
       <div className="flex flex-col gap-1.5">
         <label htmlFor="run-notes" className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Notes</label>
@@ -137,19 +308,35 @@ export function RunReviewScreen() {
       </div>
 
       {/* Actions */}
-      <div className="flex gap-3">
-        <button
-          onClick={save}
-          className="flex-1 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-zinc-950 font-semibold py-3.5 rounded-xl transition-colors"
-        >
-          Save run
-        </button>
-        <button
-          onClick={discard}
-          className="flex-1 bg-zinc-800 hover:bg-red-900/60 text-zinc-400 hover:text-red-300 font-medium py-3.5 rounded-xl transition-colors border border-zinc-700"
-        >
-          Discard
-        </button>
+      <div className="space-y-3">
+        <div className="flex gap-3">
+          <button
+            onClick={save}
+            className="flex-1 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-zinc-950 font-semibold py-3.5 rounded-xl transition-colors"
+          >
+            Save run
+          </button>
+          <button
+            onClick={discard}
+            className="flex-1 bg-zinc-800 hover:bg-red-900/60 text-zinc-400 hover:text-red-300 font-medium py-3.5 rounded-xl transition-colors border border-zinc-700"
+          >
+            Discard
+          </button>
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={exportCsv}
+            className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium py-2.5 rounded-xl transition-colors text-sm border border-zinc-700"
+          >
+            Export CSV
+          </button>
+          <button
+            onClick={share}
+            className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium py-2.5 rounded-xl transition-colors text-sm border border-zinc-700"
+          >
+            Share
+          </button>
+        </div>
       </div>
     </div>
   );

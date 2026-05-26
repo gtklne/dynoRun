@@ -7,10 +7,18 @@ import type { Calibration } from '@/shared/types';
 import type { CalibrationState } from '@/run/types';
 import { setLastRecording } from '@/sensors/replay-state';
 import { recordingRepository } from '@/api/repositories/recording-repository';
-
-const ACCURACY_GOOD_M = 10;
-const REQUIRED_GOOD_MS = 2_000;
-const POOR_WARN_MS = 15_000;
+import {
+  GpsWarmupCard,
+  isGpsLocked,
+  isGpsPoor,
+  GPS_ACCURACY_GOOD_M,
+} from '@/ui/components/gps-warmup-card';
+import {
+  createMotionFusionState,
+  onGpsFix,
+  onMotionSample,
+  type MotionFusionState,
+} from '@/sensors/motion-fusion';
 
 interface Props {
   vehicleId: string;
@@ -32,7 +40,7 @@ function qualityColor(q: number): string {
 
 function accuracyColor(m: number | null): string {
   if (m === null) return 'text-zinc-500';
-  if (m <= ACCURACY_GOOD_M) return 'text-emerald-400';
+  if (m <= GPS_ACCURACY_GOOD_M) return 'text-emerald-400';
   if (m <= 20) return 'text-amber-400';
   return 'text-red-400';
 }
@@ -56,38 +64,6 @@ function TelemetryRow({ label, value, unit, valueClass = 'text-zinc-100' }: Tele
   );
 }
 
-// Mutable fusion state kept in a ref — no re-renders from motion events directly.
-interface FusionState {
-  lastGpsSpeed_mps: number;
-  intX: number; intY: number; intZ: number;
-  lastMotionTime: number;
-  // Unit vector pointing "forward" in device space. Updated after each GPS fix.
-  forwardAxis: [number, number, number];
-}
-
-function initialFusion(): FusionState {
-  return { lastGpsSpeed_mps: 0, intX: 0, intY: 0, intZ: 0, lastMotionTime: 0, forwardAxis: [0, 1, 0] };
-}
-
-// Picks the cardinal axis whose integral best matches targetDelta, blended into current axis.
-function adaptAxis(f: FusionState, delta_mps: number): void {
-  const { intX, intY, intZ, forwardAxis: [ox, oy, oz] } = f;
-  const candidates: Array<{ axis: [number, number, number]; err: number }> = [
-    { axis: [1, 0, 0], err: Math.abs(intX - delta_mps) },
-    { axis: [-1, 0, 0], err: Math.abs(-intX - delta_mps) },
-    { axis: [0, 1, 0], err: Math.abs(intY - delta_mps) },
-    { axis: [0, -1, 0], err: Math.abs(-intY - delta_mps) },
-    { axis: [0, 0, 1], err: Math.abs(intZ - delta_mps) },
-    { axis: [0, 0, -1], err: Math.abs(-intZ - delta_mps) },
-  ];
-  candidates.sort((a, b) => a.err - b.err);
-  const [nx, ny, nz] = candidates[0].axis;
-  const k = 0.3;
-  const bx = ox + (nx - ox) * k, by = oy + (ny - oy) * k, bz = oz + (nz - oz) * k;
-  const len = Math.sqrt(bx * bx + by * by + bz * bz);
-  if (len > 0.001) f.forwardAxis = [bx / len, by / len, bz / len];
-}
-
 export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel }: Props) {
   const speedSourceFactory = useSpeedSourceFactory();
   const [state, setState] = useState<CalibrationState>({ kind: 'idle' });
@@ -98,7 +74,7 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
   const [now, setNow] = useState(() => Date.now());
   const [forceStart, setForceStart] = useState(false);
   const ctrlRef = useRef<CalibrationController | null>(null);
-  const fusionRef = useRef<FusionState>(initialFusion());
+  const fusionRef = useRef<MotionFusionState>(createMotionFusionState());
 
   // Tick so lock progress / poor-GPS warnings update even when no new GPS sample arrives.
   useEffect(() => {
@@ -112,23 +88,12 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
     if (state.kind !== 'measuring') return;
 
     const handler = (e: DeviceMotionEvent) => {
-      const f = fusionRef.current;
       const a = e.acceleration;
       if (!a) return;
-
-      const t = performance.now();
-      const dt = f.lastMotionTime > 0 ? (t - f.lastMotionTime) / 1000 : 0;
-      f.lastMotionTime = t;
-      if (dt <= 0 || dt > 0.5) return;
-
-      f.intX += (a.x ?? 0) * dt;
-      f.intY += (a.y ?? 0) * dt;
-      f.intZ += (a.z ?? 0) * dt;
-
-      const [fx, fy, fz] = f.forwardAxis;
-      const correction = f.intX * fx + f.intY * fy + f.intZ * fz;
-      const speed_kmh = Math.max(0, (f.lastGpsSpeed_mps + Math.max(-8, Math.min(8, correction))) * 3.6);
-      setDisplaySpeed(speed_kmh);
+      const fused = onMotionSample(fusionRef.current, a.x ?? 0, a.y ?? 0, a.z ?? 0, performance.now());
+      if (fused != null) {
+        setDisplaySpeed(fused * 3.6);
+      }
     };
 
     window.addEventListener('devicemotion', handler);
@@ -149,17 +114,12 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
         onStateChange: (s) => { if (!cancelled) setState(s); },
         onLiveSample: (sample) => {
           if (cancelled) return;
-          const f = fusionRef.current;
-          const newSpeed_mps = sample.speed_kmh / 3.6;
-          const delta = newSpeed_mps - f.lastGpsSpeed_mps;
-          if (Math.abs(delta) > 0.3) adaptAxis(f, delta);
-          f.intX = 0; f.intY = 0; f.intZ = 0;
-          f.lastGpsSpeed_mps = newSpeed_mps;
-
+          const speed_mps = sample.speed_kmh / 3.6;
+          onGpsFix(fusionRef.current, speed_mps);
           setLive(sample);
           setDisplaySpeed(sample.speed_kmh);
 
-          if (sample.accuracy_m != null && sample.accuracy_m <= ACCURACY_GOOD_M) {
+          if (sample.accuracy_m != null && sample.accuracy_m <= GPS_ACCURACY_GOOD_M) {
             setGoodSince((prev) => prev ?? Date.now());
           } else {
             setGoodSince(null);
@@ -201,7 +161,7 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
     if (typeof DME.requestPermission === 'function') {
       try { await DME.requestPermission(); } catch { /* fall back to GPS-only */ }
     }
-    fusionRef.current = initialFusion();
+    fusionRef.current = createMotionFusionState();
     await ctrlRef.current.start({ gear_label: gear.gear_label, user_rpm: gear.user_rpm });
   }
 
@@ -215,12 +175,9 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
   const stabilityPct = live ? Math.min(1, live.stability.elapsed_ms / live.stability.window_ms) : 0;
   const deltaOk = live ? live.stability.speed_delta_kmh <= live.stability.max_delta_kmh : false;
 
-  const goodFor_ms = goodSince != null ? now - goodSince : 0;
-  const warmupFor_ms = now - warmupStartedAt;
-  const gpsLocked = goodFor_ms >= REQUIRED_GOOD_MS;
-  const showPoorWarning = state.kind === 'idle' && !gpsLocked && warmupFor_ms > POOR_WARN_MS;
+  const gpsLocked = isGpsLocked(goodSince, now);
+  const showPoorWarning = state.kind === 'idle' && isGpsPoor(goodSince, warmupStartedAt, now);
   const canStart = state.kind === 'idle' && (gpsLocked || forceStart);
-  const noFixYet = state.kind === 'idle' && live === null;
 
   return (
     <div className="space-y-5">
@@ -236,76 +193,14 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
 
       {/* Warmup card — visible during idle state (GPS lock acquisition) */}
       {state.kind === 'idle' && (
-        <div className={`bg-zinc-900 border rounded-2xl overflow-hidden transition-colors ${
-          gpsLocked ? 'border-emerald-800/40' : showPoorWarning ? 'border-red-800/50' : 'border-zinc-800'
-        }`}>
-          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-zinc-800 bg-zinc-950/60">
-            <div className={`w-1.5 h-1.5 rounded-full ${
-              gpsLocked ? 'bg-emerald-400' : showPoorWarning ? 'bg-red-500' : 'bg-amber-500 animate-pulse'
-            }`} />
-            <span className={`text-xs font-semibold uppercase tracking-widest ${
-              gpsLocked ? 'text-emerald-400' : showPoorWarning ? 'text-red-400' : 'text-amber-400'
-            }`}>
-              {noFixYet ? 'Waiting for first fix' : gpsLocked ? 'GPS locked' : showPoorWarning ? 'Poor GPS conditions' : 'Acquiring GPS lock'}
-            </span>
-          </div>
-
-          {showPoorWarning && (
-            <div className="px-4 py-3 bg-red-950/30 border-b border-red-800/40">
-              <p className="text-red-300 text-xs leading-relaxed">
-                Accuracy has stayed worse than {ACCURACY_GOOD_M} m for over {Math.floor(POOR_WARN_MS / 1000)}s.
-                Moving to open sky usually helps. Starting now will produce an unreliable calibration.
-              </p>
-            </div>
-          )}
-
-          <div className="px-4 py-3 space-y-2">
-            <TelemetryRow
-              label="Accuracy"
-              value={live?.accuracy_m != null ? live.accuracy_m.toFixed(1) : '—'}
-              unit="m"
-              valueClass={accuracyColor(live?.accuracy_m ?? null)}
-            />
-            <TelemetryRow
-              label="Signal Quality"
-              value={live ? Math.round(live.quality * 100).toString() : '—'}
-              unit="%"
-              valueClass={live ? qualityColor(live.quality) : 'text-zinc-500'}
-            />
-            <TelemetryRow
-              label="Fix Rate"
-              value={live?.fix_rate_hz != null ? live.fix_rate_hz.toFixed(1) : '—'}
-              unit="Hz"
-            />
-            <TelemetryRow
-              label="Current Speed"
-              value={displaySpeed != null ? displaySpeed.toFixed(1) : '—'}
-              unit="km/h"
-            />
-          </div>
-
-          {!gpsLocked && (
-            <div className="px-4 pb-3 pt-1">
-              <div className="flex items-baseline justify-between mb-1.5">
-                <span className="text-zinc-600 text-[11px] uppercase tracking-wider">Lock progress</span>
-                <span className="text-zinc-500 text-[11px] font-mono tabular-nums">
-                  {(goodFor_ms / 1000).toFixed(1)}s / {(REQUIRED_GOOD_MS / 1000).toFixed(0)}s
-                </span>
-              </div>
-              <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-300 ${
-                    goodSince ? 'bg-emerald-500' : showPoorWarning ? 'bg-red-600' : 'bg-amber-500'
-                  }`}
-                  style={{ width: `${Math.min(100, (goodFor_ms / REQUIRED_GOOD_MS) * 100)}%` }}
-                />
-              </div>
-              <p className="text-zinc-600 text-[11px] mt-1.5">
-                Need {(REQUIRED_GOOD_MS / 1000).toFixed(0)}s of accuracy ≤ {ACCURACY_GOOD_M} m
-              </p>
-            </div>
-          )}
-        </div>
+        <GpsWarmupCard
+          telemetry={live ? { accuracy_m: live.accuracy_m, quality: live.quality, fix_rate_hz: live.fix_rate_hz } : null}
+          currentSpeedKmh={displaySpeed}
+          warmupStartedAt={warmupStartedAt}
+          goodSince={goodSince}
+          now={now}
+          poorOutcome="calibration"
+        />
       )}
 
       {/* Measuring state — telemetry debug panel */}
