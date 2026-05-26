@@ -48,6 +48,10 @@ export const runs = pgTable('runs', {
   conditions: text('conditions').notNull().default('{}'),
   notes: text('notes').notNull().default(''),
   status: text('status').notNull().default('in_progress'),
+  title: text('title'),
+  peak_power_kw: real('peak_power_kw'),
+  peak_torque_nm: real('peak_torque_nm'),
+  peak_power_rpm: real('peak_power_rpm'),
   created_at: text('created_at').notNull(),
   updated_at: text('updated_at').notNull(),
 });

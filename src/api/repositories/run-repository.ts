@@ -42,6 +42,12 @@ export const runRepository: IRunRepository = {
       body: JSON.stringify({ notes }),
     }),
 
+  update: (id, patch) =>
+    apiFetch<void>(`/api/runs/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    }),
+
   delete: (id) =>
     apiFetch<void>(`/api/runs/${id}`, { method: 'DELETE' }),
 };

@@ -53,9 +53,24 @@ export interface Run {
   conditions: RunConditions;
   notes: string;
   status: RunStatus;
+  title: string | null;
+  peak_power_kw: number | null;
+  peak_torque_nm: number | null;
+  peak_power_rpm: number | null;
   created_at: IsoTime;
   updated_at: IsoTime;
   synced_at: IsoTime | null;
+}
+
+export interface RunUpdate {
+  title?: string | null;
+  notes?: string;
+  status?: RunStatus;
+  ended_at?: IsoTime | null;
+  conditions?: RunConditions;
+  peak_power_kw?: number | null;
+  peak_torque_nm?: number | null;
+  peak_power_rpm?: number | null;
 }
 
 export interface Sample {

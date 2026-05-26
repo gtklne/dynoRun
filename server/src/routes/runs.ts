@@ -54,12 +54,20 @@ route.patch('/runs/:id', async (c) => {
   const userId = c.get('userId');
   const body = await c.req.json<{
     notes?: string; status?: string; ended_at?: string; conditions?: object;
+    title?: string | null;
+    peak_power_kw?: number | null;
+    peak_torque_nm?: number | null;
+    peak_power_rpm?: number | null;
   }>();
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (body.notes !== undefined) patch.notes = body.notes;
   if (body.status !== undefined) patch.status = body.status;
   if (body.ended_at !== undefined) patch.ended_at = body.ended_at;
   if (body.conditions !== undefined) patch.conditions = JSON.stringify(body.conditions);
+  if (body.title !== undefined) patch.title = body.title;
+  if (body.peak_power_kw !== undefined) patch.peak_power_kw = body.peak_power_kw;
+  if (body.peak_torque_nm !== undefined) patch.peak_torque_nm = body.peak_torque_nm;
+  if (body.peak_power_rpm !== undefined) patch.peak_power_rpm = body.peak_power_rpm;
   const [row] = await db.update(runs).set(patch)
     .where(and(eq(runs.id, c.req.param('id')), eq(runs.userId, userId)))
     .returning();

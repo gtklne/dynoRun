@@ -275,6 +275,21 @@ export class RunController {
       pipeline_version: result.pipeline_version,
       computed_at: nowIso(),
     });
+    if (result.points.length > 0) {
+      const peakPowerPoint = result.points.reduce(
+        (best, p) => (p.wheel_power_kw > best.wheel_power_kw ? p : best),
+        result.points[0],
+      );
+      const peakTorquePoint = result.points.reduce(
+        (best, p) => (p.wheel_torque_nm > best.wheel_torque_nm ? p : best),
+        result.points[0],
+      );
+      await this.opts.runRepository.update(runId, {
+        peak_power_kw: peakPowerPoint.wheel_power_kw,
+        peak_torque_nm: peakTorquePoint.wheel_torque_nm,
+        peak_power_rpm: peakPowerPoint.rpm,
+      });
+    }
     this.transition({ type: 'ANALYSIS_DONE' });
   }
 

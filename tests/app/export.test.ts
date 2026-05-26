@@ -17,6 +17,7 @@ describe('createDatabaseDump', () => {
     const run: Run = {
       id: '1', user_id: null, vehicle_id: '1', calibration_id: '1', gear_label: '3rd', conditions: {},
       notes: '', status: 'complete', started_at: '2026-01-01T00:00:00Z', ended_at: '2026-01-01T00:01:00Z',
+      title: null, peak_power_kw: null, peak_torque_nm: null, peak_power_rpm: null,
       created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', synced_at: null,
     };
     const sample: Sample = {
@@ -59,6 +60,7 @@ describe('createDatabaseDump', () => {
       id: '1', user_id: null, vehicle_id: '1', calibration_id: '1', gear_label: '3rd',
       conditions: { ambient_temp_c: 20 }, notes: '', status: 'complete',
       started_at: '2026-01-01T00:00:00Z', ended_at: '2026-01-01T00:01:00Z',
+      title: null, peak_power_kw: null, peak_torque_nm: null, peak_power_rpm: null,
       created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', synced_at: null,
     };
 

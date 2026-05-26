@@ -33,6 +33,21 @@ export async function reanalyzeRun(runId: string): Promise<DerivedCurve | null> 
     computed_at: nowIso(),
   };
   await derivedCurveRepository.upsert(curve);
+  if (result.points.length > 0) {
+    const peakPower = result.points.reduce(
+      (best, p) => (p.wheel_power_kw > best.wheel_power_kw ? p : best),
+      result.points[0],
+    );
+    const peakTorque = result.points.reduce(
+      (best, p) => (p.wheel_torque_nm > best.wheel_torque_nm ? p : best),
+      result.points[0],
+    );
+    await runRepository.update(runId, {
+      peak_power_kw: peakPower.wheel_power_kw,
+      peak_torque_nm: peakTorque.wheel_torque_nm,
+      peak_power_rpm: peakPower.rpm,
+    });
+  }
   return curve;
 }
 

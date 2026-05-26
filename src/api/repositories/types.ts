@@ -1,5 +1,5 @@
 import type {
-  Vehicle, Calibration, Run, Sample, DerivedCurve,
+  Vehicle, Calibration, Run, RunUpdate, Sample, DerivedCurve,
   VehicleKind, Drivetrain, RunConditions,
 } from '@/shared/types';
 
@@ -53,6 +53,7 @@ export interface IRunRepository {
   markComplete(id: string): Promise<void>;
   finalize(id: string, endedAt: string): Promise<void>;
   updateNotes(id: string, notes: string): Promise<void>;
+  update(id: string, patch: RunUpdate): Promise<void>;
   delete(id: string): Promise<void>;
 }
 

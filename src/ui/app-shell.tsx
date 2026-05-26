@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import { BrandLogo } from './components/brand-logo';
 
 function GarageIcon() {
   return (
@@ -11,11 +12,11 @@ function GarageIcon() {
   );
 }
 
-function RecordingsIcon() {
+function RunsIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="9"/>
-      <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>
+      <polyline points="3 17 9 11 13 15 21 7" />
+      <polyline points="15 7 21 7 21 13" />
     </svg>
   );
 }
@@ -38,8 +39,12 @@ export function AppShell() {
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col">
       {/* Top header */}
-      <header className="pt-safe bg-zinc-950 border-b border-zinc-800/60 px-4 py-3 flex items-center">
-        <span className="text-amber-400 font-bold text-xl tracking-tight">dyno<span className="text-zinc-100">Run</span></span>
+      <header className="pt-safe bg-zinc-950 border-b border-zinc-800/60 px-4 py-3 flex items-center gap-2">
+        <BrandLogo size={22} />
+        <span className="font-bold text-lg tracking-tight">
+          <span className="text-amber-400">dyno</span>
+          <span className="text-zinc-100">Run</span>
+        </span>
       </header>
 
       {/* Main content */}
@@ -53,9 +58,9 @@ export function AppShell() {
           <GarageIcon />
           <span className="text-[10px] font-medium">Garage</span>
         </NavLink>
-        <NavLink to="/recordings" className={navLinkClass}>
-          <RecordingsIcon />
-          <span className="text-[10px] font-medium">Recordings</span>
+        <NavLink to="/runs" className={navLinkClass}>
+          <RunsIcon />
+          <span className="text-[10px] font-medium">Runs</span>
         </NavLink>
         <NavLink to="/settings" className={navLinkClass}>
           <SettingsIcon />
