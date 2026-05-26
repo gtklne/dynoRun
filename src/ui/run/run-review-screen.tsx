@@ -12,6 +12,7 @@ import { AccelTimesCard } from '@/ui/components/accel-times-card';
 import { RunQualityBadge } from '@/ui/components/run-quality-badge';
 import { useToast } from '@/ui/components/toast';
 import { ConditionsModal } from '@/ui/run/conditions-modal';
+import { ConditionsChips } from '@/ui/run/conditions-chips';
 import type { Run, DerivedCurve, Vehicle, RunConditions } from '@/shared/types';
 import { useReplayState, setActiveReplay } from '@/sensors/replay-state';
 import { describeRecording } from '@/sensors/recording';
@@ -35,25 +36,6 @@ function shareUrlFor(token: string): string {
     return `${window.location.origin}/share/${token}`;
   }
   return `https://wasgoht.ch/share/${token}`;
-}
-
-function formatSurface(surface: string): string {
-  return surface
-    .split(/\s+/)
-    .map((word) => (word.length > 0 ? word[0].toUpperCase() + word.slice(1) : word))
-    .join(' ');
-}
-
-function conditionPills(c: RunConditions): string[] {
-  const pills: string[] = [];
-  if (typeof c.ambient_temp_c === 'number') pills.push(`${c.ambient_temp_c}°C`);
-  if (typeof c.wind_kmh === 'number') {
-    const sign = c.wind_kmh > 0 ? '+' : '';
-    pills.push(`${sign}${c.wind_kmh} km/h wind`);
-  }
-  if (typeof c.road_slope_pct === 'number') pills.push(`${c.road_slope_pct}% slope`);
-  if (c.surface) pills.push(formatSurface(c.surface));
-  return pills;
 }
 
 function hasAnyCondition(c: RunConditions): boolean {
@@ -286,6 +268,7 @@ export function RunReviewScreen() {
           peakPowerRpm: peak.rpm,
           curvePoints: curve.points,
           accelTimes: analyzed?.accel_times ?? null,
+          conditions: run.conditions,
         },
         () => shareRun({ title: titleStr, text }, exportCsv),
       );
@@ -462,16 +445,7 @@ export function RunReviewScreen() {
           )}
         </div>
         {hasAnyCondition(run.conditions) ? (
-          <div className="flex flex-wrap gap-2">
-            {conditionPills(run.conditions).map((pill) => (
-              <span
-                key={pill}
-                className="bg-zinc-800 border border-zinc-700 rounded-full px-3 py-1 text-xs text-zinc-200 tabular-nums"
-              >
-                {pill}
-              </span>
-            ))}
-          </div>
+          <ConditionsChips conditions={run.conditions} size="md" />
         ) : (
           <div className="space-y-3">
             <p className="text-zinc-500 text-xs">

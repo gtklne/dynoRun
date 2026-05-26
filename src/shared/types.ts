@@ -80,6 +80,7 @@ export interface PublicRun {
   peak_power_kw: number | null;
   peak_torque_nm: number | null;
   peak_power_rpm: number | null;
+  conditions: RunConditions;
 }
 
 export interface PublicVehicle {

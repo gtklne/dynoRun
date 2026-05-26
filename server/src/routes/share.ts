@@ -54,6 +54,7 @@ publicRoute.get('/share/:token', async (c) => {
     peak_power_kw: runs.peak_power_kw,
     peak_torque_nm: runs.peak_torque_nm,
     peak_power_rpm: runs.peak_power_rpm,
+    conditions: runs.conditions,
     vehicle_id: vehicles.id,
     vehicle_name: vehicles.name,
     vehicle_kind: vehicles.kind,
@@ -75,6 +76,7 @@ publicRoute.get('/share/:token', async (c) => {
       peak_power_kw: row.peak_power_kw,
       peak_torque_nm: row.peak_torque_nm,
       peak_power_rpm: row.peak_power_rpm,
+      conditions: JSON.parse(row.conditions),
     },
     vehicle: {
       id: row.vehicle_id,
