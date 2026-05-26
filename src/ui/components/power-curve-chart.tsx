@@ -3,6 +3,13 @@ import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
 import type { RpmPoint } from '@/shared/types';
 import { convertPower, type PowerUnit } from '@/shared/format-power';
+import {
+  CURSOR_STROKE,
+  HOVER_POINT_SIZE,
+  responsiveChartHeight,
+  themedAxis,
+  themedCursor,
+} from '@/ui/components/uplot-theme';
 
 export interface CurveSeries {
   label: string;
@@ -69,6 +76,14 @@ export function PowerCurveChart({
       isHighlight(label) ? `★ ${label}` : label;
     const widthOf = (label: string): number => (isHighlight(label) ? 3 : 2);
 
+    const seriesPoints = (color: string): uPlot.Series.Points => ({
+      size: HOVER_POINT_SIZE,
+      stroke: color,
+      fill: color,
+    });
+
+    const computedHeight = responsiveChartHeight(height);
+
     let data: uPlot.AlignedData;
     let opts: uPlot.Options;
 
@@ -85,6 +100,7 @@ export function PowerCurveChart({
           width: widthOf(s.label),
           spanGaps: true,
           scale: 'power',
+          points: seriesPoints(colorP),
         });
         yArrays.push(buildTorqueY(s));
         plotSeries.push({
@@ -93,20 +109,22 @@ export function PowerCurveChart({
           width: widthOf(s.label),
           spanGaps: true,
           scale: 'torque',
+          points: seriesPoints(colorT),
         });
       });
       data = [xs, ...yArrays] as uPlot.AlignedData;
       opts = {
         width: containerRef.current.clientWidth,
-        height,
+        height: computedHeight,
         scales: { x: { time: false }, power: {}, torque: {} },
         axes: [
-          { label: 'RPM' },
-          { label: powerLabel, scale: 'power' },
-          { label: torqueLabel, scale: 'torque', side: 1 },
+          themedAxis({ label: 'RPM' }),
+          themedAxis({ label: powerLabel, scale: 'power' }),
+          themedAxis({ label: torqueLabel, scale: 'torque', side: 1, showGrid: false }),
         ],
         series: plotSeries,
         legend: { show: true },
+        cursor: themedCursor({ x: true, y: true, points: { stroke: CURSOR_STROKE } }),
       };
     } else {
       const useTorque = mode === 'torque';
@@ -116,19 +134,27 @@ export function PowerCurveChart({
       data = [xs, ...yArrays] as uPlot.AlignedData;
       opts = {
         width: containerRef.current.clientWidth,
-        height,
+        height: computedHeight,
         scales: { x: { time: false } },
-        axes: [{ label: 'RPM' }, { label: useTorque ? torqueLabel : powerLabel }],
+        axes: [
+          themedAxis({ label: 'RPM' }),
+          themedAxis({ label: useTorque ? torqueLabel : powerLabel }),
+        ],
         series: [
           {},
-          ...series.map((s, i) => ({
-            label: decorate(s.label),
-            stroke: s.stroke ?? palette[i % palette.length],
-            width: widthOf(s.label),
-            spanGaps: true,
-          })),
+          ...series.map((s, i) => {
+            const color = s.stroke ?? palette[i % palette.length];
+            return {
+              label: decorate(s.label),
+              stroke: color,
+              width: widthOf(s.label),
+              spanGaps: true,
+              points: seriesPoints(color),
+            };
+          }),
         ],
         legend: { show: true },
+        cursor: themedCursor({ x: true, y: true, points: { stroke: CURSOR_STROKE } }),
       };
     }
 

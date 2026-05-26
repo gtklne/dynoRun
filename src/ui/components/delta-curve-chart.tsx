@@ -3,6 +3,13 @@ import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
 import type { CurveDeltaPoint } from '@/analysis/curve-delta';
 import { convertPower, type PowerUnit } from '@/shared/format-power';
+import {
+  CURSOR_STROKE,
+  HOVER_POINT_SIZE,
+  responsiveChartHeight,
+  themedAxis,
+  themedCursor,
+} from '@/ui/components/uplot-theme';
 
 interface Props {
   delta: CurveDeltaPoint[];
@@ -56,9 +63,9 @@ export function DeltaCurveChart({
 
     const opts: uPlot.Options = {
       width: containerRef.current.clientWidth,
-      height,
+      height: responsiveChartHeight(height),
       scales: { x: { time: false } },
-      axes: [{ label: 'RPM' }, { label: yLabel }],
+      axes: [themedAxis({ label: 'RPM' }), themedAxis({ label: yLabel })],
       series: [
         {},
         {
@@ -68,7 +75,7 @@ export function DeltaCurveChart({
           fillTo: () => 0,
           width: 2,
           spanGaps: false,
-          points: { show: false },
+          points: { show: false, size: HOVER_POINT_SIZE, stroke: POSITIVE, fill: POSITIVE },
         },
         {
           label: `${aLabel} < ${bLabel}`,
@@ -77,10 +84,11 @@ export function DeltaCurveChart({
           fillTo: () => 0,
           width: 2,
           spanGaps: false,
-          points: { show: false },
+          points: { show: false, size: HOVER_POINT_SIZE, stroke: NEGATIVE, fill: NEGATIVE },
         },
       ],
       legend: { show: true },
+      cursor: themedCursor({ x: true, y: true, points: { stroke: CURSOR_STROKE } }),
     };
 
     const data: uPlot.AlignedData = [xs, pos, neg] as uPlot.AlignedData;

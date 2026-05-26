@@ -1,7 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
 import { PeakTrendChart, type PeakTrendRun } from '@/ui/components/peak-trend-chart';
 import { UnitsProvider } from '@/app/units-context';
+
+const ORIGINAL_INNER_WIDTH = window.innerWidth;
+
+function setViewportWidth(width: number): void {
+  Object.defineProperty(window, 'innerWidth', { value: width, configurable: true, writable: true });
+}
 
 function makeRun(overrides: Partial<PeakTrendRun> & { id: string }): PeakTrendRun {
   return {
@@ -23,6 +29,8 @@ function renderChart(runs: PeakTrendRun[]) {
 }
 
 describe('PeakTrendChart', () => {
+  afterEach(() => setViewportWidth(ORIGINAL_INNER_WIDTH));
+
   it('renders empty state with no runs', () => {
     const { getByText } = renderChart([]);
     expect(getByText(/Not enough complete runs/i)).toBeInTheDocument();
@@ -103,6 +111,17 @@ describe('PeakTrendChart', () => {
     ];
     const { getByText } = renderChart(runs);
     expect(getByText(/Not enough complete runs/i)).toBeInTheDocument();
+    cleanup();
+  });
+
+  it('renders at a narrow mobile viewport without crashing', () => {
+    setViewportWidth(360);
+    const runs = [
+      makeRun({ id: '1', started_at: '2026-01-01T10:00:00.000Z', peak_power_kw: 100 }),
+      makeRun({ id: '2', started_at: '2026-01-02T10:00:00.000Z', peak_power_kw: 110 }),
+    ];
+    const { getByTestId } = renderChart(runs);
+    expect(getByTestId('peak-trend-chart')).toBeInTheDocument();
     cleanup();
   });
 });

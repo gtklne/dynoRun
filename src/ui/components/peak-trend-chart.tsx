@@ -3,6 +3,13 @@ import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
 import { convertPower } from '@/shared/format-power';
 import { useUnits } from '@/app/units-context';
+import {
+  CURSOR_STROKE,
+  HOVER_POINT_SIZE,
+  responsiveChartHeight,
+  themedAxis,
+  themedCursor,
+} from '@/ui/components/uplot-theme';
 
 export interface PeakTrendRun {
   id: string;
@@ -28,8 +35,6 @@ interface ValidRun {
 
 const SERIES_COLOR = '#fbbf24';
 const BEST_COLOR = '#a16207';
-const GRID_COLOR = 'rgba(255,255,255,0.06)';
-const AXIS_COLOR = 'rgba(244,244,245,0.55)';
 
 function prepareRuns(runs: PeakTrendRun[]): ValidRun[] {
   const valid: ValidRun[] = [];
@@ -85,24 +90,14 @@ export function PeakTrendChart({ runs, onSelectRun, height = 200 }: PeakTrendCha
 
     const opts: uPlot.Options = {
       width: containerRef.current.clientWidth,
-      height,
+      height: responsiveChartHeight(height),
       scales: {
         x: { time: true },
         y: { auto: true },
       },
       axes: [
-        {
-          stroke: AXIS_COLOR,
-          grid: { stroke: GRID_COLOR, width: 1 },
-          ticks: { stroke: GRID_COLOR, width: 1 },
-        },
-        {
-          label: `Peak (${unit})`,
-          labelSize: 30,
-          stroke: AXIS_COLOR,
-          grid: { stroke: GRID_COLOR, width: 1 },
-          ticks: { stroke: GRID_COLOR, width: 1 },
-        },
+        themedAxis({}),
+        themedAxis({ label: `Peak (${unit})`, labelSize: 30 }),
       ],
       series: [
         {},
@@ -110,7 +105,7 @@ export function PeakTrendChart({ runs, onSelectRun, height = 200 }: PeakTrendCha
           label: `Peak power (${unit})`,
           stroke: SERIES_COLOR,
           width: 2,
-          points: { show: true, size: 7, stroke: SERIES_COLOR, fill: SERIES_COLOR },
+          points: { show: true, size: HOVER_POINT_SIZE, stroke: SERIES_COLOR, fill: SERIES_COLOR },
         },
         {
           label: 'Personal best',
@@ -120,12 +115,12 @@ export function PeakTrendChart({ runs, onSelectRun, height = 200 }: PeakTrendCha
           points: { show: false },
         },
       ],
-      cursor: {
+      cursor: themedCursor({
         x: true,
         y: false,
-        points: { show: true },
+        points: { show: true, stroke: CURSOR_STROKE },
         drag: { x: false, y: false, setScale: false },
-      },
+      }),
       legend: { show: true },
       hooks: {
         ready: [
