@@ -17,6 +17,7 @@ import { GpsWarmupCard, isGpsLocked, isGpsPoor } from '@/ui/components/gps-warmu
 import { CountdownOverlay } from '@/ui/components/countdown-overlay';
 import { pulseStart, pulseStop } from '@/app/haptics';
 import { useUnits } from '@/app/units-context';
+import { useToast } from '@/ui/components/toast';
 
 interface GpsState {
   accuracy_m: number | null;
@@ -31,6 +32,7 @@ export function LiveRunScreen() {
   const speedSourceFactory = useSpeedSourceFactory();
   const navigate = useNavigate();
   const { format } = useUnits();
+  const toast = useToast();
   const [state, setState] = useState<RunState>({ kind: 'idle' });
   const [currentSpeed, setCurrentSpeed] = useState(0);
   const [currentRpm, setCurrentRpm] = useState(0);
@@ -76,6 +78,9 @@ export function LiveRunScreen() {
           setState(s);
           if (s.kind === 'reviewing') {
             navigate(`/runs/${s.run_id}/review`);
+          }
+          if (s.kind === 'aborted' && prev === 'analyzing') {
+            navigate(`/vehicles/${vehicleId}`, { replace: true });
           }
         },
         onLiveSample: ({ t_ms, speed_mps, rpm, accuracy_m, quality, fix_rate_hz, altitude_m, heading_deg, recording }) => {
@@ -129,6 +134,12 @@ export function LiveRunScreen() {
             console.error('Failed to upload recording:', err);
           });
         },
+        onError: (err) => {
+          if (cancelled) return;
+          console.error('RunController error:', err);
+          const message = err instanceof Error ? err.message : 'Run failed';
+          toast.show(`Run could not be analyzed: ${message}`, { variant: 'error' });
+        },
       });
       ctrlRef.current = ctrl;
       await ctrl.warmup(vehicleId, calibrationId);
@@ -141,7 +152,7 @@ export function LiveRunScreen() {
       void ctrlRef.current?.dispose();
       void wakeLockRef.current.release();
     };
-  }, [vehicleId, calibrationId, speedSourceFactory, navigate]);
+  }, [vehicleId, calibrationId, speedSourceFactory, navigate, toast]);
 
   async function startRun() {
     if (!ctrlRef.current) return;

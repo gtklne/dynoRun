@@ -7,6 +7,7 @@ export type RunEvent =
   | { type: 'STOP' }
   | { type: 'ABORT' }
   | { type: 'ANALYSIS_DONE' }
+  | { type: 'ANALYSIS_FAILED' }
   | { type: 'SAVE' }
   | { type: 'DISCARD' }
   | { type: 'RESET' };
@@ -38,6 +39,7 @@ export function runReducer(state: RunState, event: RunEvent): RunState {
       return state;
     case 'analyzing':
       if (event.type === 'ANALYSIS_DONE') return { kind: 'reviewing', run_id: state.run_id };
+      if (event.type === 'ANALYSIS_FAILED') return { kind: 'aborted', run_id: state.run_id };
       return state;
     case 'reviewing':
       if (event.type === 'SAVE') return { kind: 'saved', run_id: state.run_id };
