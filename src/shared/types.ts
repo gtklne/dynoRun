@@ -3,6 +3,7 @@ export type IsoTime = string;
 
 export type VehicleKind = 'car' | 'motorcycle';
 export type Drivetrain = 'fwd' | 'rwd' | 'awd' | 'chain' | 'shaft';
+export type Transmission = 'manual' | 'dct' | 'automatic' | 'cvt';
 export type RunStatus = 'in_progress' | 'complete' | 'degraded' | 'aborted';
 
 export interface Vehicle {
@@ -15,6 +16,12 @@ export interface Vehicle {
   frontal_area_m2: number | null;
   drag_coefficient: number | null;
   notes: string;
+  make: string | null;
+  model: string | null;
+  year: number | null;
+  tire_label: string | null;
+  power_hp_factory: number | null;
+  transmission: Transmission | null;
   created_at: IsoTime;
   updated_at: IsoTime;
   synced_at: IsoTime | null;

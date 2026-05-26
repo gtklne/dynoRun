@@ -6,13 +6,21 @@ import { runRepository } from '@/api/repositories/run-repository';
 import { useUnits } from '@/app/units-context';
 import { formatRelativeTime } from '@/shared/format-time';
 import { PeakTrendChart } from '@/ui/components/peak-trend-chart';
-import type { Vehicle, Calibration, Run } from '@/shared/types';
+import type { Vehicle, Calibration, Run, Transmission } from '@/shared/types';
+import { VehicleForm } from './vehicle-form';
 
 const statusColor: Record<string, string> = {
   complete: 'text-emerald-400',
   in_progress: 'text-amber-400',
   degraded: 'text-orange-400',
   aborted: 'text-zinc-500',
+};
+
+const TRANSMISSION_LABEL: Record<Transmission, string> = {
+  manual: 'Manual',
+  dct: 'DCT',
+  automatic: 'Automatic',
+  cvt: 'CVT',
 };
 
 function Stat({ label, value, accent }: { label: string; value: string | number; accent?: boolean }) {
@@ -26,12 +34,65 @@ function Stat({ label, value, accent }: { label: string; value: string | number;
   );
 }
 
+function heroLine(vehicle: Vehicle): string {
+  const parts: string[] = [];
+  if (vehicle.year != null) parts.push(String(vehicle.year));
+  if (vehicle.make) parts.push(vehicle.make);
+  if (vehicle.model) parts.push(vehicle.model);
+  return parts.length > 0 ? parts.join(' ') : vehicle.name;
+}
+
+function secondaryParts(vehicle: Vehicle): string[] {
+  const parts: string[] = [];
+  if (vehicle.tire_label) parts.push(vehicle.tire_label);
+  if (vehicle.transmission) parts.push(TRANSMISSION_LABEL[vehicle.transmission]);
+  if (vehicle.power_hp_factory != null) parts.push(`factory ~${vehicle.power_hp_factory} hp`);
+  return parts;
+}
+
+function VehicleProfileCard({ vehicle, onEdit }: { vehicle: Vehicle; onEdit: () => void }) {
+  const showHero = vehicle.make || vehicle.model || vehicle.year != null;
+  const hero = heroLine(vehicle);
+  const secondary = secondaryParts(vehicle);
+  const showSubName = showHero && vehicle.name && vehicle.name !== hero;
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl font-bold text-zinc-100 truncate">{hero}</h1>
+          {showSubName && (
+            <p className="text-zinc-400 text-sm mt-0.5 truncate">{vehicle.name}</p>
+          )}
+          {secondary.length > 0 && (
+            <p className="text-zinc-400 text-sm mt-1.5">{secondary.join(' · ')}</p>
+          )}
+          <p className="text-zinc-500 text-xs mt-1 capitalize">
+            {vehicle.mass_kg} kg · {vehicle.drivetrain.toUpperCase()} · {vehicle.kind}
+          </p>
+          {vehicle.notes && (
+            <p className="text-zinc-600 text-sm mt-2">{vehicle.notes}</p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onEdit}
+          className="text-amber-400 hover:text-amber-300 text-xs font-semibold transition-colors shrink-0"
+        >
+          Edit
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function VehicleDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [cals, setCals] = useState<Calibration[]>([]);
   const [runs, setRuns] = useState<Run[]>([]);
+  const [editing, setEditing] = useState(false);
   const { format } = useUnits();
 
   useEffect(() => {
@@ -70,23 +131,32 @@ export function VehicleDetail() {
         Garage
       </Link>
 
-      {/* Vehicle header */}
-      <div className="space-y-3">
-        <div>
-          <h1 className="text-2xl font-bold text-zinc-100">{vehicle.name}</h1>
-          <p className="text-zinc-500 text-sm mt-1 capitalize">
-            {vehicle.kind} · {vehicle.mass_kg} kg · {vehicle.drivetrain.toUpperCase()}
-          </p>
-          {vehicle.notes && (
-            <p className="text-zinc-600 text-sm mt-1">{vehicle.notes}</p>
-          )}
+      {/* Profile card / edit form */}
+      {editing ? (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+          <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-4">Edit vehicle</p>
+          <VehicleForm
+            initial={vehicle}
+            onSubmit={async (input) => {
+              const updated = await vehicleRepository.update(vehicle.id, input);
+              setVehicle(updated);
+              setEditing(false);
+            }}
+            onCancel={() => setEditing(false)}
+          />
         </div>
+      ) : (
+        <VehicleProfileCard vehicle={vehicle} onEdit={() => setEditing(true)} />
+      )}
+
+      {/* Vehicle stats */}
+      {!editing && (
         <div className="grid grid-cols-3 gap-2">
           <Stat label="Runs" value={completeRuns.length} />
           <Stat label="Best power" value={format(bestPeak)} accent />
           <Stat label="Last run" value={mostRecent ? formatRelativeTime(mostRecent.started_at) : '—'} />
         </div>
-      </div>
+      )}
 
       {/* Calibrations */}
       <div className="space-y-2">
