@@ -257,40 +257,54 @@ export class RunController {
     await this.opts.runRepository.finalize(runId, nowIso());
     this.transition({ type: 'STOP' });
 
-    if (!this.calibration) throw new Error('no calibration during analysis');
-    const vehicle = await this.opts.vehicleRepository.get(this.calibration.vehicle_id);
-    if (!vehicle) throw new Error('vehicle not found during analysis');
+    // Everything past STOP can throw on a flaky network. Failing here used to
+    // leave the run stuck in `analyzing` forever; now we mark it degraded and
+    // emit ANALYSIS_FAILED so the UI can navigate away.
+    try {
+      if (!this.calibration) throw new Error('no calibration during analysis');
+      const vehicle = await this.opts.vehicleRepository.get(this.calibration.vehicle_id);
+      if (!vehicle) throw new Error('vehicle not found during analysis');
 
-    await this.opts.sampleRepository.insertMany(this.samples);
-    const result = analyzeRun({
-      samples: this.samples.map((s) => ({ t_ms: s.t_ms, speed_mps: s.speed_mps })),
-      mass_kg: vehicle.mass_kg,
-      rollout_m_per_rev: this.calibration.rollout_m_per_rev,
-    });
-    await this.opts.derivedCurveRepository.upsert({
-      run_id: runId,
-      rpm_min: result.rpm_min,
-      rpm_max: result.rpm_max,
-      points: result.points,
-      pipeline_version: result.pipeline_version,
-      computed_at: nowIso(),
-    });
-    if (result.points.length > 0) {
-      const peakPowerPoint = result.points.reduce(
-        (best, p) => (p.wheel_power_kw > best.wheel_power_kw ? p : best),
-        result.points[0],
-      );
-      const peakTorquePoint = result.points.reduce(
-        (best, p) => (p.wheel_torque_nm > best.wheel_torque_nm ? p : best),
-        result.points[0],
-      );
-      await this.opts.runRepository.update(runId, {
-        peak_power_kw: peakPowerPoint.wheel_power_kw,
-        peak_torque_nm: peakTorquePoint.wheel_torque_nm,
-        peak_power_rpm: peakPowerPoint.rpm,
+      await this.opts.sampleRepository.insertMany(this.samples);
+      const result = analyzeRun({
+        samples: this.samples.map((s) => ({ t_ms: s.t_ms, speed_mps: s.speed_mps })),
+        mass_kg: vehicle.mass_kg,
+        rollout_m_per_rev: this.calibration.rollout_m_per_rev,
       });
+      await this.opts.derivedCurveRepository.upsert({
+        run_id: runId,
+        rpm_min: result.rpm_min,
+        rpm_max: result.rpm_max,
+        points: result.points,
+        pipeline_version: result.pipeline_version,
+        computed_at: nowIso(),
+      });
+      if (result.points.length > 0) {
+        const peakPowerPoint = result.points.reduce(
+          (best, p) => (p.wheel_power_kw > best.wheel_power_kw ? p : best),
+          result.points[0],
+        );
+        const peakTorquePoint = result.points.reduce(
+          (best, p) => (p.wheel_torque_nm > best.wheel_torque_nm ? p : best),
+          result.points[0],
+        );
+        await this.opts.runRepository.update(runId, {
+          peak_power_kw: peakPowerPoint.wheel_power_kw,
+          peak_torque_nm: peakTorquePoint.wheel_torque_nm,
+          peak_power_rpm: peakPowerPoint.rpm,
+        });
+      }
+      this.transition({ type: 'ANALYSIS_DONE' });
+    } catch (err) {
+      try {
+        await this.opts.runRepository.markDegraded(runId);
+      } catch {
+        // markDegraded itself can fail (e.g. network down); swallow so we can
+        // still transition the UI out of `analyzing`.
+      }
+      this.transition({ type: 'ANALYSIS_FAILED' });
+      this.opts.onError?.(err);
     }
-    this.transition({ type: 'ANALYSIS_DONE' });
   }
 
   private transition(event: RunEvent): void {
