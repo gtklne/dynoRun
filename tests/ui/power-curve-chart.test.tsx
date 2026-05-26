@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
 import { PowerCurveChart, type CurveSeries } from '@/ui/components/power-curve-chart';
 import type { RpmPoint } from '@/shared/types';
@@ -15,7 +15,15 @@ function makePoints(): RpmPoint[] {
 
 const series: CurveSeries[] = [{ label: 'A', points: makePoints() }];
 
+const ORIGINAL_INNER_WIDTH = window.innerWidth;
+
+function setViewportWidth(width: number): void {
+  Object.defineProperty(window, 'innerWidth', { value: width, configurable: true, writable: true });
+}
+
 describe('PowerCurveChart', () => {
+  afterEach(() => setViewportWidth(ORIGINAL_INNER_WIDTH));
+
   it('renders fallback when series is empty', () => {
     const { getByText } = render(<PowerCurveChart series={[]} />);
     expect(getByText('No data.')).toBeInTheDocument();
@@ -60,6 +68,20 @@ describe('PowerCurveChart', () => {
     const { container } = render(
       <PowerCurveChart series={multi} mode="both" highlightLabel="A" unit="PS" />,
     );
+    expect(container.querySelector('div')).toBeInTheDocument();
+    cleanup();
+  });
+
+  it('renders at a narrow mobile viewport without crashing', () => {
+    setViewportWidth(360);
+    const { container } = render(<PowerCurveChart series={series} />);
+    expect(container.querySelector('div')).toBeInTheDocument();
+    cleanup();
+  });
+
+  it('renders at a narrow viewport in both mode without crashing', () => {
+    setViewportWidth(360);
+    const { container } = render(<PowerCurveChart series={series} mode="both" />);
     expect(container.querySelector('div')).toBeInTheDocument();
     cleanup();
   });

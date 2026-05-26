@@ -1,6 +1,17 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
+import {
+  CURSOR_STROKE,
+  HOVER_POINT_SIZE,
+  responsiveChartHeight,
+  themedAxis,
+  themedCursor,
+} from '@/ui/components/uplot-theme';
+
+const SPEED_STROKE = '#22d3ee';
+const RPM_STROKE = '#f59e0b';
+const BASE_HEIGHT = 280;
 
 export interface StreamingChartHandle {
   pushSample(t_ms: number, speed_kmh: number, rpm: number): void;
@@ -23,22 +34,35 @@ export const StreamingChart = forwardRef<StreamingChartHandle, StreamingChartPro
       if (!containerRef.current) return;
       const opts: uPlot.Options = {
         width: containerRef.current.clientWidth,
-        height: 280,
+        height: responsiveChartHeight(BASE_HEIGHT),
         scales: {
           x: { time: false },
           speed: {},
           rpm: {},
         },
         axes: [
-          { label: 'Time (s)' },
-          { label: 'Speed (km/h)', scale: 'speed' },
-          { label: 'RPM', side: 1, scale: 'rpm', grid: { show: false } },
+          themedAxis({ label: 'Time (s)' }),
+          themedAxis({ label: 'Speed (km/h)', scale: 'speed' }),
+          themedAxis({ label: 'RPM', scale: 'rpm', side: 1, showGrid: false }),
         ],
         series: [
           {},
-          { label: 'Speed (km/h)', stroke: '#1f77b4', width: 2, scale: 'speed' },
-          { label: 'RPM', stroke: '#d62728', width: 2, scale: 'rpm' },
+          {
+            label: 'Speed (km/h)',
+            stroke: SPEED_STROKE,
+            width: 2,
+            scale: 'speed',
+            points: { size: HOVER_POINT_SIZE, stroke: SPEED_STROKE, fill: SPEED_STROKE },
+          },
+          {
+            label: 'RPM',
+            stroke: RPM_STROKE,
+            width: 2,
+            scale: 'rpm',
+            points: { size: HOVER_POINT_SIZE, stroke: RPM_STROKE, fill: RPM_STROKE },
+          },
         ],
+        cursor: themedCursor({ x: true, y: true, points: { stroke: CURSOR_STROKE } }),
       };
       const data: uPlot.AlignedData = [[], [], []];
       plotRef.current = new uPlot(opts, data, containerRef.current);

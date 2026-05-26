@@ -30,3 +30,30 @@ html, body, #root {
 .pt-safe {
   padding-top: env(safe-area-inset-top, 0px);
 }
+
+/* uPlot dark theme — keeps charts readable on zinc-900/950 cards. */
+.uplot {
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.uplot .u-legend,
+.uplot .u-legend th,
+.uplot .u-legend td {
+  font-size: 12px;
+  color: #e4e4e7; /* zinc-200 */
+  background: transparent;
+}
+
+.uplot .u-legend .u-marker {
+  vertical-align: middle;
+}
+
+.uplot .u-cursor-x,
+.uplot .u-cursor-y {
+  border-color: #fbbf24 !important; /* amber-400 */
+  border-width: 1.5px !important;
+}
+
+.uplot .u-cursor-pt {
+  border-width: 2px;
+}
