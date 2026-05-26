@@ -52,9 +52,12 @@ export const runs = pgTable('runs', {
   peak_power_kw: real('peak_power_kw'),
   peak_torque_nm: real('peak_torque_nm'),
   peak_power_rpm: real('peak_power_rpm'),
+  share_token: text('share_token'),
   created_at: text('created_at').notNull(),
   updated_at: text('updated_at').notNull(),
-});
+}, (t) => [
+  index('runs_share_token_idx').on(t.share_token),
+]);
 
 export const samples = pgTable('samples', {
   run_id: text('run_id').notNull(),

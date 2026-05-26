@@ -3,12 +3,14 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { runRepository } from '@/api/repositories/run-repository';
 import { derivedCurveRepository } from '@/api/repositories/derived-curve-repository';
 import { vehicleRepository } from '@/api/repositories/vehicle-repository';
+import { shareRepository } from '@/api/repositories/share-repository';
 import { ensureCurrentCurve, loadAnalyzedRun } from '@/analysis/re-analyze';
 import type { AnalyzedRun } from '@/analysis/types';
 import { PowerCurveChart, type CurveDisplayMode } from '@/ui/components/power-curve-chart';
 import { SegmentedControl } from '@/ui/components/segmented-control';
 import { AccelTimesCard } from '@/ui/components/accel-times-card';
 import { RunQualityBadge } from '@/ui/components/run-quality-badge';
+import { useToast } from '@/ui/components/toast';
 import type { Run, DerivedCurve, Vehicle } from '@/shared/types';
 import { useReplayState, setActiveReplay } from '@/sensors/replay-state';
 import { describeRecording } from '@/sensors/recording';
@@ -27,10 +29,18 @@ function oppositeUnit(unit: PowerUnit): PowerUnit {
   return unit === 'kW' ? 'hp' : 'kW';
 }
 
+function shareUrlFor(token: string): string {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}/share/${token}`;
+  }
+  return `https://wasgoht.ch/share/${token}`;
+}
+
 export function RunReviewScreen() {
   const { runId = '' } = useParams();
   const navigate = useNavigate();
   const units = useUnits();
+  const toast = useToast();
   const [run, setRun] = useState<Run | null>(null);
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [curve, setCurve] = useState<DerivedCurve | null>(null);
@@ -39,6 +49,7 @@ export function RunReviewScreen() {
   const [title, setTitle] = useState('');
   const [chartMode, setChartMode] = useState<CurveDisplayMode>('power');
   const [prevBest, setPrevBest] = useState<number | null>(null);
+  const [shareBusy, setShareBusy] = useState(false);
   const { last: lastRecording } = useReplayState();
   const recordingMatchesRun = lastRecording?.meta.run_id === runId;
 
@@ -159,6 +170,58 @@ export function RunReviewScreen() {
     a.download = `${slug}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function copyToClipboard(text: string): Promise<boolean> {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch {
+      // Fall through to false; caller surfaces a toast either way.
+    }
+    return false;
+  }
+
+  async function createShareLink() {
+    if (!run || shareBusy) return;
+    setShareBusy(true);
+    try {
+      const res = await shareRepository.createToken(run.id);
+      setRun({ ...run, share_token: res.token });
+      const copied = await copyToClipboard(res.url);
+      toast.show(
+        copied ? 'Public link copied to clipboard' : 'Public link created',
+        { variant: 'success' },
+      );
+    } catch {
+      // apiFetch already broadcast the error to the toast subject.
+    } finally {
+      setShareBusy(false);
+    }
+  }
+
+  async function copyShareLink() {
+    if (!run?.share_token) return;
+    const copied = await copyToClipboard(shareUrlFor(run.share_token));
+    if (copied) toast.show('Public link copied', { variant: 'success' });
+    else toast.show('Could not copy link', { variant: 'error' });
+  }
+
+  async function revokeShareLink() {
+    if (!run?.share_token || shareBusy) return;
+    if (!window.confirm('Revoke the public link? The current URL will stop working.')) return;
+    setShareBusy(true);
+    try {
+      await shareRepository.revokeToken(run.id);
+      setRun({ ...run, share_token: null });
+      toast.show('Public link revoked', { variant: 'success' });
+    } catch {
+      // toast surfaced via apiErrors$
+    } finally {
+      setShareBusy(false);
+    }
   }
 
   async function share() {
@@ -340,6 +403,53 @@ export function RunReviewScreen() {
           placeholder="Conditions, modifications, observations…"
           onChange={(e) => setNotes(e.target.value)}
         />
+      </div>
+
+      {/* Public share link */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+        <div>
+          <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Public link</p>
+          <p className="text-zinc-500 text-xs mt-1.5">
+            {run.share_token
+              ? 'Anyone with this URL can view the run — no sign-in required.'
+              : 'Generate a read-only URL anyone can open.'}
+          </p>
+        </div>
+        {run.share_token ? (
+          <>
+            <div className="flex items-stretch gap-2">
+              <input
+                type="text"
+                readOnly
+                value={shareUrlFor(run.share_token)}
+                onFocus={(e) => e.currentTarget.select()}
+                className="flex-1 min-w-0 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-zinc-200 text-xs font-mono focus:outline-none focus:border-amber-500"
+                aria-label="Public share URL"
+              />
+              <button
+                onClick={copyShareLink}
+                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium px-3 rounded-xl transition-colors text-xs border border-zinc-700 whitespace-nowrap"
+              >
+                Copy
+              </button>
+            </div>
+            <button
+              onClick={revokeShareLink}
+              disabled={shareBusy}
+              className="w-full bg-zinc-800 hover:bg-red-900/60 text-zinc-400 hover:text-red-300 font-medium py-2 rounded-xl transition-colors text-xs border border-zinc-700 disabled:opacity-50"
+            >
+              Revoke link
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={createShareLink}
+            disabled={shareBusy}
+            className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium py-2.5 rounded-xl transition-colors text-sm border border-zinc-700 disabled:opacity-50"
+          >
+            {shareBusy ? 'Creating…' : 'Get public link'}
+          </button>
+        )}
       </div>
 
       {/* Actions */}

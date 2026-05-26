@@ -57,9 +57,28 @@ export interface Run {
   peak_power_kw: number | null;
   peak_torque_nm: number | null;
   peak_power_rpm: number | null;
+  share_token: string | null;
   created_at: IsoTime;
   updated_at: IsoTime;
   synced_at: IsoTime | null;
+}
+
+export interface PublicRun {
+  id: UUID;
+  started_at: IsoTime;
+  ended_at: IsoTime | null;
+  gear_label: string;
+  status: RunStatus;
+  title: string | null;
+  peak_power_kw: number | null;
+  peak_torque_nm: number | null;
+  peak_power_rpm: number | null;
+}
+
+export interface PublicVehicle {
+  id: UUID;
+  name: string;
+  kind: VehicleKind;
 }
 
 export interface RunUpdate {
