@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { vehicleRepository } from '@/api/repositories/vehicle-repository';
 import { calibrationRepository } from '@/api/repositories/calibration-repository';
 import { runRepository } from '@/api/repositories/run-repository';
 import { useUnits } from '@/app/units-context';
 import { formatRelativeTime } from '@/shared/format-time';
+import { PeakTrendChart } from '@/ui/components/peak-trend-chart';
 import type { Vehicle, Calibration, Run } from '@/shared/types';
 
 const statusColor: Record<string, string> = {
@@ -27,6 +28,7 @@ function Stat({ label, value, accent }: { label: string; value: string | number;
 
 export function VehicleDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [cals, setCals] = useState<Calibration[]>([]);
   const [runs, setRuns] = useState<Run[]>([]);
@@ -139,6 +141,19 @@ export function VehicleDetail() {
           </svg>
         </Link>
       )}
+
+      {/* Peak power trend */}
+      <div className="space-y-2">
+        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">
+          Peak power trend
+        </p>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+          <PeakTrendChart
+            runs={runs}
+            onSelectRun={(runId) => navigate(`/runs/${runId}/review`)}
+          />
+        </div>
+      </div>
 
       {/* Runs history */}
       <div className="space-y-2">
