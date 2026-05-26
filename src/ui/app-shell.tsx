@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { BrandLogo } from './components/brand-logo';
+import { HelpButton } from './components/help-drawer';
 
 function GarageIcon() {
   return (
@@ -45,6 +46,9 @@ export function AppShell() {
           <span className="text-amber-400">dyno</span>
           <span className="text-zinc-100">Run</span>
         </span>
+        <div className="ml-auto">
+          <HelpButton />
+        </div>
       </header>
 
       {/* Main content */}
