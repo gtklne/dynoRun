@@ -4,8 +4,10 @@ import 'uplot/dist/uPlot.min.css';
 import type { CurveDeltaPoint } from '@/analysis/curve-delta';
 import { convertPower, type PowerUnit } from '@/shared/format-power';
 import {
+  attachChartResize,
   CURSOR_STROKE,
   HOVER_POINT_SIZE,
+  legendValue,
   responsiveChartHeight,
   themedAxis,
   themedCursor,
@@ -61,13 +63,17 @@ export function DeltaCurveChart({
     const aLabel = labelA ?? 'A';
     const bLabel = labelB ?? 'B';
 
+    const rpmValue = legendValue('RPM', 0);
+    const deltaValue =
+      metric === 'torque' ? legendValue('Nm', 1) : legendValue(unit, unit === 'kW' ? 1 : 0);
+
     const opts: uPlot.Options = {
       width: containerRef.current.clientWidth,
       height: responsiveChartHeight(height),
       scales: { x: { time: false } },
-      axes: [themedAxis({ label: 'RPM' }), themedAxis({ label: yLabel })],
+      axes: [themedAxis({ label: 'RPM' }), themedAxis({ label: yLabel, decimals: 1 })],
       series: [
-        {},
+        { value: rpmValue },
         {
           label: `${aLabel} > ${bLabel}`,
           stroke: POSITIVE,
@@ -75,6 +81,7 @@ export function DeltaCurveChart({
           fillTo: () => 0,
           width: 2,
           spanGaps: false,
+          value: deltaValue,
           points: { show: false, size: HOVER_POINT_SIZE, stroke: POSITIVE, fill: POSITIVE },
         },
         {
@@ -84,6 +91,7 @@ export function DeltaCurveChart({
           fillTo: () => 0,
           width: 2,
           spanGaps: false,
+          value: deltaValue,
           points: { show: false, size: HOVER_POINT_SIZE, stroke: NEGATIVE, fill: NEGATIVE },
         },
       ],
@@ -93,7 +101,9 @@ export function DeltaCurveChart({
 
     const data: uPlot.AlignedData = [xs, pos, neg] as uPlot.AlignedData;
     plotRef.current = new uPlot(opts, data, containerRef.current);
+    const detach = attachChartResize(containerRef.current, plotRef.current, height);
     return () => {
+      detach();
       plotRef.current?.destroy();
       plotRef.current = null;
     };

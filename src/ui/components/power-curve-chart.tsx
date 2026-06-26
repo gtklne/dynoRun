@@ -4,8 +4,10 @@ import 'uplot/dist/uPlot.min.css';
 import type { RpmPoint } from '@/shared/types';
 import { convertPower, type PowerUnit } from '@/shared/format-power';
 import {
+  attachChartResize,
   CURSOR_STROKE,
   HOVER_POINT_SIZE,
+  legendValue,
   responsiveChartHeight,
   themedAxis,
   themedCursor,
@@ -57,6 +59,12 @@ export function PowerCurveChart({
     const powerLabel = `Power (${unit})`;
     const torqueLabel = 'Torque (Nm)';
 
+    // Legend hover values: round + carry a unit (hp/PS read as whole numbers to
+    // match the headline peak stats; kW keeps one decimal).
+    const rpmValue = legendValue('RPM', 0);
+    const powerValue = legendValue(unit, unit === 'kW' ? 1 : 0);
+    const torqueValue = legendValue('Nm', 1);
+
     const buildPowerY = (s: CurveSeries): (number | null)[] => {
       const map = new Map(s.points.map((p) => [p.rpm, p.wheel_power_kw]));
       return xs.map((x) => {
@@ -89,7 +97,7 @@ export function PowerCurveChart({
 
     if (mode === 'both') {
       const yArrays: (number | null)[][] = [];
-      const plotSeries: uPlot.Series[] = [{}];
+      const plotSeries: uPlot.Series[] = [{ value: rpmValue }];
       series.forEach((s, i) => {
         const colorP = s.stroke ?? palette[i % palette.length];
         const colorT = palette[(i + series.length) % palette.length];
@@ -100,6 +108,7 @@ export function PowerCurveChart({
           width: widthOf(s.label),
           spanGaps: true,
           scale: 'power',
+          value: powerValue,
           points: seriesPoints(colorP),
         });
         yArrays.push(buildTorqueY(s));
@@ -109,6 +118,7 @@ export function PowerCurveChart({
           width: widthOf(s.label),
           spanGaps: true,
           scale: 'torque',
+          value: torqueValue,
           points: seriesPoints(colorT),
         });
       });
@@ -119,8 +129,8 @@ export function PowerCurveChart({
         scales: { x: { time: false }, power: {}, torque: {} },
         axes: [
           themedAxis({ label: 'RPM' }),
-          themedAxis({ label: powerLabel, scale: 'power' }),
-          themedAxis({ label: torqueLabel, scale: 'torque', side: 1, showGrid: false }),
+          themedAxis({ label: powerLabel, scale: 'power', decimals: 0 }),
+          themedAxis({ label: torqueLabel, scale: 'torque', side: 1, showGrid: false, decimals: 0 }),
         ],
         series: plotSeries,
         legend: { show: true },
@@ -138,10 +148,10 @@ export function PowerCurveChart({
         scales: { x: { time: false } },
         axes: [
           themedAxis({ label: 'RPM' }),
-          themedAxis({ label: useTorque ? torqueLabel : powerLabel }),
+          themedAxis({ label: useTorque ? torqueLabel : powerLabel, decimals: 0 }),
         ],
         series: [
-          {},
+          { value: rpmValue },
           ...series.map((s, i) => {
             const color = s.stroke ?? palette[i % palette.length];
             return {
@@ -149,6 +159,7 @@ export function PowerCurveChart({
               stroke: color,
               width: widthOf(s.label),
               spanGaps: true,
+              value: useTorque ? torqueValue : powerValue,
               points: seriesPoints(color),
             };
           }),
@@ -159,7 +170,9 @@ export function PowerCurveChart({
     }
 
     plotRef.current = new uPlot(opts, data, containerRef.current);
+    const detach = attachChartResize(containerRef.current, plotRef.current, height);
     return () => {
+      detach();
       plotRef.current?.destroy();
       plotRef.current = null;
     };

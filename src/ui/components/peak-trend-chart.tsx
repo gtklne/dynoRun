@@ -4,8 +4,10 @@ import 'uplot/dist/uPlot.min.css';
 import { convertPower } from '@/shared/format-power';
 import { useUnits } from '@/app/units-context';
 import {
+  attachChartResize,
   CURSOR_STROKE,
   HOVER_POINT_SIZE,
+  legendValue,
   responsiveChartHeight,
   themedAxis,
   themedCursor,
@@ -79,6 +81,8 @@ export function PeakTrendChart({ runs, onSelectRun, height = 200 }: PeakTrendCha
     const bestVal = convertPower(bestKw, unit);
     const bestLine = xs.map(() => bestVal);
 
+    const peakValue = legendValue(unit, unit === 'kW' ? 1 : 0);
+
     const handleClick = (): void => {
       const cb = onSelectRef.current;
       if (!cb) return;
@@ -97,7 +101,7 @@ export function PeakTrendChart({ runs, onSelectRun, height = 200 }: PeakTrendCha
       },
       axes: [
         themedAxis({}),
-        themedAxis({ label: `Peak (${unit})`, labelSize: 30 }),
+        themedAxis({ label: `Peak (${unit})`, labelSize: 30, decimals: 0 }),
       ],
       series: [
         {},
@@ -105,6 +109,7 @@ export function PeakTrendChart({ runs, onSelectRun, height = 200 }: PeakTrendCha
           label: `Peak power (${unit})`,
           stroke: SERIES_COLOR,
           width: 2,
+          value: peakValue,
           points: { show: true, size: HOVER_POINT_SIZE, stroke: SERIES_COLOR, fill: SERIES_COLOR },
         },
         {
@@ -112,6 +117,7 @@ export function PeakTrendChart({ runs, onSelectRun, height = 200 }: PeakTrendCha
           stroke: BEST_COLOR,
           width: 1,
           dash: [4, 4],
+          value: peakValue,
           points: { show: false },
         },
       ],
@@ -140,7 +146,9 @@ export function PeakTrendChart({ runs, onSelectRun, height = 200 }: PeakTrendCha
     const data: uPlot.AlignedData = [xs, ys, bestLine];
 
     plotRef.current = new uPlot(opts, data, containerRef.current);
+    const detach = attachChartResize(containerRef.current, plotRef.current, height);
     return () => {
+      detach();
       plotRef.current?.destroy();
       plotRef.current = null;
     };

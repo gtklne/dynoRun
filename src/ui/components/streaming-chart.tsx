@@ -2,8 +2,10 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
 import {
+  attachChartResize,
   CURSOR_STROKE,
   HOVER_POINT_SIZE,
+  legendValue,
   responsiveChartHeight,
   themedAxis,
   themedCursor,
@@ -42,16 +44,17 @@ export const StreamingChart = forwardRef<StreamingChartHandle, StreamingChartPro
         },
         axes: [
           themedAxis({ label: 'Time (s)' }),
-          themedAxis({ label: 'Speed (km/h)', scale: 'speed' }),
+          themedAxis({ label: 'Speed (km/h)', scale: 'speed', decimals: 0 }),
           themedAxis({ label: 'RPM', scale: 'rpm', side: 1, showGrid: false }),
         ],
         series: [
-          {},
+          { value: legendValue('s', 1) },
           {
             label: 'Speed (km/h)',
             stroke: SPEED_STROKE,
             width: 2,
             scale: 'speed',
+            value: legendValue('km/h', 1),
             points: { size: HOVER_POINT_SIZE, stroke: SPEED_STROKE, fill: SPEED_STROKE },
           },
           {
@@ -59,6 +62,7 @@ export const StreamingChart = forwardRef<StreamingChartHandle, StreamingChartPro
             stroke: RPM_STROKE,
             width: 2,
             scale: 'rpm',
+            value: legendValue('RPM', 0),
             points: { size: HOVER_POINT_SIZE, stroke: RPM_STROKE, fill: RPM_STROKE },
           },
         ],
@@ -66,7 +70,8 @@ export const StreamingChart = forwardRef<StreamingChartHandle, StreamingChartPro
       };
       const data: uPlot.AlignedData = [[], [], []];
       plotRef.current = new uPlot(opts, data, containerRef.current);
-      return () => { plotRef.current?.destroy(); plotRef.current = null; };
+      const detach = attachChartResize(containerRef.current, plotRef.current, BASE_HEIGHT);
+      return () => { detach(); plotRef.current?.destroy(); plotRef.current = null; };
     }, []);
 
     useImperativeHandle(ref, () => ({
