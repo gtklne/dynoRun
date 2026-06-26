@@ -165,9 +165,9 @@ export function VehicleDetail() {
         Garage
       </Link>
 
-      {/* Profile card / edit form */}
-      {editing ? (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+      {/* Edit form — full width (its own internal responsive grid). */}
+      {editing && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 lg:p-6">
           <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-4">Edit vehicle</p>
           <VehicleForm
             initial={vehicle}
@@ -196,146 +196,159 @@ export function VehicleDetail() {
             onCancel={() => setEditing(false)}
           />
         </div>
-      ) : (
-        <VehicleProfileCard vehicle={vehicle} onEdit={() => setEditing(true)} />
       )}
 
-      {recomputing && (
-        <div className="bg-amber-500/10 border border-amber-500/40 rounded-2xl p-3 text-amber-300 text-sm flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
-          Recomputing power curves for this vehicle's runs…
-        </div>
-      )}
+      {/* Desktop: config/identity in the narrow left column, performance &
+          history in the wide right column. Mobile keeps the current stacked
+          order (the left column's content precedes the right's in the DOM). */}
+      <div className="space-y-5 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start lg:space-y-0">
+        {/* LEFT — identity / config */}
+        <div className="space-y-5 lg:col-span-1">
+          {!editing && <VehicleProfileCard vehicle={vehicle} onEdit={() => setEditing(true)} />}
 
-      {/* Vehicle stats */}
-      {!editing && (
-        <div className="grid grid-cols-3 gap-2">
-          <Stat label="Runs" value={completeRuns.length} />
-          <Stat label="Best power" value={format(bestPeak)} accent />
-          <Stat label="Last run" value={mostRecent ? formatRelativeTime(mostRecent.started_at) : '—'} />
-        </div>
-      )}
+          {recomputing && (
+            <div className="bg-amber-500/10 border border-amber-500/40 rounded-2xl p-3 text-amber-300 text-sm flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+              Recomputing power curves for this vehicle's runs…
+            </div>
+          )}
 
-      {/* Calibrations */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">
-            Calibrations ({cals.length})
-          </p>
-          <Link
-            to={`/vehicles/${vehicle.id}/calibrations/new`}
-            className="text-amber-400 hover:text-amber-300 text-xs font-semibold transition-colors"
-          >
-            + New
-          </Link>
-        </div>
+          {/* Vehicle stats */}
+          {!editing && (
+            <div className="grid grid-cols-3 gap-2">
+              <Stat label="Runs" value={completeRuns.length} />
+              <Stat label="Best power" value={format(bestPeak)} accent />
+              <Stat label="Last run" value={mostRecent ? formatRelativeTime(mostRecent.started_at) : '—'} />
+            </div>
+          )}
 
-        {cals.length === 0 && (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-            <p className="text-zinc-600 text-sm text-center py-2">No calibrations yet. Add one to start a run.</p>
-          </div>
-        )}
-
-        {cals.map((c) => (
-          <div key={c.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-zinc-100 font-medium text-sm">{c.gear_label}</p>
-              <p className="text-zinc-500 text-xs mt-0.5">
-                {c.rpm.toFixed(0)} RPM @ {c.speed_kmh.toFixed(1)} km/h
+          {/* Calibrations */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">
+                Calibrations ({cals.length})
               </p>
+              <Link
+                to={`/vehicles/${vehicle.id}/calibrations/new`}
+                className="text-amber-400 hover:text-amber-300 text-xs font-semibold transition-colors"
+              >
+                + New
+              </Link>
             </div>
+
+            {cals.length === 0 && (
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+                <p className="text-zinc-600 text-sm text-center py-2">No calibrations yet. Add one to start a run.</p>
+              </div>
+            )}
+
+            {cals.map((c) => (
+              <div key={c.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-zinc-100 font-medium text-sm">{c.gear_label}</p>
+                  <p className="text-zinc-500 text-xs mt-0.5">
+                    {c.rpm.toFixed(0)} RPM @ {c.speed_kmh.toFixed(1)} km/h
+                  </p>
+                </div>
+                <Link
+                  to={`/vehicles/${vehicle.id}/calibrations/${c.id}/run`}
+                  className="bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-zinc-950 font-semibold text-xs px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
+                >
+                  New run
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* RIGHT — performance / history */}
+        <div className="space-y-5 lg:col-span-2">
+          {/* Compare shortcut */}
+          {completeRuns.length >= 2 && (
             <Link
-              to={`/vehicles/${vehicle.id}/calibrations/${c.id}/run`}
-              className="bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-zinc-950 font-semibold text-xs px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
+              to={`/vehicles/${vehicle.id}/compare`}
+              className="flex items-center justify-between bg-zinc-900 border border-amber-800/40 rounded-2xl p-4 hover:border-amber-700/60 transition-colors"
             >
-              New run
+              <div>
+                <p className="text-amber-400 font-semibold text-sm">Compare runs</p>
+                <p className="text-zinc-500 text-xs mt-0.5">{completeRuns.length} complete runs available</p>
+              </div>
+              <svg className="text-amber-600" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
             </Link>
-          </div>
-        ))}
-      </div>
+          )}
 
-      {/* Compare shortcut */}
-      {completeRuns.length >= 2 && (
-        <Link
-          to={`/vehicles/${vehicle.id}/compare`}
-          className="flex items-center justify-between bg-zinc-900 border border-amber-800/40 rounded-2xl p-4 hover:border-amber-700/60 transition-colors"
-        >
-          <div>
-            <p className="text-amber-400 font-semibold text-sm">Compare runs</p>
-            <p className="text-zinc-500 text-xs mt-0.5">{completeRuns.length} complete runs available</p>
+          {/* Peak power trend */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">
+              Peak power trend
+            </p>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+              <PeakTrendChart
+                runs={runs}
+                onSelectRun={(runId) => navigate(`/runs/${runId}/review`)}
+              />
+            </div>
           </div>
-          <svg className="text-amber-600" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="9 18 15 12 9 6"/>
-          </svg>
-        </Link>
-      )}
 
-      {/* Peak power trend */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">
-          Peak power trend
-        </p>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-          <PeakTrendChart
-            runs={runs}
-            onSelectRun={(runId) => navigate(`/runs/${runId}/review`)}
-          />
+          {/* Runs history */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">
+              Runs ({runs.length})
+            </p>
+
+            {runs.length === 0 && (
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+                <p className="text-zinc-600 text-sm text-center py-2">No runs yet.</p>
+              </div>
+            )}
+
+            <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-2 lg:space-y-0">
+              {runs.map((r) => {
+                const showPeak = r.status === 'complete' && r.peak_power_kw != null;
+                return (
+                  <div key={r.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-zinc-100 text-sm font-medium truncate">{r.title ?? r.gear_label}</p>
+                      <p className="text-zinc-500 text-xs mt-0.5 truncate">
+                        {formatRelativeTime(r.started_at)} · {r.gear_label}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <p className="tabular-nums text-amber-400 text-sm font-semibold">
+                        {showPeak ? format(r.peak_power_kw) : '—'}
+                      </p>
+                      <div className="flex items-center gap-3">
+                        <span className={`text-xs font-medium capitalize ${statusColor[r.status] ?? 'text-zinc-400'}`}>
+                          {r.status.replace('_', ' ')}
+                        </span>
+                        {r.status === 'complete' && (
+                          <Link
+                            to={`/runs/${r.id}/review`}
+                            className="text-zinc-400 hover:text-zinc-200 text-xs transition-colors"
+                          >
+                            Review
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Runs history */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">
-          Runs ({runs.length})
-        </p>
-
-        {runs.length === 0 && (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-            <p className="text-zinc-600 text-sm text-center py-2">No runs yet.</p>
-          </div>
-        )}
-
-        {runs.map((r) => {
-          const showPeak = r.status === 'complete' && r.peak_power_kw != null;
-          return (
-            <div key={r.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center justify-between gap-3">
-              <div className="flex-1 min-w-0">
-                <p className="text-zinc-100 text-sm font-medium truncate">{r.title ?? r.gear_label}</p>
-                <p className="text-zinc-500 text-xs mt-0.5 truncate">
-                  {formatRelativeTime(r.started_at)} · {r.gear_label}
-                </p>
-              </div>
-              <div className="flex flex-col items-end gap-1 shrink-0">
-                <p className="tabular-nums text-amber-400 text-sm font-semibold">
-                  {showPeak ? format(r.peak_power_kw) : '—'}
-                </p>
-                <div className="flex items-center gap-3">
-                  <span className={`text-xs font-medium capitalize ${statusColor[r.status] ?? 'text-zinc-400'}`}>
-                    {r.status.replace('_', ' ')}
-                  </span>
-                  {r.status === 'complete' && (
-                    <Link
-                      to={`/runs/${r.id}/review`}
-                      className="text-zinc-400 hover:text-zinc-200 text-xs transition-colors"
-                    >
-                      Review
-                    </Link>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Danger zone */}
+      {/* Danger zone — full width below the columns. */}
       {!editing && (
         <div className="pt-2">
           <button
             type="button"
             onClick={handleDelete}
             disabled={deleting}
-            className="w-full text-red-400 hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold border border-red-900/50 hover:border-red-800 rounded-2xl py-3 transition-colors"
+            className="w-full text-red-400 hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold border border-red-900/50 hover:border-red-800 rounded-2xl py-3 transition-colors lg:max-w-xs lg:mx-auto lg:block"
           >
             {deleting ? 'Deleting…' : 'Delete vehicle'}
           </button>

@@ -115,30 +115,32 @@ export function ReplayLabIndex() {
             <p className="text-zinc-600 text-xs mt-1">Calibrations and runs are captured automatically.</p>
           </div>
         ) : (
-          recordings.map((r) => (
-            <button
-              key={r.id}
-              onClick={() => navigate(`/replay/${r.id}`)}
-              className="w-full text-left bg-zinc-900 hover:bg-zinc-800/80 border border-zinc-800 rounded-2xl p-3 transition-colors flex items-center justify-between gap-3"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className={`text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded ${
-                    r.kind === 'run' ? 'bg-amber-500/15 text-amber-400' : 'bg-emerald-500/15 text-emerald-400'
-                  }`}>
-                    {r.kind}
-                  </span>
-                  {r.gear_label && <span className="text-zinc-400 text-xs font-mono">{r.gear_label}</span>}
-                  {r.user_rpm != null && <span className="text-zinc-500 text-xs font-mono">{r.user_rpm.toFixed(0)} RPM</span>}
+          <div className="space-y-2 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-3 lg:space-y-0">
+            {recordings.map((r) => (
+              <button
+                key={r.id}
+                onClick={() => navigate(`/replay/${r.id}`)}
+                className="w-full text-left bg-zinc-900 hover:bg-zinc-800/80 border border-zinc-800 rounded-2xl p-3 transition-colors flex items-center justify-between gap-3"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded ${
+                      r.kind === 'run' ? 'bg-amber-500/15 text-amber-400' : 'bg-emerald-500/15 text-emerald-400'
+                    }`}>
+                      {r.kind}
+                    </span>
+                    {r.gear_label && <span className="text-zinc-400 text-xs font-mono">{r.gear_label}</span>}
+                    {r.user_rpm != null && <span className="text-zinc-500 text-xs font-mono">{r.user_rpm.toFixed(0)} RPM</span>}
+                  </div>
+                  <p className="text-zinc-300 text-sm mt-1.5 truncate">{r.label ?? formatDate(r.recorded_at)}</p>
+                  <p className="text-zinc-600 text-[11px] font-mono mt-1">
+                    {formatDuration(r.duration_ms)} · {r.gps_count} GPS · {r.motion_count} motion
+                  </p>
                 </div>
-                <p className="text-zinc-300 text-sm mt-1.5 truncate">{r.label ?? formatDate(r.recorded_at)}</p>
-                <p className="text-zinc-600 text-[11px] font-mono mt-1">
-                  {formatDuration(r.duration_ms)} · {r.gps_count} GPS · {r.motion_count} motion
-                </p>
-              </div>
-              <span className="text-zinc-500" aria-hidden>→</span>
-            </button>
-          ))
+                <span className="text-zinc-500" aria-hidden>→</span>
+              </button>
+            ))}
+          </div>
         )}
       </div>
     </div>

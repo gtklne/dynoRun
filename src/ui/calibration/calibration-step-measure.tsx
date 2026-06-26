@@ -304,7 +304,7 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
             <button
               onClick={start}
               disabled={!canStart}
-              className={`w-full font-semibold py-3.5 rounded-xl transition-colors ${
+              className={`w-full font-semibold py-3.5 rounded-xl transition-colors lg:w-auto lg:px-8 ${
                 canStart
                   ? showPoorWarning
                     ? 'bg-red-600 hover:bg-red-500 active:bg-red-700 text-white'
@@ -327,7 +327,7 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
         {state.kind === 'stable' && (
           <button
             onClick={confirm}
-            className="w-full bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold py-3.5 rounded-xl transition-colors"
+            className="w-full bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold py-3.5 rounded-xl transition-colors lg:w-auto lg:px-8"
           >
             Save calibration
           </button>
@@ -335,7 +335,7 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
         <button
           type="button"
           onClick={onCancel}
-          className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium py-3 rounded-xl transition-colors border border-zinc-700 text-sm"
+          className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium py-3 rounded-xl transition-colors border border-zinc-700 text-sm lg:w-auto lg:px-8"
         >
           Cancel
         </button>

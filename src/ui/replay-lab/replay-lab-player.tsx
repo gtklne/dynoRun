@@ -305,6 +305,10 @@ export function ReplayLabPlayer() {
 
       <p className="text-zinc-500 text-xs font-mono">{describeRecording(recording)}</p>
 
+      <div className="space-y-4 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start lg:space-y-0">
+        {/* LEFT: live player + transport */}
+        <div className="space-y-4 lg:col-span-2">
+
       {/* Live readouts */}
       <div className="bg-zinc-900 border border-amber-700/60 rounded-2xl p-5">
         <div className="flex items-center gap-2 mb-4">
@@ -363,6 +367,10 @@ export function ReplayLabPlayer() {
         onScrub={(t) => playerRef.current?.seek(t)}
         onScrubEnd={() => { if (scrubWasPlayingRef.current) playerRef.current?.play(); }}
       />
+        </div>
+
+        {/* RIGHT: controls + output */}
+        <div className="space-y-4 lg:col-span-1">
 
       {/* Parameters */}
       <details className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden group">
@@ -465,6 +473,8 @@ export function ReplayLabPlayer() {
           />
         )
       )}
+        </div>
+      </div>
     </div>
   );
 }

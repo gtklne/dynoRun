@@ -218,9 +218,9 @@ export function GarageScreen() {
   const showRecent = vehicles.length > 0 && dashboard !== null && dashboard.recent.length > 0;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 lg:space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-zinc-100">Garage</h1>
+        <h1 className="text-2xl font-bold text-zinc-100 lg:text-3xl">Garage</h1>
         {!adding && vehicles.length > 0 && (
           <button
             onClick={() => setAdding(true)}
@@ -264,18 +264,28 @@ export function GarageScreen() {
         <HeroStats peak={dashboard.peak} totalRuns={dashboard.totalRuns} vehicleCount={vehicles.length} />
       )}
 
-      {showRecent && dashboard && <RecentActivity rows={dashboard.recent} />}
-
-      {vehicles.length > 0 && (
-        <div className="space-y-2">
-          {showDashboard && (
-            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">
-              Vehicles
-            </p>
+      {/* Desktop dashboard: vehicles fill the wide left column, recent activity
+          sits in the right rail. Mobile keeps the current stacked order (recent
+          above vehicles) via DOM order + lg:order on desktop. */}
+      {(showRecent || vehicles.length > 0) && (
+        <div className="space-y-5 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start lg:space-y-0">
+          {showRecent && dashboard && (
+            <div className="lg:order-2 lg:col-span-1">
+              <RecentActivity rows={dashboard.recent} />
+            </div>
           )}
-          {vehicles.map((v) => (
-            <VehicleCard key={v.id} vehicle={v} stats={statsFor(runsByVehicle.get(v.id) ?? [])} />
-          ))}
+          {vehicles.length > 0 && (
+            <div className={`space-y-2 lg:order-1 ${showRecent ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
+              {showDashboard && (
+                <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">
+                  Vehicles
+                </p>
+              )}
+              {vehicles.map((v) => (
+                <VehicleCard key={v.id} vehicle={v} stats={statsFor(runsByVehicle.get(v.id) ?? [])} />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

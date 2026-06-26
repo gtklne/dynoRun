@@ -31,35 +31,76 @@ function SettingsIcon() {
   );
 }
 
+// Bottom-tab style (mobile): stacked icon over tiny label, evenly spread.
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `flex flex-col items-center gap-1 py-2 px-4 flex-1 transition-colors ${
     isActive ? 'text-amber-400' : 'text-zinc-500 hover:text-zinc-300'
   }`;
 
+// Sidebar style (desktop): horizontal icon + label pill, left-aligned.
+const sideLinkClass = ({ isActive }: { isActive: boolean }) =>
+  `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+    isActive
+      ? 'bg-amber-500/10 text-amber-400'
+      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+  }`;
+
+const Wordmark = () => (
+  <span className="font-bold text-lg tracking-tight">
+    <span className="text-amber-400">dyno</span>
+    <span className="text-zinc-100">Run</span>
+  </span>
+);
+
 export function AppShell() {
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col">
-      {/* Top header */}
-      <header className="pt-safe sticky top-0 z-50 bg-zinc-950/95 backdrop-blur-sm border-b border-zinc-800/60 px-4 py-3 flex items-center gap-2">
+      {/* Desktop sidebar (lg+). Slim fixed rail; mobile uses the bottom nav instead. */}
+      <aside className="hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:left-0 lg:w-56 lg:z-40 bg-zinc-900/40 border-r border-zinc-800/60 px-3 py-5 overflow-y-auto">
+        <Link to="/" className="flex items-center gap-2 px-2 mb-7 transition-opacity hover:opacity-80">
+          <BrandLogo size={24} />
+          <Wordmark />
+        </Link>
+        <nav className="flex flex-col gap-1">
+          <NavLink to="/" end className={sideLinkClass}>
+            <GarageIcon />
+            <span>Garage</span>
+          </NavLink>
+          <NavLink to="/runs" className={sideLinkClass}>
+            <RunsIcon />
+            <span>Runs</span>
+          </NavLink>
+          <NavLink to="/settings" className={sideLinkClass}>
+            <SettingsIcon />
+            <span>Settings</span>
+          </NavLink>
+        </nav>
+        <div className="mt-auto pt-4">
+          <HelpButton className="flex w-full items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors" labelled />
+        </div>
+      </aside>
+
+      {/* Top header (mobile only — the sidebar carries the brand on desktop). */}
+      <header className="lg:hidden pt-safe sticky top-0 z-50 bg-zinc-950/95 backdrop-blur-sm border-b border-zinc-800/60 px-4 py-3 flex items-center gap-2">
         <Link to="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
           <BrandLogo size={22} />
-          <span className="font-bold text-lg tracking-tight">
-            <span className="text-amber-400">dyno</span>
-            <span className="text-zinc-100">Run</span>
-          </span>
+          <Wordmark />
         </Link>
         <div className="ml-auto">
           <HelpButton />
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="flex-1 overflow-y-auto pb-20 px-4 pt-4">
-        <Outlet />
+      {/* Main content. Mobile stays the scroll container (pb-20 clears the bottom
+          nav); desktop offsets past the sidebar and centers within a max width. */}
+      <main className="flex-1 overflow-y-auto px-4 pt-4 pb-20 lg:pl-64 lg:pr-8 lg:pt-8 lg:pb-12">
+        <div className="mx-auto w-full lg:max-w-6xl">
+          <Outlet />
+        </div>
       </main>
 
-      {/* Bottom navigation */}
-      <nav className="pb-safe fixed bottom-0 left-0 right-0 bg-zinc-900/95 border-t border-zinc-800 backdrop-blur-sm flex z-50">
+      {/* Bottom navigation (mobile only). */}
+      <nav className="lg:hidden pb-safe fixed bottom-0 left-0 right-0 bg-zinc-900/95 border-t border-zinc-800 backdrop-blur-sm flex z-50">
         <NavLink to="/" end className={navLinkClass}>
           <GarageIcon />
           <span className="text-[10px] font-medium">Garage</span>

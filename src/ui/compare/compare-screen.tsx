@@ -155,81 +155,85 @@ export function CompareScreen() {
 
       <h1 className="text-2xl font-bold text-zinc-100">Compare runs</h1>
 
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">
-          {selected.size > 0 ? `Overlay (${selected.size})` : 'Overlay'}
-        </p>
-        <SegmentedControl
-          options={segmentOptions}
-          value={chartMode}
-          onChange={(v) => {
-            if (v === 'delta' && !isPair) return;
-            setChartMode(v);
-          }}
-          compact
-        />
-      </div>
-
-      {chartMode === 'delta' ? (
-        isPair && pairA && pairB ? (
-          <div className="space-y-3">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden p-2">
-              <DeltaCurveChart
-                delta={delta}
-                unit={unit}
-                labelA={labelFor(pairA)}
-                labelB={labelFor(pairB)}
-              />
-            </div>
-            <DeltaSummary
-              labelA={labelFor(pairA)}
-              labelB={labelFor(pairB)}
-              stats={deltaStats}
-              unit={unit}
+      <div className="space-y-5 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-6 lg:items-start lg:space-y-0">
+        <div className="space-y-5">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">
+              {selected.size > 0 ? `Overlay (${selected.size})` : 'Overlay'}
+            </p>
+            <SegmentedControl
+              options={segmentOptions}
+              value={chartMode}
+              onChange={(v) => {
+                if (v === 'delta' && !isPair) return;
+                setChartMode(v);
+              }}
+              compact
             />
           </div>
-        ) : (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 flex flex-col items-center gap-2">
-            <svg className="text-zinc-700" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 12h18"/>
-              <path d="M12 3v18"/>
-            </svg>
-            <p className="text-zinc-500 text-sm text-center">
-              Select exactly 2 runs to see the delta.
-            </p>
-          </div>
-        )
-      ) : selected.size > 0 ? (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden p-2">
-          <PowerCurveChart
-            series={series}
-            mode={chartMode}
+
+          {chartMode === 'delta' ? (
+            isPair && pairA && pairB ? (
+              <div className="space-y-3">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden p-2">
+                  <DeltaCurveChart
+                    delta={delta}
+                    unit={unit}
+                    labelA={labelFor(pairA)}
+                    labelB={labelFor(pairB)}
+                  />
+                </div>
+                <DeltaSummary
+                  labelA={labelFor(pairA)}
+                  labelB={labelFor(pairB)}
+                  stats={deltaStats}
+                  unit={unit}
+                />
+              </div>
+            ) : (
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 flex flex-col items-center gap-2">
+                <svg className="text-zinc-700" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 12h18"/>
+                  <path d="M12 3v18"/>
+                </svg>
+                <p className="text-zinc-500 text-sm text-center">
+                  Select exactly 2 runs to see the delta.
+                </p>
+              </div>
+            )
+          ) : selected.size > 0 ? (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden p-2">
+              <PowerCurveChart
+                series={series}
+                mode={chartMode}
+                unit={unit}
+                highlightLabel={bestSeriesLabel}
+              />
+            </div>
+          ) : (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 flex flex-col items-center gap-2">
+              <svg className="text-zinc-700" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+              </svg>
+              <p className="text-zinc-500 text-sm text-center">Select runs below to overlay their power curves</p>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-3 lg:sticky lg:top-8 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto">
+          <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">
+            Select runs to compare
+          </p>
+          <CompareRunsPicker
+            runs={runs}
+            selectedIds={selected}
+            onToggle={toggle}
             unit={unit}
-            highlightLabel={bestSeriesLabel}
+            bestRunId={bestRunId}
+            bestSelectedKw={bestSelected?.kw ?? null}
+            bestSelectedRunId={bestSelected?.id ?? null}
           />
         </div>
-      ) : (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 flex flex-col items-center gap-2">
-          <svg className="text-zinc-700" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-          </svg>
-          <p className="text-zinc-500 text-sm text-center">Select runs below to overlay their power curves</p>
-        </div>
-      )}
-
-      <div className="space-y-3">
-        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">
-          Select runs to compare
-        </p>
-        <CompareRunsPicker
-          runs={runs}
-          selectedIds={selected}
-          onToggle={toggle}
-          unit={unit}
-          bestRunId={bestRunId}
-          bestSelectedKw={bestSelected?.kw ?? null}
-          bestSelectedRunId={bestSelected?.id ?? null}
-        />
       </div>
     </div>
   );

@@ -41,6 +41,7 @@ export function CalibrationStepConfirm({ calibration, onDone }: { calibration: C
         </div>
       </div>
 
+      <div className="space-y-5 lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start lg:space-y-0">
       {/* Data card */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
         <div className="px-4 py-3 border-b border-zinc-800">
@@ -89,10 +90,11 @@ export function CalibrationStepConfirm({ calibration, onDone }: { calibration: C
           </div>
         </div>
       )}
+      </div>
 
       <button
         onClick={onDone}
-        className="w-full bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-zinc-950 font-semibold py-3.5 rounded-xl transition-colors"
+        className="w-full bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-zinc-950 font-semibold py-3.5 rounded-xl transition-colors lg:block lg:w-fit lg:ml-auto lg:px-8"
       >
         Done
       </button>

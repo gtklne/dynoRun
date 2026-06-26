@@ -19,7 +19,7 @@ export function CalibrationWizardScreen() {
   const stepIndex = STEPS.indexOf(step);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 lg:max-w-3xl lg:mx-auto">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-zinc-100">New Calibration</h1>

@@ -110,7 +110,7 @@ export function RecordingsScreen() {
       </div>
 
       {/* Upload */}
-      <label className="flex items-center justify-center gap-2 border-2 border-dashed border-zinc-700 rounded-xl p-4 cursor-pointer hover:border-zinc-500 transition-colors">
+      <label className="flex items-center justify-center gap-2 border-2 border-dashed border-zinc-700 rounded-xl p-4 cursor-pointer hover:border-zinc-500 transition-colors lg:max-w-md">
         <svg className="text-zinc-500" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="16 16 12 12 8 16"/>
           <line x1="12" y1="12" x2="12" y2="21"/>
@@ -138,7 +138,7 @@ export function RecordingsScreen() {
           <p className="text-zinc-600 text-xs mt-1">Calibrations and runs will appear here automatically.</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-3 lg:space-y-0">
           {recordings.map((r) => (
             <div key={r.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 space-y-2.5">
               <div className="flex items-start justify-between gap-3">

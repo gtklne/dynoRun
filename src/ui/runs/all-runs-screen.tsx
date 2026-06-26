@@ -260,7 +260,7 @@ export function AllRunsScreen() {
       )}
 
       {totalCount > 0 && showFilters && (
-        <div className="sticky top-0 z-10 -mx-4 px-4 pt-2 pb-3 bg-zinc-950/95 backdrop-blur border-b border-zinc-900 space-y-3">
+        <div className="sticky top-0 z-10 -mx-4 px-4 lg:mx-0 lg:px-0 pt-2 pb-3 bg-zinc-950/95 backdrop-blur border-b border-zinc-900 space-y-3">
           <div className="relative">
             <input
               type="text"
@@ -327,7 +327,7 @@ export function AllRunsScreen() {
       )}
 
       {visible.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-2 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-3 lg:space-y-0">
           {visible.map((row) => (
             <RunRow key={row.run.id} row={row} />
           ))}

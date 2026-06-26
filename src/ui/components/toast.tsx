@@ -104,7 +104,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={value}>
       {children}
       <div
-        className="pb-safe pointer-events-none fixed bottom-16 left-0 right-0 z-[60] flex flex-col items-center gap-2 px-4"
+        className="pb-safe pointer-events-none fixed bottom-16 left-0 right-0 z-[60] flex flex-col items-center gap-2 px-4 lg:bottom-4 lg:left-auto lg:right-4 lg:w-96 lg:items-end lg:px-0"
         role="region"
         aria-label="Notifications"
       >

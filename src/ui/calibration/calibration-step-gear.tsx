@@ -51,7 +51,7 @@ export function CalibrationStepGear({ onSubmit }: { onSubmit: (g: GearInput) => 
         <p className="text-zinc-500 text-xs">You'll hold a steady RPM in this gear to calibrate the speed/RPM ratio.</p>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0">
         <div className="flex flex-col gap-2">
           <span className={labelClass}>Gear</span>
           <div className="flex gap-2 flex-wrap">
@@ -109,7 +109,7 @@ export function CalibrationStepGear({ onSubmit }: { onSubmit: (g: GearInput) => 
 
       <button
         type="submit"
-        className="w-full bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-zinc-950 font-semibold py-3.5 rounded-xl transition-colors"
+        className="w-full bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-zinc-950 font-semibold py-3.5 rounded-xl transition-colors lg:block lg:w-fit lg:ml-auto lg:px-8"
       >
         Next →
       </button>

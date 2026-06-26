@@ -240,9 +240,11 @@ export function HelpDrawer({ open, onClose }: HelpDrawerProps) {
 
 interface HelpButtonProps {
   className?: string;
+  /** When set, renders a "Help" text label after the icon (used in the desktop sidebar). */
+  labelled?: boolean;
 }
 
-export function HelpButton({ className }: HelpButtonProps) {
+export function HelpButton({ className, labelled }: HelpButtonProps) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -269,6 +271,7 @@ export function HelpButton({ className }: HelpButtonProps) {
           <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
           <line x1="12" y1="17" x2="12.01" y2="17" />
         </svg>
+        {labelled && <span>Help</span>}
       </button>
       <HelpDrawer open={open} onClose={() => setOpen(false)} />
     </>

@@ -212,7 +212,7 @@ export function LiveRunScreen() {
   const canStart = isReady && (gpsLocked || forceStart);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 lg:max-w-3xl lg:mx-auto">
       <h1 className="text-2xl font-bold text-zinc-100">Run</h1>
 
       {countingDown && (
@@ -235,6 +235,7 @@ export function LiveRunScreen() {
       )}
 
       {isRunning && (
+        <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:items-start lg:space-y-0">
         <div className="bg-zinc-900 border border-amber-700/60 rounded-2xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
@@ -271,11 +272,9 @@ export function LiveRunScreen() {
             </div>
           )}
         </div>
-      )}
-
-      {isRunning && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden p-2">
           <StreamingChart ref={chartRef} />
+        </div>
         </div>
       )}
 

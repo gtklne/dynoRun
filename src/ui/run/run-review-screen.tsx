@@ -303,8 +303,14 @@ export function RunReviewScreen() {
         {analyzed && <RunQualityBadge quality={analyzed.quality} />}
       </div>
 
-      {/* Peak stats — 2x2 grid */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Desktop: data & chart in the wide left column, editable metadata and
+          actions in the right rail. Mobile keeps the single-column order. */}
+      <div className="space-y-5 lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-6 lg:items-start lg:space-y-0">
+        {/* LEFT — data & visualization */}
+        <div className="space-y-5">
+
+      {/* Peak stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
           <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Peak power</p>
           <p className="tabular-nums">
@@ -398,6 +404,10 @@ export function RunReviewScreen() {
         />
       )}
 
+        </div>
+        {/* RIGHT — metadata, conditions & actions */}
+        <div className="space-y-5">
+
       {/* Raw sensor recording */}
       {recordingMatchesRun && lastRecording && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
@@ -480,13 +490,6 @@ export function RunReviewScreen() {
         )}
       </div>
 
-      <ConditionsModal
-        open={conditionsOpen}
-        initial={run.conditions}
-        onClose={() => setConditionsOpen(false)}
-        onSave={saveConditions}
-      />
-
       {/* Public share link */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
         <div>
@@ -565,6 +568,16 @@ export function RunReviewScreen() {
           </button>
         </div>
       </div>
+
+        </div>
+      </div>
+
+      <ConditionsModal
+        open={conditionsOpen}
+        initial={run.conditions}
+        onClose={() => setConditionsOpen(false)}
+        onSave={saveConditions}
+      />
     </div>
   );
 }

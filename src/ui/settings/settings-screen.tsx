@@ -63,8 +63,8 @@ export function SettingsScreen() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-zinc-100">Settings</h1>
+    <div className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
+      <h1 className="text-2xl font-bold text-zinc-100 lg:col-span-2">Settings</h1>
 
       {/* Account */}
       <div className="space-y-2">

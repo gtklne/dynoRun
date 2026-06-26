@@ -53,24 +53,27 @@ export function DemoRunScreen() {
 
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col">
-      <header className="pt-safe bg-zinc-950 border-b border-zinc-800/60 px-4 py-3 flex items-center justify-between gap-2">
-        <Link to="/" className="flex items-center gap-2" aria-label="DynoRun home">
-          <BrandLogo size={22} />
-          <span className="font-bold text-lg tracking-tight">
-            <span className="text-amber-400">dyno</span>
-            <span className="text-zinc-100">Run</span>
-          </span>
-        </Link>
-        <Link
-          to="/login"
-          className="bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-zinc-950 font-semibold text-xs px-3 py-1.5 rounded-lg transition-colors"
-        >
-          Sign in
-        </Link>
+      <header className="pt-safe bg-zinc-950 border-b border-zinc-800/60 px-4 py-3">
+        <div className="flex items-center justify-between gap-2 max-w-2xl w-full mx-auto lg:max-w-5xl">
+          <Link to="/" className="flex items-center gap-2" aria-label="DynoRun home">
+            <BrandLogo size={22} />
+            <span className="font-bold text-lg tracking-tight">
+              <span className="text-amber-400">dyno</span>
+              <span className="text-zinc-100">Run</span>
+            </span>
+          </Link>
+          <Link
+            to="/login"
+            className="bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-zinc-950 font-semibold text-xs px-3 py-1.5 rounded-lg transition-colors"
+          >
+            Sign in
+          </Link>
+        </div>
       </header>
 
-      <main className="flex-1 px-4 pt-4 pb-12 max-w-2xl w-full mx-auto">
-        <div className="space-y-5">
+      <main className="flex-1 px-4 pt-4 pb-12 max-w-2xl w-full mx-auto lg:max-w-5xl">
+        <div className="space-y-5 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] lg:gap-8 lg:items-start lg:space-y-0">
+          <div className="space-y-5">
           <div className="bg-amber-500/10 border border-amber-500/40 rounded-2xl p-4 space-y-2">
             <p className="text-amber-300 text-xs font-semibold uppercase tracking-widest">Example run</p>
             <p className="text-zinc-100 text-sm leading-6">
@@ -131,7 +134,9 @@ export function DemoRunScreen() {
           </div>
 
           <AccelTimesCard accel={analyzed.accel_times} />
+          </div>
 
+          <div className="space-y-5">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden p-2">
             <PowerCurveChart
               series={[{ label: 'Power', points: analyzed.points }]}
@@ -143,6 +148,7 @@ export function DemoRunScreen() {
           <p className="text-zinc-600 text-xs text-center">
             Wheel power derived from GPS · DynoRun
           </p>
+          </div>
         </div>
       </main>
 
