@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "./scripts/dev.sh",
+    "dev:no-tunnel": "tsx watch --env-file-if-exists=.env src/index.ts",
     "build": "tsc --outDir dist",
     "start": "node dist/index.js",
     "db:push": "drizzle-kit push",
