@@ -15,6 +15,9 @@ import { StreamingChart, type StreamingChartHandle } from '@/ui/components/strea
 import { SegmentedControl } from '@/ui/components/segmented-control';
 import { ReplayTransport } from './replay-lab-transport';
 import { ReplayResultPanel } from './replay-lab-result';
+import { ExpertView } from '@/ui/run/expert-view';
+import { useExpertView } from '@/ui/run/use-expert-view';
+import { ToggleSwitch } from '@/ui/components/toggle-switch';
 import type { VehicleKind } from '@/shared/types';
 import type { RawSpeedSample } from '@/analysis/types';
 
@@ -102,6 +105,7 @@ export function ReplayLabPlayer() {
   const [zeroToHundred, setZeroToHundred] = useState<number | null>(null);
   const [progress, setProgress] = useState<ReplayProgress>({ t_ms: 0, duration_ms: 0, playing: false, rate: 1 });
   const [showResult, setShowResult] = useState(false);
+  const [expert, setExpert] = useExpertView();
 
   const chartRef = useRef<StreamingChartHandle>(null);
   const playerRef = useRef<ReplayPlayer | null>(null);
@@ -424,10 +428,29 @@ export function ReplayLabPlayer() {
         {showResult ? 'Hide result' : 'Show result'}
       </button>
 
+      {showResult && isRun && analyzed && analyzed.points.length > 0 && (
+        <div className="flex items-center justify-end">
+          <label className="flex items-center gap-2 text-xs font-semibold text-zinc-500 uppercase tracking-widest">
+            Expert
+            <ToggleSwitch checked={expert} onChange={setExpert} ariaLabel="Expert view" />
+          </label>
+        </div>
+      )}
+
       {showResult && (
         isRun ? (
           analyzed ? (
-            <ReplayResultPanel kind="run" analyzed={analyzed} unit={units.unit} />
+            <>
+              <ReplayResultPanel kind="run" analyzed={analyzed} unit={units.unit} />
+              {expert && analyzed.points.length > 0 && (
+                <ExpertView
+                  roadLoad={analyzed.road_load}
+                  breakdown={analyzed.breakdown}
+                  peakRpm={null}
+                  unit={units.unit}
+                />
+              )}
+            </>
           ) : (
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 text-center">
               <p className="text-zinc-400 text-sm">Enter vehicle mass and rollout to derive the curve.</p>

@@ -1,6 +1,24 @@
 import type { RpmPoint } from '@/shared/types';
 import type { AccelTimes } from './accel-times';
 import type { RunQuality } from './run-quality';
+import type { PowerBreakdownPoint } from './rpm-bin';
+
+// Whether the grade angle is backed by usable GPS altitude or fell back to 0.
+export type GradeSource = 'gps' | 'unavailable';
+
+// The road-load assumptions that produced a curve, surfaced to the expert view.
+// In-memory only (lives on AnalyzedRun); not persisted.
+export interface RoadLoadSummary {
+  cd_a_m2: number;
+  cd_a_source: 'vehicle' | 'default';
+  crr: number;
+  crr_source: 'default';
+  air_density_kg_m3: number;
+  mass_kg: number;
+  grade_rad: number; // signed; 0 when flat OR unavailable
+  grade_pct: number; // tan(grade_rad)*100, signed
+  grade_source: GradeSource;
+}
 
 export interface RawSpeedSample {
   t_ms: number;
@@ -33,6 +51,10 @@ export interface AnalyzedRun {
   pipeline_version: number;
   accel_times: AccelTimes;
   quality: RunQuality;
+  // Road-load decomposition for the expert view. Parallel to `points` (same RPM
+  // bins). In-memory only — not part of the persisted DerivedCurve.
+  breakdown: PowerBreakdownPoint[];
+  road_load: RoadLoadSummary;
 }
 
 // v2: trim raw samples to peak-speed before resampling so the coast-down

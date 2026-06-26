@@ -33,6 +33,11 @@ export interface ResolvedRoadLoad {
   cd_a_m2: number;
   crr: number;
   air_density_kg_m3: number;
+  // Provenance so the expert view can label each assumption. 'vehicle' iff the
+  // vehicle supplied both Cd and A; Crr has no per-vehicle field yet, so it is
+  // always 'default' (modelled as a field to keep the UI honest + future-proof).
+  cd_a_source: 'vehicle' | 'default';
+  crr_source: 'default';
 }
 
 // Resolve the aero drag-area and rolling-resistance coefficient for a vehicle,
@@ -44,9 +49,13 @@ export function resolveRoadLoad(
   frontal_area_m2: number | null | undefined,
 ): ResolvedRoadLoad {
   const defaults = DEFAULTS_BY_KIND[kind] ?? DEFAULTS_BY_KIND.car;
-  const cd_a_m2 =
-    drag_coefficient != null && frontal_area_m2 != null
-      ? drag_coefficient * frontal_area_m2
-      : defaults.cd_a_m2;
-  return { cd_a_m2, crr: defaults.crr, air_density_kg_m3: AIR_DENSITY_KG_M3 };
+  const hasVehicleAero = drag_coefficient != null && frontal_area_m2 != null;
+  const cd_a_m2 = hasVehicleAero ? drag_coefficient * frontal_area_m2 : defaults.cd_a_m2;
+  return {
+    cd_a_m2,
+    crr: defaults.crr,
+    air_density_kg_m3: AIR_DENSITY_KG_M3,
+    cd_a_source: hasVehicleAero ? 'vehicle' : 'default',
+    crr_source: 'default',
+  };
 }

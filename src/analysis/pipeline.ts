@@ -5,10 +5,10 @@ import { resample } from './resample';
 import { smoothSavitzkyGolay } from './smooth';
 import { differentiate } from './differentiate';
 import { powerAndTorque } from './power-torque';
-import { binByRpm } from './rpm-bin';
+import { binByRpm, binBreakdownByRpm } from './rpm-bin';
 import { computeAccelTimes } from './accel-times';
 import { computeRunQuality } from './run-quality';
-import { computeGradeRad } from './grade';
+import { computeGradeRad, computeGradeSource } from './grade';
 import { resolveRoadLoad } from './road-load-defaults';
 import type { VehicleKind } from '@/shared/types';
 
@@ -40,6 +40,7 @@ export function analyzeRun(input: AnalyzeInput): AnalyzedRun {
   // accel phase (the stretch the power is measured on). CdA/Crr come from the
   // vehicle or kind defaults.
   const grade_rad = computeGradeRad(trimmed);
+  const grade_source = computeGradeSource(trimmed);
   const roadLoad = resolveRoadLoad(
     input.kind ?? 'car',
     input.drag_coefficient,
@@ -52,6 +53,7 @@ export function analyzeRun(input: AnalyzeInput): AnalyzedRun {
     air_density_kg_m3: roadLoad.air_density_kg_m3,
   });
   const points = binByRpm(ptPoints, bin);
+  const breakdown = binBreakdownByRpm(ptPoints, bin);
 
   const accel_times = computeAccelTimes(smoothed);
   const quality = computeRunQuality({ raw: trimmed, smoothed, differentiated });
@@ -64,5 +66,17 @@ export function analyzeRun(input: AnalyzeInput): AnalyzedRun {
     pipeline_version: PIPELINE_VERSION,
     accel_times,
     quality,
+    breakdown,
+    road_load: {
+      cd_a_m2: roadLoad.cd_a_m2,
+      cd_a_source: roadLoad.cd_a_source,
+      crr: roadLoad.crr,
+      crr_source: roadLoad.crr_source,
+      air_density_kg_m3: roadLoad.air_density_kg_m3,
+      mass_kg: input.mass_kg,
+      grade_rad,
+      grade_pct: Math.tan(grade_rad) * 100,
+      grade_source,
+    },
   };
 }

@@ -52,4 +52,38 @@ describe('powerAndTorque', () => {
     expect(up.wheel_power_kw).toBeCloseTo(flat.wheel_power_kw + (gradeForce * 10) / 1000, 3);
     expect(down.wheel_power_kw).toBeCloseTo(flat.wheel_power_kw - (gradeForce * 10) / 1000, 3);
   });
+
+  it('decomposes power into four components that sum to wheel_power_kw', () => {
+    const out = powerAndTorque([{ t_ms: 0, speed_mps: 10, accel_ms2: 2 }], 1000, 0.5, {
+      cd_a_m2: 0.7,
+      crr: 0.011,
+      grade_rad: 0.05,
+      air_density_kg_m3: 1.225,
+    })[0];
+    const sum = out.p_inertia_kw + out.p_aero_kw + out.p_roll_kw + out.p_grade_kw;
+    expect(sum).toBeCloseTo(out.wheel_power_kw, 9);
+    // Each component matches its closed form × v / 1000.
+    expect(out.p_inertia_kw).toBeCloseTo((1000 * 2 * 10) / 1000, 6);
+    expect(out.p_aero_kw).toBeCloseTo((0.5 * 1.225 * 0.7 * 100 * 10) / 1000, 6);
+    expect(out.p_roll_kw).toBeCloseTo((0.011 * 1000 * 9.81 * Math.cos(0.05) * 10) / 1000, 6);
+    expect(out.p_grade_kw).toBeCloseTo((1000 * 9.81 * Math.sin(0.05) * 10) / 1000, 6);
+  });
+
+  it('reports a signed (negative) grade component downhill', () => {
+    const out = powerAndTorque([{ t_ms: 0, speed_mps: 10, accel_ms2: 2 }], 1000, 0.5, {
+      cd_a_m2: 0,
+      crr: 0,
+      grade_rad: -0.1,
+    })[0];
+    expect(out.p_grade_kw).toBeLessThan(0);
+    expect(out.p_grade_kw).toBeCloseTo((1000 * 9.81 * Math.sin(-0.1) * 10) / 1000, 6);
+  });
+
+  it('zeroes road-load components when no road load is supplied', () => {
+    const out = powerAndTorque([{ t_ms: 0, speed_mps: 10, accel_ms2: 2 }], 1000, 0.5)[0];
+    expect(out.p_aero_kw).toBe(0);
+    expect(out.p_roll_kw).toBe(0);
+    expect(out.p_grade_kw).toBe(0);
+    expect(out.p_inertia_kw).toBeCloseTo(out.wheel_power_kw, 9);
+  });
 });

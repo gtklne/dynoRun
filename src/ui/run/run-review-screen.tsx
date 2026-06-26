@@ -13,6 +13,9 @@ import { RunQualityBadge } from '@/ui/components/run-quality-badge';
 import { useToast } from '@/ui/components/toast';
 import { ConditionsModal } from '@/ui/run/conditions-modal';
 import { ConditionsChips } from '@/ui/run/conditions-chips';
+import { ExpertView } from '@/ui/run/expert-view';
+import { useExpertView } from '@/ui/run/use-expert-view';
+import { ToggleSwitch } from '@/ui/components/toggle-switch';
 import type { Run, DerivedCurve, Vehicle, RunConditions } from '@/shared/types';
 import { useReplayState, setPendingReplay } from '@/sensors/replay-state';
 import { describeRecording } from '@/sensors/recording';
@@ -59,6 +62,7 @@ export function RunReviewScreen() {
   const [notes, setNotes] = useState('');
   const [title, setTitle] = useState('');
   const [chartMode, setChartMode] = useState<CurveDisplayMode>('power');
+  const [expert, setExpert] = useExpertView();
   const [prevBest, setPrevBest] = useState<number | null>(null);
   const [shareBusy, setShareBusy] = useState(false);
   const [conditionsOpen, setConditionsOpen] = useState(false);
@@ -362,14 +366,18 @@ export function RunReviewScreen() {
 
       {analyzed && <AccelTimesCard accel={analyzed.accel_times} />}
 
-      {/* Chart mode toggle */}
-      <div className="flex justify-center">
+      {/* Chart mode toggle + expert switch */}
+      <div className="flex items-center justify-center gap-3 flex-wrap">
         <SegmentedControl<CurveDisplayMode>
           options={CHART_MODE_OPTIONS}
           value={chartMode}
           onChange={setChartMode}
           ariaLabel="Chart mode"
         />
+        <label className="flex items-center gap-2 text-xs font-semibold text-zinc-500 uppercase tracking-widest">
+          Expert
+          <ToggleSwitch checked={expert} onChange={setExpert} ariaLabel="Expert view" />
+        </label>
       </div>
 
       {/* Chart */}
@@ -380,6 +388,15 @@ export function RunReviewScreen() {
           unit={units.unit}
         />
       </div>
+
+      {expert && analyzed && (
+        <ExpertView
+          roadLoad={analyzed.road_load}
+          breakdown={analyzed.breakdown}
+          peakRpm={peak?.rpm ?? null}
+          unit={units.unit}
+        />
+      )}
 
       {/* Raw sensor recording */}
       {recordingMatchesRun && lastRecording && (

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeGradeRad } from '@/analysis/grade';
+import { computeGradeRad, computeGradeSource } from '@/analysis/grade';
 import type { RawSpeedSample } from '@/analysis/types';
 
 // Constant 10 m/s over 2 s → trapezoid distance = 20 m.
@@ -38,5 +38,24 @@ describe('computeGradeRad', () => {
   it('rejects impossible altitude deltas (|Δalt| ≥ path distance)', () => {
     // 50 m rise over 20 m of travel is physically impossible → bad GPS alt → 0.
     expect(computeGradeRad(constantSpeedSamples([0, 25, 50]))).toBe(0);
+  });
+});
+
+describe('computeGradeSource', () => {
+  it("returns 'gps' when usable altitude is present (even on a flat road)", () => {
+    expect(computeGradeSource(constantSpeedSamples([100, 100, 100]))).toBe('gps');
+    expect(computeGradeSource(constantSpeedSamples([0, 1, 2]))).toBe('gps');
+  });
+
+  it("returns 'unavailable' when altitude is missing", () => {
+    expect(computeGradeSource(constantSpeedSamples([null, null, null]))).toBe('unavailable');
+  });
+
+  it("returns 'unavailable' with fewer than two samples", () => {
+    expect(computeGradeSource([{ t_ms: 0, speed_mps: 10, altitude_m: 5 }])).toBe('unavailable');
+  });
+
+  it("returns 'unavailable' for impossible altitude deltas (bad GPS, not 'flat')", () => {
+    expect(computeGradeSource(constantSpeedSamples([0, 25, 50]))).toBe('unavailable');
   });
 });

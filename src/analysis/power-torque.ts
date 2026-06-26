@@ -8,6 +8,13 @@ export interface PowerTorquePoint {
   rpm: number;
   wheel_power_kw: number;
   wheel_torque_nm: number;
+  // Road-load decomposition of wheel power (kW). By construction the four sum to
+  // wheel_power_kw. p_grade_kw is SIGNED (negative downhill). In-memory only —
+  // never persisted; used by the expert-view breakdown.
+  p_inertia_kw: number;
+  p_aero_kw: number;
+  p_roll_kw: number;
+  p_grade_kw: number;
 }
 
 // Road-load terms added to the inertial force. When omitted, powerAndTorque is
@@ -36,11 +43,14 @@ export function powerAndTorque(
   const out: PowerTorquePoint[] = [];
   for (const s of input) {
     if (s.speed_mps <= 0) continue;
+    const v = s.speed_mps;
     const f_inertia = mass_kg * s.accel_ms2;
-    const f_aero = 0.5 * rho * cd_a * s.speed_mps * s.speed_mps;
+    const f_aero = 0.5 * rho * cd_a * v * v;
     const force_n = f_inertia + f_aero + f_roll + f_grade;
-    const power_w = force_n * s.speed_mps;
-    const rpm = speedToRpm(s.speed_mps, rollout_m_per_rev);
+    // wheel_power_kw stays derived from the summed force (not from re-summing the
+    // rounded components) so the persisted-curve path is bit-identical to v0.8.
+    const power_w = force_n * v;
+    const rpm = speedToRpm(v, rollout_m_per_rev);
     const omega = rpmToRadPerSec(rpm);
     const torque_nm = omega > 0 ? power_w / omega : 0;
     out.push({
@@ -48,6 +58,10 @@ export function powerAndTorque(
       rpm,
       wheel_power_kw: power_w / 1000,
       wheel_torque_nm: torque_nm,
+      p_inertia_kw: (f_inertia * v) / 1000,
+      p_aero_kw: (f_aero * v) / 1000,
+      p_roll_kw: (f_roll * v) / 1000,
+      p_grade_kw: (f_grade * v) / 1000,
     });
   }
   return out;
