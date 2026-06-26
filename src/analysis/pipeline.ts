@@ -8,11 +8,19 @@ import { powerAndTorque } from './power-torque';
 import { binByRpm } from './rpm-bin';
 import { computeAccelTimes } from './accel-times';
 import { computeRunQuality } from './run-quality';
+import { computeGradeRad } from './grade';
+import { resolveRoadLoad } from './road-load-defaults';
+import type { VehicleKind } from '@/shared/types';
 
 export interface AnalyzeInput {
   samples: RawSpeedSample[];
   mass_kg: number;
   rollout_m_per_rev: number;
+  // Road-load inputs. Omitted (e.g. synthetic demo/fixture data) → 'car'
+  // defaults and no grade, so the pipeline still produces a valid curve.
+  kind?: VehicleKind;
+  drag_coefficient?: number | null;
+  frontal_area_m2?: number | null;
   resample_step_ms?: number;
   smooth_window?: number;
   bin_width_rpm?: number;
@@ -27,7 +35,22 @@ export function analyzeRun(input: AnalyzeInput): AnalyzedRun {
   const resampled = resample(trimmed, step);
   const smoothed = smoothSavitzkyGolay(resampled, window);
   const differentiated = differentiate(smoothed);
-  const ptPoints = powerAndTorque(differentiated, input.mass_kg, input.rollout_m_per_rev);
+
+  // Grade is a single average angle for the pull, derived from altitude over the
+  // accel phase (the stretch the power is measured on). CdA/Crr come from the
+  // vehicle or kind defaults.
+  const grade_rad = computeGradeRad(trimmed);
+  const roadLoad = resolveRoadLoad(
+    input.kind ?? 'car',
+    input.drag_coefficient,
+    input.frontal_area_m2,
+  );
+  const ptPoints = powerAndTorque(differentiated, input.mass_kg, input.rollout_m_per_rev, {
+    cd_a_m2: roadLoad.cd_a_m2,
+    crr: roadLoad.crr,
+    grade_rad,
+    air_density_kg_m3: roadLoad.air_density_kg_m3,
+  });
   const points = binByRpm(ptPoints, bin);
 
   const accel_times = computeAccelTimes(smoothed);

@@ -109,6 +109,7 @@ export interface Sample {
   lat: number | null;
   lon: number | null;
   hdop: number | null;
+  altitude_m: number | null;
 }
 
 export interface RpmPoint {

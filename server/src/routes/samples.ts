@@ -15,6 +15,7 @@ route.post('/runs/:id/samples', async (c) => {
   const body = await c.req.json<Array<{
     t_ms: number; speed_mps: number; accel_long_ms2?: number | null;
     accel_vert_ms2?: number | null; lat?: number | null; lon?: number | null; hdop?: number | null;
+    altitude_m?: number | null;
   }>>();
   if (body.length === 0) return c.json({ inserted: 0 });
   await db.insert(samples).values(body.map((s) => ({
@@ -29,6 +30,7 @@ route.post('/runs/:id/samples', async (c) => {
     lat: s.lat ?? null,
     lon: s.lon ?? null,
     hdop: s.hdop ?? null,
+    altitude_m: s.altitude_m ?? null,
   })));
   return c.json({ inserted: body.length });
 });

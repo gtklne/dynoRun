@@ -74,6 +74,7 @@ export const samples = pgTable('samples', {
   lat: real('lat'),
   lon: real('lon'),
   hdop: real('hdop'),
+  altitude_m: real('altitude_m'),
 }, (t) => [primaryKey({ columns: [t.run_id, t.t_ms] })]);
 
 export const recordings = pgTable('recordings', {

@@ -21,9 +21,12 @@ export async function reanalyzeRun(runId: string): Promise<DerivedCurve | null> 
   if (!vehicle) return null;
   if (samples.length === 0) return null;
   const result = analyzeRun({
-    samples: samples.map((s) => ({ t_ms: s.t_ms, speed_mps: s.speed_mps })),
+    samples: samples.map((s) => ({ t_ms: s.t_ms, speed_mps: s.speed_mps, altitude_m: s.altitude_m })),
     mass_kg: vehicle.mass_kg,
     rollout_m_per_rev: calibration.rollout_m_per_rev,
+    kind: vehicle.kind,
+    drag_coefficient: vehicle.drag_coefficient,
+    frontal_area_m2: vehicle.frontal_area_m2,
   });
   const curve: DerivedCurve = {
     run_id: runId,
@@ -75,8 +78,11 @@ export async function loadAnalyzedRun(runId: string): Promise<AnalyzedRun | null
   if (!vehicle) return null;
   if (samples.length === 0) return null;
   return analyzeRun({
-    samples: samples.map((s) => ({ t_ms: s.t_ms, speed_mps: s.speed_mps })),
+    samples: samples.map((s) => ({ t_ms: s.t_ms, speed_mps: s.speed_mps, altitude_m: s.altitude_m })),
     mass_kg: vehicle.mass_kg,
     rollout_m_per_rev: calibration.rollout_m_per_rev,
+    kind: vehicle.kind,
+    drag_coefficient: vehicle.drag_coefficient,
+    frontal_area_m2: vehicle.frontal_area_m2,
   });
 }

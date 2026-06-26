@@ -219,6 +219,7 @@ export class RunController {
       lat: null,
       lon: null,
       hdop: null,
+      altitude_m: s.value.altitude_m ?? null,
     };
     this.samples.push(sample);
     this.detector.push({ t_ms: s.t_ms, speed_mps: s.value.speed_mps });
@@ -267,9 +268,16 @@ export class RunController {
 
       await this.opts.sampleRepository.insertMany(this.samples);
       const result = analyzeRun({
-        samples: this.samples.map((s) => ({ t_ms: s.t_ms, speed_mps: s.speed_mps })),
+        samples: this.samples.map((s) => ({
+          t_ms: s.t_ms,
+          speed_mps: s.speed_mps,
+          altitude_m: s.altitude_m,
+        })),
         mass_kg: vehicle.mass_kg,
         rollout_m_per_rev: this.calibration.rollout_m_per_rev,
+        kind: vehicle.kind,
+        drag_coefficient: vehicle.drag_coefficient,
+        frontal_area_m2: vehicle.frontal_area_m2,
       });
       await this.opts.derivedCurveRepository.upsert({
         run_id: runId,

@@ -23,7 +23,7 @@ describe('createDatabaseDump', () => {
       created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', synced_at: null,
     };
     const sample: Sample = {
-      run_id: '1', t_ms: 0, speed_mps: 10, accel_long_ms2: null, accel_vert_ms2: null, lat: null, lon: null, hdop: null,
+      run_id: '1', t_ms: 0, speed_mps: 10, accel_long_ms2: null, accel_vert_ms2: null, lat: null, lon: null, hdop: null, altitude_m: null,
     };
     const derivedCurve: DerivedCurve = {
       run_id: '1', rpm_min: 0, rpm_max: 1,
