@@ -2,6 +2,9 @@ export type UUID = string;
 export type IsoTime = string;
 
 export type VehicleKind = 'car' | 'motorcycle';
+export type CarShape = 'sedan' | 'hatchback' | 'wagon' | 'coupe' | 'suv' | 'pickup' | 'van';
+export type MotoShape = 'sport' | 'naked' | 'cruiser' | 'touring';
+export type BodyShape = CarShape | MotoShape;
 export type Drivetrain = 'fwd' | 'rwd' | 'awd' | 'chain' | 'shaft';
 export type Transmission = 'manual' | 'dct' | 'automatic' | 'cvt';
 export type RunStatus = 'in_progress' | 'complete' | 'degraded' | 'aborted';
@@ -15,6 +18,7 @@ export interface Vehicle {
   drivetrain: Drivetrain;
   frontal_area_m2: number | null;
   drag_coefficient: number | null;
+  body_shape: BodyShape | null;
   notes: string;
   make: string | null;
   model: string | null;

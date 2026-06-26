@@ -63,6 +63,30 @@ export async function ensureCurrentCurve(
   return reanalyzeRun(runId);
 }
 
+// Recompute the stored curve + peaks for every completed run of a vehicle. Call
+// after editing power-affecting vehicle fields (mass, kind, Cd, frontal area) so
+// existing runs reflect the new parameters instead of silently going stale.
+// Returns the number of runs recomputed. Individual failures are swallowed so one
+// bad run can't abort the batch.
+export async function reanalyzeVehicleRuns(
+  vehicleId: string,
+  onProgress?: (done: number, total: number) => void,
+): Promise<number> {
+  const runs = await runRepository.listByVehicle(vehicleId);
+  const target = runs.filter((r) => r.status === 'complete' || r.status === 'degraded');
+  let done = 0;
+  for (const run of target) {
+    try {
+      await reanalyzeRun(run.id);
+    } catch {
+      /* skip a run that can't be recomputed (e.g. missing samples) */
+    }
+    done += 1;
+    onProgress?.(done, target.length);
+  }
+  return target.length;
+}
+
 // AnalyzedRun carries the extra accel-times + quality data that DerivedCurve
 // (which is what's persisted) does NOT include. The review screen needs both,
 // so we re-run analyzeRun in-memory from raw samples whenever it's mounted.

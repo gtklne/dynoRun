@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import type { VehicleKind, Drivetrain, Transmission } from '@/shared/types';
+import type { VehicleKind, Drivetrain, Transmission, BodyShape } from '@/shared/types';
 import type { NewVehicle } from '@/api/repositories/types';
+import { shapesForKind, shapePreset } from '@/shared/body-shapes';
 
 const labelClass = 'text-xs font-medium text-zinc-400 uppercase tracking-wider';
 const inputClass = 'w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-500 transition-colors text-sm';
@@ -58,7 +59,29 @@ export function VehicleForm({
   const [kind, setKind] = useState<VehicleKind>(initial?.kind ?? 'car');
   const [mass, setMass] = useState(String(initial?.mass_kg ?? ''));
   const [drivetrain, setDrivetrain] = useState<Drivetrain>(initial?.drivetrain ?? 'fwd');
+  const [bodyShape, setBodyShape] = useState<BodyShape | ''>(initial?.body_shape ?? '');
+  const [frontalArea, setFrontalArea] = useState(
+    initial?.frontal_area_m2 != null ? String(initial.frontal_area_m2) : '',
+  );
   const [notes, setNotes] = useState(initial?.notes ?? '');
+
+  const shapeOptions = useMemo(() => shapesForKind(kind), [kind]);
+  const selectedPreset = shapePreset(kind, bodyShape || null);
+
+  // Picking a shape sets its Cd and prefills the typical frontal area (still
+  // editable). 'Use default' clears both so the kind-average CdA applies.
+  function onShapeChange(next: BodyShape | '') {
+    setBodyShape(next);
+    const preset = shapePreset(kind, next || null);
+    setFrontalArea(preset ? String(preset.frontal_area_m2) : '');
+  }
+
+  // Shapes differ by kind; a stale shape would be invalid after switching.
+  function onKindChange(next: VehicleKind) {
+    setKind(next);
+    setBodyShape('');
+    setFrontalArea('');
+  }
 
   const initiallyExpanded = useMemo(() => hasEnrichedData(initial), [initial]);
   const [detailsOpen, setDetailsOpen] = useState(initiallyExpanded);
@@ -83,13 +106,19 @@ export function VehicleForm({
     const makeTrim = make.trim();
     const modelTrim = model.trim();
     const tireTrim = tireLabel.trim();
+    const preset = shapePreset(kind, bodyShape || null);
+    const areaNum = parseFloat(frontalArea);
+    const frontalAreaM2 = preset
+      ? (isFinite(areaNum) && areaNum > 0 ? areaNum : preset.frontal_area_m2)
+      : null;
     onSubmit({
       name: name.trim(),
       kind,
       mass_kg: massKg,
       drivetrain,
-      frontal_area_m2: null,
-      drag_coefficient: null,
+      frontal_area_m2: frontalAreaM2,
+      drag_coefficient: preset ? preset.cd : null,
+      body_shape: bodyShape || null,
       notes,
       make: makeTrim === '' ? null : makeTrim,
       model: modelTrim === '' ? null : modelTrim,
@@ -109,7 +138,7 @@ export function VehicleForm({
 
       <div className={fieldClass}>
         <label htmlFor="vf-kind" className={labelClass}>Kind</label>
-        <select id="vf-kind" className={inputClass} value={kind} onChange={(e) => setKind(e.target.value as VehicleKind)}>
+        <select id="vf-kind" className={inputClass} value={kind} onChange={(e) => onKindChange(e.target.value as VehicleKind)}>
           <option value="car">Car</option>
           <option value="motorcycle">Motorcycle</option>
         </select>
@@ -130,6 +159,48 @@ export function VehicleForm({
           <option value="shaft">Shaft (motorcycle)</option>
         </select>
       </div>
+
+      <div className={fieldClass}>
+        <label htmlFor="vf-shape" className={labelClass}>Body shape (drag)</label>
+        <select
+          id="vf-shape"
+          className={inputClass}
+          value={bodyShape}
+          onChange={(e) => onShapeChange(e.target.value as BodyShape | '')}
+        >
+          <option value="">Use default (kind average)</option>
+          {shapeOptions.map((s) => (
+            <option key={s.value} value={s.value}>{s.label}</option>
+          ))}
+        </select>
+        {selectedPreset ? (
+          <p className="text-xs text-zinc-500">
+            Drag coefficient Cd ≈ {selectedPreset.cd.toFixed(2)} for this shape. Frontal area is
+            prefilled — adjust if you know yours.
+          </p>
+        ) : (
+          <p className="text-xs text-zinc-500">
+            Used for aerodynamic drag. Leave on default to use the average {kind} value.
+          </p>
+        )}
+      </div>
+
+      {selectedPreset && (
+        <div className={fieldClass}>
+          <label htmlFor="vf-area" className={labelClass}>Frontal area</label>
+          <div className="relative">
+            <input
+              id="vf-area"
+              className={`${inputClass} pr-10`}
+              value={frontalArea}
+              inputMode="decimal"
+              placeholder={String(selectedPreset.frontal_area_m2)}
+              onChange={(e) => setFrontalArea(e.target.value)}
+            />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 text-sm pointer-events-none">m²</span>
+          </div>
+        </div>
+      )}
 
       <div className={fieldClass}>
         <label htmlFor="vf-notes" className={labelClass}>Notes</label>

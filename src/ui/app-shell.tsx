@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { Link, NavLink, Outlet } from 'react-router-dom';
 import { BrandLogo } from './components/brand-logo';
 import { HelpButton } from './components/help-drawer';
 
@@ -40,12 +40,14 @@ export function AppShell() {
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col">
       {/* Top header */}
-      <header className="pt-safe bg-zinc-950 border-b border-zinc-800/60 px-4 py-3 flex items-center gap-2">
-        <BrandLogo size={22} />
-        <span className="font-bold text-lg tracking-tight">
-          <span className="text-amber-400">dyno</span>
-          <span className="text-zinc-100">Run</span>
-        </span>
+      <header className="pt-safe sticky top-0 z-50 bg-zinc-950/95 backdrop-blur-sm border-b border-zinc-800/60 px-4 py-3 flex items-center gap-2">
+        <Link to="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
+          <BrandLogo size={22} />
+          <span className="font-bold text-lg tracking-tight">
+            <span className="text-amber-400">dyno</span>
+            <span className="text-zinc-100">Run</span>
+          </span>
+        </Link>
         <div className="ml-auto">
           <HelpButton />
         </div>

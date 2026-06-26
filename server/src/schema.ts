@@ -18,6 +18,7 @@ export const vehicles = pgTable('vehicles', {
   drivetrain: text('drivetrain').notNull(),
   frontal_area_m2: real('frontal_area_m2'),
   drag_coefficient: real('drag_coefficient'),
+  body_shape: text('body_shape'),
   notes: text('notes').notNull().default(''),
   make: text('make'),
   model: text('model'),

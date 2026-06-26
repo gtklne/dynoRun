@@ -42,6 +42,7 @@ function makeVehicle(overrides: Partial<Vehicle> & { id: string; name: string })
     drivetrain: 'rwd',
     frontal_area_m2: null,
     drag_coefficient: null,
+    body_shape: null,
     notes: '',
     make: null,
     model: null,

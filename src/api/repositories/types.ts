@@ -1,6 +1,6 @@
 import type {
   Vehicle, Calibration, Run, RunUpdate, Sample, DerivedCurve,
-  VehicleKind, Drivetrain, RunConditions, Transmission,
+  VehicleKind, Drivetrain, RunConditions, Transmission, BodyShape,
 } from '@/shared/types';
 
 export interface NewVehicle {
@@ -10,6 +10,7 @@ export interface NewVehicle {
   drivetrain: Drivetrain;
   frontal_area_m2: number | null;
   drag_coefficient: number | null;
+  body_shape: BodyShape | null;
   notes: string;
   make: string | null;
   model: string | null;

@@ -4,10 +4,24 @@ import { vehicleRepository } from '@/api/repositories/vehicle-repository';
 import { calibrationRepository } from '@/api/repositories/calibration-repository';
 import { runRepository } from '@/api/repositories/run-repository';
 import { useUnits } from '@/app/units-context';
+import { useToast } from '@/ui/components/toast';
+import { reanalyzeVehicleRuns } from '@/analysis/re-analyze';
 import { formatRelativeTime } from '@/shared/format-time';
 import { PeakTrendChart } from '@/ui/components/peak-trend-chart';
 import type { Vehicle, Calibration, Run, Transmission } from '@/shared/types';
+import type { NewVehicle } from '@/api/repositories/types';
 import { VehicleForm } from './vehicle-form';
+
+// Editing any of these changes the derived power curve, so stored runs must be
+// recomputed; name/notes/make/etc. do not.
+function affectsPower(before: Vehicle, after: NewVehicle): boolean {
+  return (
+    before.mass_kg !== after.mass_kg ||
+    before.kind !== after.kind ||
+    before.drag_coefficient !== after.drag_coefficient ||
+    before.frontal_area_m2 !== after.frontal_area_m2
+  );
+}
 
 const statusColor: Record<string, string> = {
   complete: 'text-emerald-400',
@@ -93,7 +107,10 @@ export function VehicleDetail() {
   const [cals, setCals] = useState<Calibration[]>([]);
   const [runs, setRuns] = useState<Run[]>([]);
   const [editing, setEditing] = useState(false);
+  const [recomputing, setRecomputing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const { format } = useUnits();
+  const toast = useToast();
 
   useEffect(() => {
     if (!id) return;
@@ -121,6 +138,23 @@ export function VehicleDetail() {
     ? runs.reduce((a, b) => (new Date(a.started_at).getTime() >= new Date(b.started_at).getTime() ? a : b))
     : null;
 
+  async function handleDelete() {
+    if (!vehicle) return;
+    const runNote = runs.length > 0
+      ? ` Its ${runs.length} run${runs.length === 1 ? '' : 's'} and all calibrations will be deleted too.`
+      : '';
+    if (!confirm(`Delete "${vehicle.name}"?${runNote} This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      await vehicleRepository.delete(vehicle.id);
+      toast.show('Vehicle deleted', { variant: 'success' });
+      navigate('/');
+    } catch {
+      toast.show('Failed to delete vehicle', { variant: 'error' });
+      setDeleting(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
       {/* Back nav */}
@@ -138,15 +172,39 @@ export function VehicleDetail() {
           <VehicleForm
             initial={vehicle}
             onSubmit={async (input) => {
+              const needsRecompute = affectsPower(vehicle, input);
               const updated = await vehicleRepository.update(vehicle.id, input);
               setVehicle(updated);
               setEditing(false);
+              if (!needsRecompute) return;
+              setRecomputing(true);
+              try {
+                const count = await reanalyzeVehicleRuns(updated.id);
+                setRuns(await runRepository.listByVehicle(updated.id));
+                toast.show(
+                  count === 0
+                    ? 'Vehicle updated — no runs to recompute'
+                    : `Vehicle updated — recomputed ${count} run${count === 1 ? '' : 's'}`,
+                  { variant: 'success' },
+                );
+              } catch {
+                toast.show('Vehicle saved, but recomputing runs failed', { variant: 'error' });
+              } finally {
+                setRecomputing(false);
+              }
             }}
             onCancel={() => setEditing(false)}
           />
         </div>
       ) : (
         <VehicleProfileCard vehicle={vehicle} onEdit={() => setEditing(true)} />
+      )}
+
+      {recomputing && (
+        <div className="bg-amber-500/10 border border-amber-500/40 rounded-2xl p-3 text-amber-300 text-sm flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+          Recomputing power curves for this vehicle's runs…
+        </div>
       )}
 
       {/* Vehicle stats */}
@@ -269,6 +327,20 @@ export function VehicleDetail() {
           );
         })}
       </div>
+
+      {/* Danger zone */}
+      {!editing && (
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting}
+            className="w-full text-red-400 hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold border border-red-900/50 hover:border-red-800 rounded-2xl py-3 transition-colors"
+          >
+            {deleting ? 'Deleting…' : 'Delete vehicle'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -113,6 +113,51 @@ describe('VehicleForm', () => {
     cleanup();
   });
 
+  it('defaults aero to null when no body shape is chosen', () => {
+    const { onSubmit } = renderForm();
+    fireEvent.change(screen.getByLabelText(/^Name$/i), { target: { value: 'Civic' } });
+    fireEvent.change(screen.getByLabelText(/^Mass \(kg\)$/i), { target: { value: '1300' } });
+    fireEvent.click(screen.getByRole('button', { name: /Save vehicle/i }));
+
+    const arg = onSubmit.mock.calls[0][0];
+    expect(arg.body_shape).toBeNull();
+    expect(arg.drag_coefficient).toBeNull();
+    expect(arg.frontal_area_m2).toBeNull();
+    cleanup();
+  });
+
+  it('derives Cd + prefilled frontal area from the chosen body shape', () => {
+    const { onSubmit } = renderForm();
+    fireEvent.change(screen.getByLabelText(/^Name$/i), { target: { value: 'Civic' } });
+    fireEvent.change(screen.getByLabelText(/^Mass \(kg\)$/i), { target: { value: '1300' } });
+    fireEvent.change(screen.getByLabelText(/^Body shape/i), { target: { value: 'sedan' } });
+
+    // Frontal area input appears and is prefilled with the preset.
+    expect((screen.getByLabelText(/^Frontal area$/i) as HTMLInputElement).value).toBe('2.2');
+
+    fireEvent.click(screen.getByRole('button', { name: /Save vehicle/i }));
+    const arg = onSubmit.mock.calls[0][0];
+    expect(arg.body_shape).toBe('sedan');
+    expect(arg.drag_coefficient).toBeCloseTo(0.30, 6);
+    expect(arg.frontal_area_m2).toBeCloseTo(2.2, 6);
+    cleanup();
+  });
+
+  it('keeps an edited frontal area while taking Cd from the shape', () => {
+    const { onSubmit } = renderForm();
+    fireEvent.change(screen.getByLabelText(/^Name$/i), { target: { value: 'Truck' } });
+    fireEvent.change(screen.getByLabelText(/^Mass \(kg\)$/i), { target: { value: '2200' } });
+    fireEvent.change(screen.getByLabelText(/^Body shape/i), { target: { value: 'suv' } });
+    fireEvent.change(screen.getByLabelText(/^Frontal area$/i), { target: { value: '2.85' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Save vehicle/i }));
+    const arg = onSubmit.mock.calls[0][0];
+    expect(arg.body_shape).toBe('suv');
+    expect(arg.drag_coefficient).toBeCloseTo(0.35, 6);
+    expect(arg.frontal_area_m2).toBeCloseTo(2.85, 6);
+    cleanup();
+  });
+
   it('passes enriched values through on submit', () => {
     const { onSubmit } = renderForm();
     fireEvent.change(screen.getByLabelText(/^Name$/i), { target: { value: 'Golf' } });
