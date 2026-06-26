@@ -1,5 +1,7 @@
 import type { Unsubscribe } from '@/shared/observable';
 import type { SpeedSource, GpsPosition } from './types';
+import type { RawSpeedSample } from '@/analysis/types';
+import { haversineDistance } from '@/shared/geo';
 
 export interface RawGpsFix {
   t_ms: number;
@@ -129,4 +131,54 @@ export function describeRecording(r: SensorRecording): string {
   const date = new Date(r.recorded_at).toLocaleString();
   const dur = (r.duration_ms / 1000).toFixed(1);
   return `${r.kind} · ${date} · ${dur}s · ${r.gps_fixes.length} GPS · ${r.motion_fixes.length} motion`;
+}
+
+function speedFromDelta(prev: RawGpsFix, cur: RawGpsFix): number {
+  const prevT = prev.pos_ms ?? prev.wall_ms;
+  const curT = cur.pos_ms ?? cur.wall_ms;
+  const dt_s = (curT - prevT) / 1000;
+  if (dt_s < 0.05) return 0;
+  return haversineDistance(prev.lat, prev.lng, cur.lat, cur.lng) / dt_s;
+}
+
+/**
+ * Speed for a GPS fix, mirroring the live GpsSpeedSource derivation so a replayed
+ * run reproduces the original samples: native speed when present, otherwise
+ * haversine distance from the previous fix over the GPS time delta.
+ */
+export function fixSpeedMps(prev: RawGpsFix | null, cur: RawGpsFix): number {
+  const speed_mps =
+    cur.speed_native_mps != null && cur.speed_native_mps > 0
+      ? cur.speed_native_mps
+      : prev
+        ? speedFromDelta(prev, cur)
+        : 0;
+  return Math.max(0, speed_mps);
+}
+
+/** GPS accuracy → 0–1 quality, matching the live source mapping. */
+export function fixQuality(cur: RawGpsFix): number {
+  return cur.accuracy_m != null ? Math.max(0, 1 - cur.accuracy_m / 30) : 0.5;
+}
+
+/** Convert stored GPS fixes into the speed samples analyzeRun consumes. */
+export function recordingSpeedSamples(fixes: RawGpsFix[]): RawSpeedSample[] {
+  return fixes.map((fix, i) => ({
+    t_ms: fix.t_ms,
+    speed_mps: fixSpeedMps(i > 0 ? fixes[i - 1] : null, fix),
+    altitude_m: fix.altitude_m,
+  }));
+}
+
+/** Structural validation for a parsed/uploaded recording envelope. */
+export function isSensorRecording(value: unknown): value is SensorRecording {
+  if (!value || typeof value !== 'object') return false;
+  const r = value as Record<string, unknown>;
+  return (
+    r.version === 1 &&
+    (r.kind === 'run' || r.kind === 'calibration') &&
+    typeof r.recorded_at === 'string' &&
+    Array.isArray(r.gps_fixes) &&
+    Array.isArray(r.motion_fixes)
+  );
 }

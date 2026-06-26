@@ -1,8 +1,10 @@
+import { useNavigate } from 'react-router-dom';
 import type { Calibration } from '@/shared/types';
-import { useReplayState, setActiveReplay } from '@/sensors/replay-state';
+import { useReplayState, setPendingReplay } from '@/sensors/replay-state';
 import { describeRecording } from '@/sensors/recording';
 
 export function CalibrationStepConfirm({ calibration, onDone }: { calibration: Calibration; onDone: () => void }) {
+  const navigate = useNavigate();
   const { last: lastRecording } = useReplayState();
   const recordingMatches = lastRecording?.kind === 'calibration' && lastRecording.meta.vehicle_id === calibration.vehicle_id;
 
@@ -20,7 +22,8 @@ export function CalibrationStepConfirm({ calibration, onDone }: { calibration: C
 
   function useRecordingForReplay() {
     if (!lastRecording) return;
-    setActiveReplay(lastRecording);
+    setPendingReplay(lastRecording);
+    navigate('/replay/local');
   }
 
   return (

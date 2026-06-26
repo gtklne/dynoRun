@@ -1,20 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { recordingRepository } from '@/api/repositories/recording-repository';
-import { setActiveReplay, useReplayState } from '@/sensors/replay-state';
-import type { SensorRecording } from '@/sensors/recording';
+import { useNavigate } from 'react-router-dom';
+import { recordingRepository, toSensorRecording } from '@/api/repositories/recording-repository';
+import { isSensorRecording } from '@/sensors/recording';
 import type { RecordingSummary } from '@/api/repositories/types';
-
-function isValidRecording(value: unknown): value is SensorRecording {
-  if (!value || typeof value !== 'object') return false;
-  const r = value as Record<string, unknown>;
-  return (
-    r.version === 1 &&
-    (r.kind === 'run' || r.kind === 'calibration') &&
-    typeof r.recorded_at === 'string' &&
-    Array.isArray(r.gps_fixes) &&
-    Array.isArray(r.motion_fixes)
-  );
-}
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString();
@@ -28,11 +16,11 @@ function formatDuration(ms: number): string {
 }
 
 export function RecordingsScreen() {
+  const navigate = useNavigate();
   const [recordings, setRecordings] = useState<RecordingSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const { active: activeReplay } = useReplayState();
 
   const load = useCallback(async () => {
     setError(null);
@@ -46,58 +34,13 @@ export function RecordingsScreen() {
 
   useEffect(() => { void load(); }, [load]);
 
-  async function activate(id: string) {
-    setBusy(id);
-    setError(null);
-    try {
-      const full = await recordingRepository.get(id);
-      if (!full) throw new Error('Recording not found');
-      const rec: SensorRecording = {
-        version: 1,
-        kind: full.kind,
-        recorded_at: full.recorded_at,
-        duration_ms: full.duration_ms,
-        meta: {
-          vehicle_id: full.vehicle_id ?? undefined,
-          calibration_id: full.calibration_id ?? undefined,
-          run_id: full.run_id ?? undefined,
-          gear_label: full.gear_label ?? undefined,
-          user_rpm: full.user_rpm ?? undefined,
-          label: full.label ?? undefined,
-        },
-        gps_fixes: full.data.gps_fixes as SensorRecording['gps_fixes'],
-        motion_fixes: full.data.motion_fixes as SensorRecording['motion_fixes'],
-      };
-      setActiveReplay(rec);
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setBusy(null);
-    }
-  }
-
   async function download(id: string) {
     setBusy(id);
     setError(null);
     try {
       const full = await recordingRepository.get(id);
       if (!full) throw new Error('Recording not found');
-      const payload: SensorRecording = {
-        version: 1,
-        kind: full.kind,
-        recorded_at: full.recorded_at,
-        duration_ms: full.duration_ms,
-        meta: {
-          vehicle_id: full.vehicle_id ?? undefined,
-          calibration_id: full.calibration_id ?? undefined,
-          run_id: full.run_id ?? undefined,
-          gear_label: full.gear_label ?? undefined,
-          user_rpm: full.user_rpm ?? undefined,
-          label: full.label ?? undefined,
-        },
-        gps_fixes: full.data.gps_fixes as SensorRecording['gps_fixes'],
-        motion_fixes: full.data.motion_fixes as SensorRecording['motion_fixes'],
-      };
+      const payload = toSensorRecording(full);
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -120,9 +63,6 @@ export function RecordingsScreen() {
     try {
       await recordingRepository.delete(id);
       await load();
-      if (activeReplay && (activeReplay as SensorRecording & { id?: string }).meta?.run_id === id) {
-        setActiveReplay(null);
-      }
     } catch (err) {
       setError(String(err));
     } finally {
@@ -138,7 +78,7 @@ export function RecordingsScreen() {
     try {
       const text = await file.text();
       const parsed = JSON.parse(text);
-      if (!isValidRecording(parsed)) {
+      if (!isSensorRecording(parsed)) {
         throw new Error('Not a valid sensor recording (missing version/kind/fixes fields)');
       }
       await recordingRepository.create({
@@ -168,22 +108,6 @@ export function RecordingsScreen() {
         <h1 className="text-2xl font-bold text-zinc-100">Recordings</h1>
         <p className="text-zinc-500 text-sm mt-1">Raw sensor logs from every calibration and run. Replay any of them through the app to test without driving.</p>
       </div>
-
-      {/* Active replay banner */}
-      {activeReplay && (
-        <div className="bg-amber-950/30 border border-amber-800/40 rounded-2xl p-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-            <p className="text-amber-300 text-xs font-semibold uppercase tracking-widest">Replay active</p>
-          </div>
-          <button
-            onClick={() => setActiveReplay(null)}
-            className="text-zinc-300 text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700"
-          >
-            Disable
-          </button>
-        </div>
-      )}
 
       {/* Upload */}
       <label className="flex items-center justify-center gap-2 border-2 border-dashed border-zinc-700 rounded-xl p-4 cursor-pointer hover:border-zinc-500 transition-colors">
@@ -237,11 +161,10 @@ export function RecordingsScreen() {
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <button
-                  onClick={() => activate(r.id)}
-                  disabled={busy === r.id}
-                  className="bg-amber-500/10 hover:bg-amber-500/20 disabled:opacity-50 text-amber-300 font-medium py-2 rounded-lg transition-colors text-xs border border-amber-800/40"
+                  onClick={() => navigate(`/replay/${r.id}`)}
+                  className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-medium py-2 rounded-lg transition-colors text-xs border border-amber-800/40"
                 >
-                  {busy === r.id ? '…' : 'Replay'}
+                  Replay
                 </button>
                 <button
                   onClick={() => download(r.id)}

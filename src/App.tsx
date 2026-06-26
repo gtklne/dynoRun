@@ -8,7 +8,8 @@ import { ToastProvider } from './ui/components/toast';
 import { LoginScreen } from './ui/auth/login-screen';
 import { GarageScreen } from './ui/garage/garage-screen';
 import { VehicleDetail } from './ui/garage/vehicle-detail';
-import { FixtureReplayScreen } from './ui/fixture-replay/fixture-replay-screen';
+import { ReplayLabIndex } from './ui/replay-lab/replay-lab-index';
+import { ReplayLabPlayer } from './ui/replay-lab/replay-lab-player';
 import { RecordingsScreen } from './ui/recordings/recordings-screen';
 import { CalibrationWizardScreen } from './ui/calibration/calibration-wizard-screen';
 import { LiveRunScreen } from './ui/run/live-run-screen';
@@ -45,7 +46,9 @@ export default function App() {
                   <Route path="/runs" element={<AllRunsScreen />} />
                   <Route path="/runs/:runId/review" element={<RunReviewScreen />} />
                   <Route path="/recordings" element={<RecordingsScreen />} />
-                  <Route path="/replay" element={<FixtureReplayScreen />} />
+                  <Route path="/replay" element={<ReplayLabIndex />} />
+                  <Route path="/replay/local" element={<ReplayLabPlayer />} />
+                  <Route path="/replay/:recordingId" element={<ReplayLabPlayer />} />
                   <Route path="/vehicles/:vehicleId/compare" element={<CompareScreen />} />
                   <Route path="/settings" element={<SettingsScreen />} />
                   <Route path="*" element={<Navigate to="/" replace />} />

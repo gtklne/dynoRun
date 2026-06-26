@@ -14,7 +14,7 @@ import { useToast } from '@/ui/components/toast';
 import { ConditionsModal } from '@/ui/run/conditions-modal';
 import { ConditionsChips } from '@/ui/run/conditions-chips';
 import type { Run, DerivedCurve, Vehicle, RunConditions } from '@/shared/types';
-import { useReplayState, setActiveReplay } from '@/sensors/replay-state';
+import { useReplayState, setPendingReplay } from '@/sensors/replay-state';
 import { describeRecording } from '@/sensors/recording';
 import { useUnits } from '@/app/units-context';
 import { convertPower, formatPower, type PowerUnit } from '@/shared/format-power';
@@ -165,7 +165,8 @@ export function RunReviewScreen() {
 
   function useRecordingForReplay() {
     if (!lastRecording) return;
-    setActiveReplay(lastRecording);
+    setPendingReplay(lastRecording);
+    navigate('/replay/local');
   }
 
   function exportCsv() {
