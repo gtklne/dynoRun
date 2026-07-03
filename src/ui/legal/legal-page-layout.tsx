@@ -1,6 +1,22 @@
-import { type ReactNode } from 'react';
+import { type ReactNode, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BrandLogo } from '@/ui/components/brand-logo';
+
+// These pages are legally required to exist but shouldn't show up in search
+// results — inject a noindex meta tag for the duration this page is mounted.
+// robots.txt also disallows crawling them; the meta tag is the belt-and-braces
+// signal for crawlers that see the page anyway (e.g. via a direct link).
+function useNoIndex() {
+  useEffect(() => {
+    const meta = document.createElement('meta');
+    meta.name = 'robots';
+    meta.content = 'noindex, nofollow';
+    document.head.appendChild(meta);
+    return () => {
+      document.head.removeChild(meta);
+    };
+  }, []);
+}
 
 export function LegalPageLayout({
   title,
@@ -12,6 +28,7 @@ export function LegalPageLayout({
   children: ReactNode;
 }) {
   const navigate = useNavigate();
+  useNoIndex();
   return (
     <div className="min-h-screen bg-zinc-950 px-4 py-8 lg:py-12">
       <div className="mx-auto w-full max-w-2xl space-y-6">
