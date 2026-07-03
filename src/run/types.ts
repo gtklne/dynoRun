@@ -1,4 +1,6 @@
 import type { UUID } from '@/shared/types';
+import type { DetectedPull } from '@/analysis/pull-detection';
+import type { AnalyzedRun, RawSpeedSample } from '@/analysis/types';
 
 export type CalibrationState =
   | { kind: 'idle' }
@@ -32,3 +34,26 @@ export interface AutoStopConfig {
 export const DEFAULT_AUTO_STOP_CONFIG: AutoStopConfig = {
   zero_accel_window_ms: 1000,
 };
+
+/**
+ * One detected pull inside a hands-free session, ready for review: the raw
+ * sample slice (t_ms rebased to 0) plus its in-memory analysis. `analysis`
+ * is null when the pipeline could not produce a curve for the slice.
+ */
+export interface SessionPull {
+  pull: DetectedPull;
+  samples: RawSpeedSample[];
+  analysis: AnalyzedRun | null;
+}
+
+export type SessionState =
+  | { kind: 'idle' }
+  | { kind: 'ready'; vehicle_id: UUID; calibration_id: UUID; gear_label: string }
+  | { kind: 'recording'; vehicle_id: UUID; calibration_id: UUID; gear_label: string }
+  | { kind: 'detecting'; vehicle_id: UUID; calibration_id: UUID; gear_label: string }
+  | { kind: 'reviewing'; vehicle_id: UUID; calibration_id: UUID; gear_label: string; pulls: SessionPull[] }
+  | { kind: 'saving'; vehicle_id: UUID; calibration_id: UUID; gear_label: string; pulls: SessionPull[] }
+  | { kind: 'saved'; vehicle_id: UUID; run_ids: UUID[] };
+
+/** Hands-free sessions self-terminate after this long as a runaway guard. */
+export const MAX_SESSION_DURATION_MS = 30 * 60_000;

@@ -293,6 +293,18 @@ export function LiveRunScreen() {
           {showPoorWarning && forceStart ? 'Start anyway' : 'Start run'}
         </button>
       )}
+      {isReady && (
+        <p className="text-center text-xs text-zinc-500">
+          On the bike?{' '}
+          <a
+            href={`/vehicles/${vehicleId}/calibrations/${calibrationId}/session`}
+            className="text-amber-400 hover:text-amber-300 underline underline-offset-2"
+          >
+            Use the hands-free session mode
+          </a>{' '}
+          — record the whole ride, pick your pull afterwards.
+        </p>
+      )}
       {isReady && showPoorWarning && !forceStart && (
         <button
           onClick={() => setForceStart(true)}

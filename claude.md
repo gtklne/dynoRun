@@ -99,6 +99,7 @@ Frontend (`src/App.tsx`, react-router-dom 6, all behind `RequireAuth` except `/l
 | `/vehicles/:id` | Detail + calibrations + run history |
 | `/vehicles/:vehicleId/calibrations/new` | 3-step wizard: gear → measure → confirm |
 | `/vehicles/:vehicleId/calibrations/:calibrationId/run` | Live run (warmup + record + auto-stop) |
+| `/vehicles/:vehicleId/calibrations/:calibrationId/session` | Hands-free session (motorcycle): record whole ride, auto-detect pulls, save selected as runs |
 | `/runs/:runId/review` | Curve + peak + notes + save/discard |
 | `/vehicles/:vehicleId/compare` | Overlay multiple runs' curves |
 | `/recordings` | List/manage raw sensor recordings |

@@ -13,6 +13,7 @@ import { ReplayLabPlayer } from './ui/replay-lab/replay-lab-player';
 import { RecordingsScreen } from './ui/recordings/recordings-screen';
 import { CalibrationWizardScreen } from './ui/calibration/calibration-wizard-screen';
 import { LiveRunScreen } from './ui/run/live-run-screen';
+import { SessionScreen } from './ui/session/session-screen';
 import { RunReviewScreen } from './ui/run/run-review-screen';
 import { CompareScreen } from './ui/compare/compare-screen';
 import { SettingsScreen } from './ui/settings/settings-screen';
@@ -51,6 +52,7 @@ export default function App() {
                   <Route path="/vehicles/:id" element={<VehicleDetail />} />
                   <Route path="/vehicles/:vehicleId/calibrations/new" element={<CalibrationWizardScreen />} />
                   <Route path="/vehicles/:vehicleId/calibrations/:calibrationId/run" element={<LiveRunScreen />} />
+                  <Route path="/vehicles/:vehicleId/calibrations/:calibrationId/session" element={<SessionScreen />} />
                   <Route path="/runs" element={<AllRunsScreen />} />
                   <Route path="/runs/:runId/review" element={<RunReviewScreen />} />
                   <Route path="/recordings" element={<RecordingsScreen />} />

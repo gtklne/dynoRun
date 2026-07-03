@@ -55,7 +55,12 @@ export class SensorRecorder {
   private gpsUnsub: Unsubscribe | null = null;
   private motionHandler: ((e: DeviceMotionEvent) => void) | null = null;
 
-  start(kind: 'run' | 'calibration', meta: SensorRecordingMeta = {}): void {
+  /**
+   * `motion: false` skips DeviceMotion capture — a multi-minute hands-free
+   * session at ~60 Hz motion would balloon the envelope to tens of MB, and
+   * the analysis pipeline only consumes GPS.
+   */
+  start(kind: 'run' | 'calibration', meta: SensorRecordingMeta = {}, opts: { motion?: boolean } = {}): void {
     this.startMs = performance.now();
     this.rec = {
       version: 1,
@@ -66,8 +71,10 @@ export class SensorRecorder {
       gps_fixes: [],
       motion_fixes: [],
     };
-    this.motionHandler = (e) => this.recordMotion(e);
-    window.addEventListener('devicemotion', this.motionHandler);
+    if (opts.motion !== false) {
+      this.motionHandler = (e) => this.recordMotion(e);
+      window.addEventListener('devicemotion', this.motionHandler);
+    }
   }
 
   attachGps(source: SpeedSource): void {

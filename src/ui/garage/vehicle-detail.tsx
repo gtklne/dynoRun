@@ -250,12 +250,20 @@ export function VehicleDetail() {
                     {c.rpm.toFixed(0)} RPM @ {c.speed_kmh.toFixed(1)} km/h
                   </p>
                 </div>
-                <Link
-                  to={`/vehicles/${vehicle.id}/calibrations/${c.id}/run`}
-                  className="bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-zinc-950 font-semibold text-xs px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
-                >
-                  New run
-                </Link>
+                <div className="flex flex-col items-stretch gap-1.5 shrink-0">
+                  <Link
+                    to={`/vehicles/${vehicle.id}/calibrations/${c.id}/run`}
+                    className="bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-zinc-950 font-semibold text-xs px-3 py-2 rounded-lg transition-colors whitespace-nowrap text-center"
+                  >
+                    New run
+                  </Link>
+                  <Link
+                    to={`/vehicles/${vehicle.id}/calibrations/${c.id}/session`}
+                    className="border border-zinc-700 hover:border-amber-700 text-zinc-300 hover:text-amber-400 font-semibold text-xs px-3 py-2 rounded-lg transition-colors whitespace-nowrap text-center"
+                  >
+                    Hands-free
+                  </Link>
+                </div>
               </div>
             ))}
           </div>
