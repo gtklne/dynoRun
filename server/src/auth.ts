@@ -1,5 +1,6 @@
 import { betterAuth } from 'better-auth';
 import { magicLink } from 'better-auth/plugins/magic-link';
+import { captcha } from 'better-auth/plugins';
 import { Resend } from 'resend';
 import { pool } from './db.js';
 
@@ -27,6 +28,11 @@ export const auth = betterAuth({
           html: `<p>Click the link below to sign in. It expires in 15 minutes.</p><p><a href="${url}">Sign in to DynoRun</a></p>`,
         });
       },
+    }),
+    captcha({
+      provider: 'cloudflare-turnstile',
+      secretKey: process.env.TURNSTILE_SECRET_KEY!,
+      endpoints: ['/sign-in/magic-link'],
     }),
   ],
 });

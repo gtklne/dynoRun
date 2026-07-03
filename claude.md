@@ -41,7 +41,7 @@ src/
 server/src/
   schema.ts      Drizzle schema — source of truth for Postgres (vehicles, calibrations, runs, samples, recordings, derived_curves)
   index.ts       Hono app, CORS, mounts /api/* routes + better-auth /api/auth/**
-  auth.ts        better-auth config (magic-link via Resend → /etc/dynorun.env)
+  auth.ts        better-auth config (magic-link via Resend + Cloudflare Turnstile captcha → /etc/dynorun.env)
   routes/        vehicles, calibrations, runs, samples, curves, recordings
   middleware/    requireAuth: validates session, sets c.var.userId
   lib/           runBelongsToUser ownership check
@@ -144,6 +144,7 @@ API (Hono, all `/api/*` require session cookie):
 - **iOS native speed can be -1** (unknown). `CapacitorGpsSpeedSource` and `GpsSpeedSource` both treat null/-1/0 as unavailable and fall back to haversine distance between consecutive fixes.
 - **`PIPELINE_VERSION` is stored on every `derived_curves` row.** Bump it when the math changes so stale curves can be detected/recomputed (no migration runs automatically).
 - **`samples.t_ms` is relative to `performance.now()` at sensor start**, not wall-clock — so it resets each session. Use `runs.started_at` for absolute time.
+- **Turnstile captcha gates every magic-link request** (`server/src/auth.ts`, `captcha({ endpoints: ['/sign-in/magic-link'] })`) — since there's no separate sign-up flow, returning users solve a captcha on every sign-in too, not just new-account creation. If `TURNSTILE_SECRET_KEY` is unset server-side, every sign-in silently fails.
 - **`@capacitor-community/sqlite` is in `package.json` but unused** — leftover from a pre-Postgres local-first architecture. Safe to remove if you want to slim the install (would also drop `sql.js`, `localforage`, `jeep-sqlite` transitive deps). Not removed yet because no functional impact.
 - **`crypto.randomUUID` is used in `server/routes/*.ts`** assuming Node 18+; build env pins Node 22.
 - **Frontend builds on Node 20, server builds on Node 22** in CI (`.github/workflows/deploy.yml`). Don't unify without checking — they're separate jobs.
