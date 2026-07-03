@@ -10,6 +10,7 @@ import { curvesRoute } from './routes/curves.js';
 import { recordingsRoute } from './routes/recordings.js';
 import { shareTokenRoute, publicShareRoute } from './routes/share.js';
 import { adminRoute } from './routes/admin.js';
+import { accountRoute } from './routes/account.js';
 
 const app = new Hono();
 
@@ -34,6 +35,7 @@ app.route('/api', curvesRoute);
 app.route('/api', recordingsRoute);
 app.route('/api', shareTokenRoute);
 app.route('/api', adminRoute);
+app.route('/api', accountRoute);
 
 const port = parseInt(process.env.PORT ?? '3000', 10);
 

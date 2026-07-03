@@ -21,6 +21,9 @@ import { AllRunsScreen } from './ui/runs/all-runs-screen';
 import { PublicShareScreen } from './ui/share/public-share-screen';
 import { DemoRunScreen } from './ui/demo/demo-run-screen';
 import { AdminScreen } from './ui/admin/admin-screen';
+import { ImprintScreen } from './ui/legal/imprint-screen';
+import { PrivacyScreen } from './ui/legal/privacy-screen';
+import { CookieNotice } from './ui/components/cookie-notice';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -43,10 +46,13 @@ export default function App() {
         <UnitsProvider>
           <ToastProvider>
             <BrowserRouter>
+              <CookieNotice />
               <Routes>
                 <Route path="/login" element={<LoginScreen />} />
                 <Route path="/share/:token" element={<PublicShareScreen />} />
                 <Route path="/demo" element={<DemoRunScreen />} />
+                <Route path="/imprint" element={<ImprintScreen />} />
+                <Route path="/privacy" element={<PrivacyScreen />} />
                 <Route element={<RequireAuth><AppShell /></RequireAuth>}>
                   <Route index element={<GarageScreen />} />
                   <Route path="/vehicles/:id" element={<VehicleDetail />} />

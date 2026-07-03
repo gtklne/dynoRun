@@ -33,9 +33,11 @@ export function createDatabaseDump(
 }
 
 export async function downloadDump(dump: DatabaseDump): Promise<void> {
-  const json = JSON.stringify(dump, null, 2);
   const filename = `dynorun-export-${dump.exported_at.replace(/[:.]/g, '-')}.json`;
+  await downloadJsonFile(filename, JSON.stringify(dump, null, 2));
+}
 
+export async function downloadJsonFile(filename: string, json: string): Promise<void> {
   if (isNative()) {
     const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem');
     const { Share } = await import('@capacitor/share');

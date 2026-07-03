@@ -1,6 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { authClient } from '@/auth/auth-client';
 import { BrandLogo } from '@/ui/components/brand-logo';
+import { TurnstileWidget, type TurnstileWidgetHandle } from '@/ui/auth/turnstile-widget';
+
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string;
 
 function BrandHeader() {
   return (
@@ -9,6 +13,18 @@ function BrandHeader() {
       <h1 className="text-3xl font-bold text-zinc-100">DynoRun</h1>
       <p className="text-zinc-500 text-sm">Your phone is a dyno.</p>
     </div>
+  );
+}
+
+function LegalFootnote() {
+  return (
+    <p className="text-center text-xs text-zinc-500">
+      By continuing you agree to our{' '}
+      <Link to="/privacy" className="text-zinc-400 hover:text-amber-400 underline">
+        Privacy Policy
+      </Link>
+      . <Link to="/imprint" className="text-zinc-400 hover:text-amber-400 underline">Imprint</Link>
+    </p>
   );
 }
 
@@ -36,15 +52,23 @@ export function LoginScreen() {
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const res = await authClient.signIn.magicLink({ email, callbackURL: '/' });
+    const res = await authClient.signIn.magicLink({
+      email,
+      callbackURL: '/',
+      fetchOptions: { headers: { 'x-captcha-response': captchaToken! } },
+    });
     setLoading(false);
     if (res.error) {
       setError(res.error.message ?? 'Something went wrong');
+      setCaptchaToken(null);
+      turnstileRef.current?.reset();
     } else {
       setSent(true);
     }
@@ -63,6 +87,7 @@ export function LoginScreen() {
                 We sent a sign-in link to <strong className="text-zinc-200">{email}</strong>.
               </p>
             </div>
+            <LegalFootnote />
           </div>
         </div>
       </div>
@@ -84,15 +109,23 @@ export function LoginScreen() {
               placeholder="you@example.com"
               className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-amber-500 focus:outline-none transition-colors"
             />
+            <TurnstileWidget
+              ref={turnstileRef}
+              siteKey={TURNSTILE_SITE_KEY}
+              onToken={setCaptchaToken}
+              onExpire={() => setCaptchaToken(null)}
+              onError={() => setCaptchaToken(null)}
+            />
             {error && <p className="text-red-400 text-sm">{error}</p>}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !captchaToken}
               className="w-full rounded-lg bg-amber-500 hover:bg-amber-400 active:bg-amber-600 px-4 py-2 text-zinc-950 font-semibold disabled:opacity-50 disabled:hover:bg-amber-500 transition-colors"
             >
               {loading ? 'Sending…' : 'Send magic link'}
             </button>
           </div>
+          <LegalFootnote />
         </form>
       </div>
     </div>
