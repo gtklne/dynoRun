@@ -1,4 +1,5 @@
 import { Link, NavLink, Outlet } from 'react-router-dom';
+import { useAuth } from '@/auth/auth-context';
 import { BrandLogo } from './components/brand-logo';
 import { HelpButton } from './components/help-drawer';
 
@@ -18,6 +19,14 @@ function RunsIcon() {
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="3 17 9 11 13 15 21 7" />
       <polyline points="15 7 21 7 21 13" />
+    </svg>
+  );
+}
+
+function AdminIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
     </svg>
   );
 }
@@ -53,6 +62,7 @@ const Wordmark = () => (
 );
 
 export function AppShell() {
+  const { isAdmin } = useAuth();
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col">
       {/* Desktop sidebar (lg+). Slim fixed rail; mobile uses the bottom nav instead. */}
@@ -74,6 +84,12 @@ export function AppShell() {
             <SettingsIcon />
             <span>Settings</span>
           </NavLink>
+          {isAdmin && (
+            <NavLink to="/admin" className={sideLinkClass}>
+              <AdminIcon />
+              <span>Admin</span>
+            </NavLink>
+          )}
         </nav>
         <div className="mt-auto pt-4">
           <HelpButton className="flex w-full items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors" labelled />

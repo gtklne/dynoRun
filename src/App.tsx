@@ -19,11 +19,19 @@ import { SettingsScreen } from './ui/settings/settings-screen';
 import { AllRunsScreen } from './ui/runs/all-runs-screen';
 import { PublicShareScreen } from './ui/share/public-share-screen';
 import { DemoRunScreen } from './ui/demo/demo-run-screen';
+import { AdminScreen } from './ui/admin/admin-screen';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="flex min-h-screen items-center justify-center">Loading…</div>;
   if (!user) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
+// Cosmetic guard only — the server 404s /api/admin/* for non-admins regardless.
+function RequireAdmin({ children }: { children: ReactNode }) {
+  const { isAdmin } = useAuth();
+  if (!isAdmin) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
@@ -51,6 +59,7 @@ export default function App() {
                   <Route path="/replay/:recordingId" element={<ReplayLabPlayer />} />
                   <Route path="/vehicles/:vehicleId/compare" element={<CompareScreen />} />
                   <Route path="/settings" element={<SettingsScreen />} />
+                  <Route path="/admin" element={<RequireAdmin><AdminScreen /></RequireAdmin>} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Route>
               </Routes>

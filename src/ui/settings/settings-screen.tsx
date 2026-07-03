@@ -32,7 +32,7 @@ function readCountdownInitial(): boolean {
 
 export function SettingsScreen() {
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user, isAdmin, signOut } = useAuth();
   const { unit, setUnit } = useUnits();
   const [geoStatus, setGeoStatus] = useState<GeolocationStatus | null>(null);
   const [wakeSupported, setWakeSupported] = useState<boolean>(false);
@@ -74,6 +74,15 @@ export function SettingsScreen() {
             <span className="text-zinc-200 text-sm">Signed in as</span>
             <span className="text-zinc-400 text-sm truncate">{user?.email ?? '—'}</span>
           </div>
+          {isAdmin && (
+            <Link
+              to="/admin"
+              className="flex items-center justify-between px-4 py-3.5 border-b border-zinc-800 gap-3 hover:bg-zinc-800/50 transition-colors"
+            >
+              <span className="text-zinc-200 text-sm">Admin panel</span>
+              <span className="text-amber-400 text-sm">→</span>
+            </Link>
+          )}
           <div className="p-3">
             <button
               type="button"

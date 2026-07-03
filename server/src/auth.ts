@@ -10,6 +10,13 @@ export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET!,
   baseURL: process.env.APP_URL!,
   trustedOrigins: [process.env.APP_URL!],
+  user: {
+    additionalFields: {
+      // input: false — role can never be set through any auth API call;
+      // it is granted only by a manual UPDATE on the user table.
+      role: { type: 'string', defaultValue: 'user', input: false },
+    },
+  },
   plugins: [
     magicLink({
       sendMagicLink: async ({ email, url }) => {

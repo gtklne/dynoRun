@@ -104,6 +104,7 @@ Frontend (`src/App.tsx`, react-router-dom 6, all behind `RequireAuth` except `/l
 | `/recordings` | List/manage raw sensor recordings |
 | `/replay` | Upload JSON fixture, run pipeline offline |
 | `/settings` | Load replay recording, view permissions |
+| `/admin` | Admin panel (admins only): user/content KPIs, growth & activity charts, users table, recent runs, leaderboard, system health |
 
 API (Hono, all `/api/*` require session cookie):
 
@@ -117,9 +118,12 @@ API (Hono, all `/api/*` require session cookie):
 | POST, GET | `/api/runs/:id/samples` | Bulk insert / list raw samples |
 | GET, PUT | `/api/runs/:id/curve` | Upsert derived RPM-bin curve |
 | CRUD | `/api/recordings[/:id]` | Raw sensor recordings (jsonb) |
+| GET | `/api/admin/{overview,timeseries,users,activity}` | Admin stats (requireAdmin) |
 | ALL | `/api/auth/**` | Delegated to better-auth |
 
 `requireAuth` middleware sets `c.var.userId`; every query filters by it. Run-scoped routes use `runBelongsToUser` for ownership.
+
+**Admin access:** `user.role` column (added via `init-auth-tables.sql`, NOT drizzle-managed) defaults to `'user'`. `requireAdmin` re-reads the role from the DB per request and answers **404** (not 403) to non-admins so the route surface stays invisible. The role is declared as a better-auth additional field with `input: false`, so no auth API call can ever set it — grant admin only via manual SQL: `UPDATE "user" SET role = 'admin' WHERE email = '...'`. The frontend `RequireAdmin` wrapper and nav links keyed on `useAuth().isAdmin` are cosmetic only.
 
 ## Conventions
 

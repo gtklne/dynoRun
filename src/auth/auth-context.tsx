@@ -4,10 +4,15 @@ import { authClient } from './auth-client';
 interface AuthUser {
   id: string;
   email: string;
+  /** Present because the server declares `role` as a better-auth additional
+   *  field. Only ever 'admin' when granted manually in the database; the UI
+   *  flag is cosmetic — every /api/admin route re-checks the role server-side. */
+  role?: string;
 }
 
 interface AuthContextValue {
   user: AuthUser | null;
+  isAdmin: boolean;
   loading: boolean;
   signOut: () => Promise<void>;
 }
@@ -34,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, signOut }}>
+    <AuthContext.Provider value={{ user, isAdmin: user?.role === 'admin', loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );
