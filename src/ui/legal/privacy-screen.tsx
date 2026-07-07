@@ -1,5 +1,6 @@
 // Placeholder legal copy — review with the site operator before treating as
 // final legal text. Not a substitute for legal advice.
+import { Link } from 'react-router-dom';
 import { LegalPageLayout } from './legal-page-layout';
 
 export function PrivacyScreen() {
@@ -16,7 +17,7 @@ export function PrivacyScreen() {
       <p>
         Johannes Nothstein, Bahnhofplatz 2, 4133 Pratteln, Switzerland —{' '}
         <a href="mailto:privacy@wasgoht.ch">privacy@wasgoht.ch</a>. See also the{' '}
-        <a href="/imprint">Imprint</a>.
+        <Link to="/imprint">Imprint</Link>.
       </p>
 
       <h2>What data we collect</h2>
@@ -59,7 +60,7 @@ export function PrivacyScreen() {
       <p>
         Your data is kept for as long as your account exists. You can delete
         individual vehicles, calibrations, runs, or recordings at any time, or
-        delete your entire account, from <a href="/settings">Settings</a> — this
+        delete your entire account, from <Link to="/settings">Settings</Link> — this
         immediately and permanently removes the underlying data.
       </p>
 
@@ -68,7 +69,7 @@ export function PrivacyScreen() {
         Depending on your location, you have the right to access, correct, export,
         or delete your personal data, and to object to or restrict its processing.
         You can exercise access, export, and deletion yourself at any time from{' '}
-        <a href="/settings">Settings</a> ("Download my data" and "Delete my
+        <Link to="/settings">Settings</Link> ("Download my data" and "Delete my
         account"). For anything else, contact{' '}
         <a href="mailto:privacy@wasgoht.ch">privacy@wasgoht.ch</a>. You also have
         the right to lodge a complaint with a supervisory authority — in

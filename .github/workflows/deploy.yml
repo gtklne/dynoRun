@@ -27,6 +27,8 @@ jobs:
         run: npm run build
         env:
           VITE_TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
+          # Web build is served under the /dynorun/ subpath of the suite.
+          VITE_DEPLOY_BASE: /dynorun/
 
       - name: Set up SSH
         run: |
@@ -38,6 +40,16 @@ jobs:
       - name: Deploy frontend
         run: |
           rsync -rlgoDzv --delete -e "ssh -i ~/.ssh/id_ed25519" dist/ "deploy@${{ secrets.DEPLOY_HOST }}:/var/www/dynorun/"
+
+      # Suite homescreen owns the domain root (/); dynoRun above is served under /dynorun/.
+      - name: Deploy homescreen (suite)
+        run: |
+          rsync -rlgoDzv --delete -e "ssh -i ~/.ssh/id_ed25519" suite/ "deploy@${{ secrets.DEPLOY_HOST }}:/var/www/suite/"
+
+      # grip-utilization — self-contained static app served under /grip/.
+      - name: Deploy grip
+        run: |
+          rsync -rlgoDzv --delete -e "ssh -i ~/.ssh/id_ed25519" apps/grip/ "deploy@${{ secrets.DEPLOY_HOST }}:/var/www/grip/"
 
   deploy-api:
     needs: deploy

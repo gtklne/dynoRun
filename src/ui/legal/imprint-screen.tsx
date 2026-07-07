@@ -1,5 +1,6 @@
 // Placeholder legal copy — review with the site operator before treating as
 // final legal text. Not a substitute for legal advice.
+import { Link } from 'react-router-dom';
 import { LegalPageLayout } from './legal-page-layout';
 
 export function ImprintScreen() {
@@ -41,7 +42,7 @@ export function ImprintScreen() {
 
       <h2>Data protection</h2>
       <p>
-        See the <a href="/privacy">Privacy Policy</a> for how personal data is
+        See the <Link to="/privacy">Privacy Policy</Link> for how personal data is
         collected, used, and protected.
       </p>
     </LegalPageLayout>

@@ -40,12 +40,15 @@ function RequireAdmin({ children }: { children: ReactNode }) {
 }
 
 export default function App() {
+  // Mirrors Vite `base` (BASE_URL has a trailing slash; router basename must not).
+  // '/dynorun' for the web suite build, '' (root) for the native/dev build.
+  const basename = import.meta.env.BASE_URL.replace(/\/$/, '');
   return (
     <ErrorBoundary>
       <AuthProvider>
         <UnitsProvider>
           <ToastProvider>
-            <BrowserRouter>
+            <BrowserRouter basename={basename}>
               <CookieNotice />
               <Routes>
                 <Route path="/login" element={<LoginScreen />} />

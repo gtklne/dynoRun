@@ -1,0 +1,1277 @@
+<!doctype html>
+<!-- VENDORED COPY — upstream: https://github.com/gtklne/grip-utilization
+     Served in the suite at /grip/. Self-contained (no external assets), so it
+     runs unchanged at any subpath. Re-sync from upstream when it changes. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grip Utilization — Track Session Analyzer</title>
+<style>
+:root{
+  --surface-0:#0d0d0d;      /* page plane */
+  --surface-1:#161615;      /* panels */
+  --surface-2:#1f1f1d;      /* insets */
+  --line:#2c2c2a;           /* hairline grid */
+  --line-strong:#3a3a37;
+  --ink:#ffffff;
+  --ink-2:#c3c2b7;
+  --ink-3:#898781;
+  /* utilization ramp anchors (status gradient: margin -> at limit) */
+  --u-lo:#0ca30c;           /* green  - grip to spare */
+  --u-mid:#fab219;          /* amber  - pushing */
+  --u-hi:#d03b3b;           /* red    - at the limit */
+  --accent:#3987e5;
+  --accent-2:#199e70;
+  --radius:14px;
+  --mono:"SFMono-Regular",ui-monospace,Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  background:
+    radial-gradient(1200px 600px at 15% -10%, #1a1a1830, transparent),
+    var(--surface-0);
+  color:var(--ink);
+  font-family:var(--sans);
+  -webkit-font-smoothing:antialiased;
+  font-size:14px;
+}
+h1,h2,h3{margin:0;font-weight:650;letter-spacing:-0.01em}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+button{font-family:inherit;cursor:pointer}
+
+/* ---------- layout ---------- */
+.app{max-width:1440px;margin:0 auto;padding:20px 22px 60px}
+.topbar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.brand{display:flex;align-items:center;gap:12px}
+.brand .logo{
+  width:38px;height:38px;border-radius:10px;flex:0 0 auto;
+  background:conic-gradient(from 220deg, var(--u-lo), var(--u-mid), var(--u-hi), var(--u-lo));
+  box-shadow:inset 0 0 0 4px var(--surface-0), 0 0 0 1px var(--line-strong);
+}
+.brand h1{font-size:16px;line-height:1.1}
+.brand p{margin:2px 0 0;color:var(--ink-3);font-size:12px}
+.spacer{flex:1 1 auto}
+
+.session-meta{display:flex;gap:22px;flex-wrap:wrap;align-items:center}
+.session-meta .m{display:flex;flex-direction:column}
+.session-meta .m b{font-size:14px}
+.session-meta .m span{font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em}
+
+/* ---------- dropzone ---------- */
+.dropzone{
+  border:1.5px dashed var(--line-strong);border-radius:var(--radius);
+  padding:60px 30px;text-align:center;background:var(--surface-1);
+  transition:.15s border-color,.15s background;
+}
+.dropzone.hot{border-color:var(--accent);background:#12161c}
+.dropzone h2{font-size:20px;margin-bottom:8px}
+.dropzone p{color:var(--ink-3);margin:6px 0 20px}
+.btn{
+  display:inline-flex;align-items:center;gap:8px;
+  background:var(--accent);color:#fff;border:none;border-radius:9px;
+  padding:11px 18px;font-size:14px;font-weight:600;
+}
+.btn.ghost{background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line-strong)}
+.btn:hover{filter:brightness(1.08)}
+
+/* ---------- lap tabs ---------- */
+.laptabs{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.laptab{
+  background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2);
+  border-radius:8px;padding:7px 12px;font-size:12.5px;display:flex;flex-direction:column;
+  align-items:flex-start;line-height:1.25;min-width:74px;
+}
+.laptab b{color:var(--ink);font-size:12px}
+.laptab .lt{font-family:var(--mono);font-size:13px}
+.laptab.active{border-color:var(--accent);background:#14202e;color:#fff}
+.laptab.best b{color:var(--u-mid)}
+
+/* ---------- grid ---------- */
+.grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px;margin-top:16px}
+.panel{background:var(--surface-1);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+.panel h3{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.panel h3 .hint{text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink-3)}
+.stack{display:flex;flex-direction:column;gap:16px}
+
+canvas{display:block;width:100%;border-radius:8px}
+#mapCanvas{aspect-ratio:16/10;background:var(--surface-0)}
+#ggCanvas{aspect-ratio:1/1;background:var(--surface-0);max-width:420px;margin:0 auto}
+
+/* ---------- telemetry readout ---------- */
+.readout{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.stat{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.stat .v{font-size:22px;font-family:var(--mono);font-variant-numeric:tabular-nums;line-height:1}
+.stat .u{font-size:11px;color:var(--ink-3)}
+.stat .k{font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.stat.big .v{font-size:30px}
+
+/* utilization meter */
+.umeter{height:10px;border-radius:6px;background:var(--surface-2);overflow:hidden;position:relative;border:1px solid var(--line)}
+.umeter i{position:absolute;left:0;top:0;bottom:0;border-radius:6px}
+
+/* ---------- scrubber ---------- */
+.transport{display:flex;align-items:center;gap:14px;margin-top:14px}
+.playbtn{width:44px;height:44px;border-radius:50%;background:var(--accent);border:none;color:#fff;font-size:16px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.scrub{flex:1;position:relative}
+input[type=range]{width:100%;accent-color:var(--accent);height:6px}
+.tlabel{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:4px}
+.speedsel{display:flex;gap:4px}
+.speedsel button{background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2);border-radius:6px;padding:4px 8px;font-size:11px;font-family:var(--mono)}
+.speedsel button.on{border-color:var(--accent);color:#fff}
+
+/* ---------- corner cards ---------- */
+.corners-head{display:flex;justify-content:space-between;align-items:baseline;margin:26px 0 12px}
+.corners-head h2{font-size:17px}
+.corners-head p{color:var(--ink-3);font-size:12.5px;margin:0}
+.cornergrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(184px,1fr));gap:12px}
+.ccard{
+  background:var(--surface-1);border:1px solid var(--line);border-radius:12px;padding:12px 13px;
+  cursor:pointer;transition:.12s border-color,.12s transform,.12s background;position:relative;overflow:hidden;
+}
+.ccard:hover{border-color:var(--line-strong);transform:translateY(-2px)}
+.ccard.active{border-color:var(--accent);background:#12161c}
+.ccard .cnum{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.ccard .cbadge{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;font-family:var(--mono);color:#0a0a0a}
+.ccard .cdir{font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em}
+.ccard .cutil{font-size:26px;font-family:var(--mono);line-height:1;margin:2px 0 2px}
+.ccard .csub{font-size:11px;color:var(--ink-3)}
+.ccard .cbar{height:7px;border-radius:5px;background:var(--surface-2);margin-top:10px;overflow:hidden;position:relative;border:1px solid var(--line)}
+.ccard .cbar i{position:absolute;left:0;top:0;bottom:0;border-radius:5px}
+.ccard .cmeta{display:flex;justify-content:space-between;margin-top:10px;font-size:11px;color:var(--ink-2);font-family:var(--mono)}
+.ccard .flag{position:absolute;top:10px;right:11px;font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--u-lo);text-transform:uppercase}
+
+.legend{display:flex;align-items:center;gap:10px;font-size:11.5px;color:var(--ink-3)}
+.legbar{height:9px;width:150px;border-radius:5px;background:linear-gradient(90deg,var(--u-lo),var(--u-mid),var(--u-hi))}
+
+/* mode controls */
+.controls{display:flex;align-items:center;gap:16px;margin-top:12px;flex-wrap:wrap}
+.seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:3px}
+.seg button{background:transparent;border:none;color:var(--ink-3);padding:7px 13px;border-radius:6px;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:7px}
+.seg button.on{background:var(--accent);color:#fff}
+.seg .plus{font-size:10px;opacity:.7;font-weight:500}
+/* icon / mini buttons */
+.iconbtn{width:38px;height:38px;border-radius:9px;background:var(--surface-2);border:1px solid var(--line-strong);color:var(--ink-2);font-size:15px;display:inline-flex;align-items:center;justify-content:center;line-height:1}
+.iconbtn:hover{color:#fff;border-color:var(--accent)}
+.minibtn{background:var(--surface-2);border:1px solid var(--line-strong);color:var(--ink-2);border-radius:8px;padding:7px 11px;font-size:12px;font-weight:600}
+.minibtn:hover{color:#fff;border-color:var(--accent)}
+.linkbtn{background:none;border:none;color:var(--accent);font:inherit;font-size:inherit;padding:0;text-decoration:underline;text-underline-offset:2px}
+.footlink{color:var(--ink-3);font-size:12px;margin-top:26px}
+/* info tooltip trigger */
+.info{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;
+  background:var(--surface-2);border:1px solid var(--line-strong);color:var(--ink-3);
+  font-size:10px;font-weight:700;font-style:normal;font-family:var(--mono);cursor:help;vertical-align:middle;margin-left:5px;user-select:none}
+.info:hover{color:#fff;border-color:var(--accent)}
+/* floating tooltip */
+#tooltip{position:fixed;z-index:60;max-width:290px;background:#000;color:var(--ink-2);border:1px solid var(--line-strong);
+  border-radius:9px;padding:9px 11px;font-size:12px;line-height:1.5;box-shadow:0 8px 26px #000a;pointer-events:none;opacity:0;transition:opacity .1s}
+#tooltip.show{opacity:1}
+/* load panel */
+#loadCanvas{height:150px;background:var(--surface-0)}
+/* weight distribution bar */
+.distrib{grid-column:1/-1;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+.distrib .dh{display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px}
+.distrib .dh b{font-size:13px;color:var(--ink);text-transform:none;letter-spacing:0;font-family:var(--mono)}
+.distbar{position:relative;height:12px;border-radius:7px;background:var(--surface-0);border:1px solid var(--line);overflow:hidden}
+.distbar .mid{position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--line-strong)}
+.distbar .fill{position:absolute;top:0;bottom:0}
+.distbar .fill.front{background:var(--accent)}
+.distbar .fill.rear{background:var(--accent-2)}
+.ratebadge{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:12px;color:var(--ink-2)}
+.ratebadge .dot{width:9px;height:9px;border-radius:50%}
+/* ---------- slide-in drawer ---------- */
+.scrim{position:fixed;inset:0;background:#000a;z-index:40;opacity:1;transition:opacity .2s}
+.scrim.hidden{opacity:0;pointer-events:none;display:block!important}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:420px;max-width:92vw;z-index:50;
+  background:var(--surface-1);border-left:1px solid var(--line-strong);box-shadow:-16px 0 40px #0008;
+  display:flex;flex-direction:column;transform:translateX(0);transition:transform .22s ease}
+.drawer.hidden{transform:translateX(102%);display:flex!important}
+.drawer-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)}
+.drawer-tabs{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:3px}
+.dtab{background:transparent;border:none;color:var(--ink-3);padding:7px 16px;border-radius:6px;font-size:13px;font-weight:600}
+.dtab.on{background:var(--accent);color:#fff}
+.drawer-body{overflow-y:auto;padding:16px;flex:1}
+.drawer-intro{color:var(--ink-3);font-size:12px;line-height:1.5;margin:0 0 16px}
+.drawer-foot{margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
+/* settings groups & rows */
+.sgroup{margin-bottom:22px}
+.sgroup h5{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);margin:0 0 10px;font-weight:650}
+.srow{margin-bottom:15px}
+.srow .slabel{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
+.srow .slabel .name{font-size:13px;color:var(--ink);display:flex;align-items:center}
+.srow .slabel .val{font-family:var(--mono);font-size:13px;color:#fff;background:var(--surface-2);border:1px solid var(--line);
+  border-radius:6px;padding:2px 8px;min-width:62px;text-align:right}
+.srow .badge{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:1px 5px;border-radius:4px;margin-left:6px}
+.srow .badge.recompute{background:#3a2a10;color:#fab219}
+.srow input[type=range]{width:100%}
+/* help typography */
+.help h4{font-size:13px;color:#fff;margin:18px 0 6px}
+.help h4:first-child{margin-top:0}
+.help p{color:var(--ink-2);font-size:12.5px;line-height:1.6;margin:0 0 9px}
+.help .eq{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:9px 11px;color:#fff;text-align:center;font-size:12.5px}
+.help b{color:#fff}
+.footnote{color:var(--ink-3);font-size:11.5px;line-height:1.6;margin-top:26px;max-width:900px}
+.footnote b{color:var(--ink-2)}
+.hidden{display:none!important}
+.err{color:var(--u-hi);font-size:13px;margin-top:10px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}.readout{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo"></div>
+      <div>
+        <h1>Grip Utilization</h1>
+        <p>RaceBox track session analyzer · traction-circle telemetry</p>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <div id="sessionMeta" class="session-meta hidden"></div>
+    <button id="helpBtn" class="iconbtn" title="Help & how it works">?</button>
+    <button id="settingsBtn" class="iconbtn hidden" title="Settings">⚙</button>
+    <button id="loadAnother" class="btn ghost hidden">Load another file</button>
+  </div>
+
+  <!-- EMPTY STATE -->
+  <div id="dropzone" class="dropzone">
+    <h2>Drop your RaceBox session CSV</h2>
+    <p>Everything runs locally in your browser — nothing is uploaded.</p>
+    <button id="pickBtn" class="btn">Choose file…</button>
+    <input id="fileInput" type="file" accept=".csv" class="hidden">
+    <div id="err" class="err"></div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dash" class="hidden">
+
+    <div class="laptabs" id="lapTabs"></div>
+
+    <div class="controls">
+      <div class="seg" id="modeSeg">
+        <button data-mode="grip">Grip utilization</button>
+        <button data-mode="load" class="on">Dynamic load <span class="plus">+ transfer</span></button>
+      </div>
+      <span class="info" data-tip="Grip utilization colours by steady-state grip demand only. Dynamic load folds the load-transfer rate in, so a straight-line throttle↔brake swap reads hot even though net g is momentarily zero. Tune its weighting (τ) in Settings.">i</span>
+      <button id="tuneBtn" class="minibtn">⚙ Tune</button>
+    </div>
+
+    <div class="grid">
+      <!-- LEFT: track map -->
+      <div class="panel">
+        <h3><span>Track map — <span id="mapMetricName">dynamic load</span>
+          <span class="info" data-tip="Your racing line coloured by the active metric. Green = grip (or load) to spare; red = at your own limit. Corner numbers sit on their apexes. Click the line to jump the playback there.">i</span></span>
+          <span class="legend"><span>margin</span><span class="legbar"></span><span>at limit</span></span>
+        </h3>
+        <canvas id="mapCanvas"></canvas>
+      </div>
+
+      <!-- RIGHT: traction circle + telemetry -->
+      <div class="stack">
+        <div class="panel">
+          <h3><span>Traction circle
+            <span class="info" data-tip="Lateral × longitudinal g. The dashed line is your fitted grip envelope; dots are every sample this lap. The comet trail shows the recent path — its brightness and width are the load-transfer rate, so a fast throttle↔brake move streaks through the centre. The arrow shows where the load is heading next.">i</span></span></h3>
+          <canvas id="ggCanvas"></canvas>
+        </div>
+        <div class="panel">
+          <h3><span>Live telemetry</span> <span class="hint" id="posCorner">—</span></h3>
+          <div class="readout" id="readout"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- transport -->
+    <div class="panel" style="margin-top:16px">
+      <div class="transport">
+        <button id="playBtn" class="playbtn">▶</button>
+        <div class="scrub">
+          <input id="scrub" type="range" min="0" max="100" value="0" step="1">
+          <div class="tlabel"><span id="tCur" class="mono">0.00s</span><span id="tTot" class="mono">0.00s</span></div>
+        </div>
+        <div class="speedsel" id="speedSel"></div>
+      </div>
+    </div>
+
+    <!-- load & transient timeline -->
+    <div class="panel" style="margin-top:16px">
+      <h3><span>Load &amp; transient timeline
+        <span class="info" data-tip="Top band: longitudinal g across the lap — accel up (aqua), brake down (red). Bottom band: load-transfer rate (g/s). Watch the top trace cross zero exactly where the bottom trace spikes — that's the chassis loaded ‘through the origin’. Faint vertical lines mark corner apexes; click to seek.">i</span></span>
+        <span class="hint">accel / brake&nbsp;·&nbsp;transfer rate</span>
+      </h3>
+      <canvas id="loadCanvas"></canvas>
+    </div>
+
+    <!-- corners -->
+    <div class="corners-head">
+      <div>
+        <h2>Corner analysis</h2>
+        <p id="cornerLede">—</p>
+      </div>
+    </div>
+    <div class="cornergrid" id="cornerGrid"></div>
+
+    <p class="footlink">
+      Physics assumptions and how to read each panel are in
+      <button id="helpLink" class="linkbtn">Help &amp; how it works →</button>
+      · tune every estimate in <button id="settingsLink" class="linkbtn">Settings ⚙</button>
+    </p>
+  </div>
+
+  <!-- ================= SLIDE-IN DRAWER (Settings + Help) ================= -->
+  <div id="scrim" class="scrim hidden"></div>
+  <aside id="drawer" class="drawer hidden" aria-hidden="true">
+    <div class="drawer-head">
+      <div class="drawer-tabs">
+        <button class="dtab on" data-tab="settings">Settings</button>
+        <button class="dtab" data-tab="help">Help</button>
+      </div>
+      <button id="drawerClose" class="iconbtn" title="Close">✕</button>
+    </div>
+
+    <div id="tabSettings" class="drawer-body">
+      <p class="drawer-intro">Every estimate the analysis relies on. Changes apply live — some re-derive the
+        channels (a beat of compute), others just redraw. Defaults suit a track sportbike.</p>
+      <div id="settingsForm"></div>
+      <div class="drawer-foot">
+        <button id="resetSettings" class="btn ghost">Reset to defaults</button>
+      </div>
+    </div>
+
+    <div id="tabHelp" class="drawer-body hidden">
+      <div class="help">
+        <h4>What the numbers are</h4>
+        <p>Longitudinal g comes from how fast your GPS speed changes; lateral g from lean angle
+          (<span class="mono">tan θ</span>). Your personal <b>traction envelope</b> is fit from the hardest
+          slice of every corner you rode this session, so <b>100% means you touched your own limit</b> — not a
+          textbook one. It comes out asymmetric (more grip cornering than braking, least on throttle) because a
+          bike is power/wheelie-limited on exit.</p>
+
+        <h4>Grip utilization vs Dynamic load</h4>
+        <p><b>Grip utilization</b> is pure steady-state grip demand ÷ your limit. In that mode a straight-line
+          throttle→brake swap passes through the centre of the circle as green — it looks harmless.</p>
+        <p><b>Dynamic load</b> folds the transient in as an orthogonal demand:</p>
+        <p class="eq mono">dynamic load = √( grip²&nbsp;+&nbsp;(τ · transfer-rate ÷ peak-grip)² )</p>
+        <p>so that same swap now reads <b>red</b> even though net g is zero — the tyre and suspension are working
+          even when they aren't cornering. <span class="mono">τ</span> (Settings) sets how much the transient
+          counts; there's no single true value, so it's yours to tune. Smooth, high-grip cornering barely moves
+          between the two modes — only violent inputs light up. That makes it a measurable "be smooth" score.</p>
+
+        <h4>The traction circle & comet trail</h4>
+        <p>The circle shows <i>where</i> you are (how much grip). The <b>comet trail</b> and the
+          <b>transient timeline</b> show <i>how fast the load is moving</i> — the speed the operating point
+          travels around the circle (<span class="mono">|dG/dt|</span>, g/s). A hard throttle-to-brake swap
+          streaks brightly straight through the middle: the fork is slamming through its stroke even as net g
+          passes through zero.</p>
+
+        <h4>Weight transfer</h4>
+        <p>Front/rear distribution uses a simple point-mass model,
+          <span class="mono">front ≈ 50% − K·a_long</span>. Set <b>K</b> (Settings) to match your bike — higher
+          for a taller or shorter machine that dives and squats more. It's a first-order estimate, not a
+          suspension-geometry simulation.</p>
+
+        <h4>Corner analysis</h4>
+        <p>Corners are found from speed minima confirmed by lean, then labelled in order. <b>Apex %</b> is how
+          much of your limit you used at the slowest point — low (green) means grip to spare, a place to carry
+          more speed. The <span class="mono">◍ g/s</span> badge is how violently you loaded the chassis there.</p>
+
+        <h4>Honest caveats</h4>
+        <p>This is a heuristic budget model, not a tyre thermal or carcass simulation. Grip margin at a fast kink
+          can be geometry-limited, not courage-limited. Lateral g assumes a balanced bike (steady-state lean),
+          and load-transfer is derived from GPS + lean, not a direct fork-travel sensor — though your gyro
+          channels back it up.</p>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   GRIP UTILIZATION — single-file POC
+   ============================================================ */
+const G = 9.80665;
+const $ = s => document.querySelector(s);
+
+/* ---------- state ---------- */
+let SESSION = null;      // parsed session
+let curLap = null;       // active lap object
+let cursor = 0;          // index within curLap.idx
+let playPos = 0;         // fractional playback position (cursor is the rounded view of it)
+let playing = false, playSpeed = 1, lastT = 0;
+let INCLUDE_LOAD = true;  // fold load-transfer into the utilization metric? (default on)
+const WL_NAME = 'Dynamic load';   // metric name when load transfer is included
+
+/* ---------- tunable configuration (edited in the Settings panel) ----------
+   Every estimate the analysis depends on lives here. `apply` says what a change
+   costs: 'recompute' re-derives channels/envelope/corners; 'combined' re-mixes
+   the Dynamic-load metric; 'render' just redraws. */
+const SETTINGS_SCHEMA = [
+  {group:'Bike & physics', items:[
+    {key:'K',   label:'Weight-transfer factor', def:0.45, min:0.30, max:0.60, step:0.01, unit:'', dp:2, apply:'render',
+     help:'Centre-of-gravity height ÷ wheelbase. Sets how much load shifts front↔rear per g of braking or drive (front ≈ 50% − K·a_long). Higher = a taller or shorter bike that dives and squats more. Affects the weight-distribution readout.'},
+    {key:'tau', label:'Transient weighting τ', def:0.30, min:0.05, max:0.60, step:0.01, unit:'s', dp:2, apply:'combined',
+     help:'How strongly load-transfer rate counts toward Dynamic load, expressed as a suspension/tyre settling time in seconds. 0 = ignore transients (pure grip); higher = snappy throttle/brake/steer inputs read hotter.'},
+  ]},
+  {group:'Traction envelope (your limit)', items:[
+    {key:'envPct', label:'Envelope percentile', def:90, min:80, max:99, step:1, unit:'%', dp:0, apply:'recompute',
+     help:'Your grip limit is fit at this percentile of the hardest points in each direction. 100% chases the single most extreme sample (noisy, optimistic); lower is robust but conservative. 90% ignores the wildest 10%.'},
+    {key:'envMinSpeed', label:'Min speed for envelope', def:18, min:5, max:60, step:1, unit:'km/h', dp:0, apply:'recompute',
+     help:'Samples slower than this are excluded from the limit fit, so pit-lane and crawling don’t pollute your envelope. Raise it if a slow section drags the limit down.'},
+  ]},
+  {group:'Corner detection', items:[
+    {key:'cornerLean', label:'Min lean for a corner', def:8, min:4, max:25, step:1, unit:'°', dp:0, apply:'recompute',
+     help:'A corner’s apex must reach at least this lean angle. Raise to ignore gentle kinks; lower to catch fast, shallow corners that barely lean.'},
+    {key:'cornerDrop', label:'Min speed drop (apex)', def:7, min:3, max:20, step:1, unit:'km/h', dp:0, apply:'recompute',
+     help:'How much speed must dip into a corner for its slowest point to count as a distinct apex. Higher merges a complex into one corner; lower splits it into several.'},
+    {key:'mergeGap', label:'Merge nearby apexes', def:1.2, min:0.4, max:2.5, step:0.1, unit:'s', dp:1, apply:'recompute',
+     help:'Two speed minima closer together in time than this are treated as one corner. Prevents a bumpy apex from registering as two turns.'},
+  ]},
+  {group:'Display & thresholds', items:[
+    {key:'goHarder', label:'“Go harder” threshold', def:85, min:60, max:95, step:1, unit:'%', dp:0, apply:'render',
+     help:'Corners whose apex usage sits below this get the green “spare” flag as an opportunity to push. Lower it to flag only the clearest cases.'},
+    {key:'rateFS', label:'Transient full-scale', def:1.6, min:1.0, max:3.5, step:0.1, unit:'g/s', dp:1, apply:'render',
+     help:'The load-transfer rate that reads as full brightness on the comet trail and full-scale on the timeline and corner badges. Lower it to make moderate transitions pop more.'},
+    {key:'speedSmooth', label:'Speed smoothing', def:9, min:3, max:19, step:2, unit:'samples', dp:0, apply:'recompute',
+     help:'Window used to smooth GPS speed before differentiating it into g-force and jerk. Wider = cleaner traces but slightly laggy; narrower = twitchier. 25 samples = 1 second.'},
+  ]},
+];
+const CONFIG = {};
+for(const g of SETTINGS_SCHEMA) for(const it of g.items) CONFIG[it.key]=it.def;
+
+/* ============================================================
+   1. PARSING
+   ============================================================ */
+function parseCSV(text){
+  const lines = text.split(/\r?\n/);
+  const meta = {track:'', config:'', date:'', laps:[], best:null};
+  let dataStart = -1, header = null;
+  for(let i=0;i<lines.length;i++){
+    const cells = lines[i].split(',');
+    const key = (cells[0]||'').trim();
+    if(key==='Record'){ header = cells.map(c=>c.trim()); dataStart = i+1; break; }
+    if(key==='Track') meta.track = cells[1]?.trim()||'';
+    else if(key==='Configuration') meta.config = cells[1]?.trim()||'';
+    else if(key==='Date') meta.date = cells[1]?.trim()||'';
+    else if(key==='Best Lap Time') meta.best = parseFloat(cells[1]);
+    else if(/^Lap\s*\d+/i.test(key)){
+      meta.laps.push({name:key, time:parseFloat(cells[1])});
+    }
+  }
+  if(dataStart<0) throw new Error("Couldn't find the data header row (expected a line starting with 'Record'). Is this a RaceBox CSV export?");
+
+  // column indices
+  const ci = name => header.indexOf(name);
+  const idxTime=ci('Time'), idxLat=ci('Latitude'), idxLon=ci('Longitude'),
+        idxSpd=ci('Speed (m/s)'), idxLap=ci('Lap'), idxHead=ci('Heading'),
+        idxLean=ci('LeanAngle (deg)'), idxGx=ci('GForceX (g)'), idxGz=ci('GForceZ (g)');
+  if(idxLean<0 || idxSpd<0) throw new Error("Missing required columns (Speed / LeanAngle). Not a supported RaceBox export.");
+
+  const N = lines.length - dataStart;
+  const t=new Float64Array(N), lat=new Float64Array(N), lon=new Float64Array(N),
+        spd=new Float32Array(N), lean=new Float32Array(N), lap=new Int16Array(N),
+        head=new Float32Array(N);
+  let n=0, t0=null;
+  for(let i=dataStart;i<lines.length;i++){
+    const c = lines[i].split(',');
+    if(c.length < header.length-2) continue;      // skip blanks / trailing
+    const ms = Date.parse(c[idxTime]);
+    if(isNaN(ms)) continue;
+    if(t0===null) t0=ms;
+    t[n]=(ms-t0)/1000;
+    lat[n]=+c[idxLat]; lon[n]=+c[idxLon];
+    spd[n]=+c[idxSpd]; lean[n]=+c[idxLean];
+    lap[n]=+c[idxLap]||0; head[n]=+c[idxHead]||0;
+    n++;
+  }
+  return {meta, N:n, t:t.subarray(0,n), lat:lat.subarray(0,n), lon:lon.subarray(0,n),
+          spd:spd.subarray(0,n), lean:lean.subarray(0,n), lap:lap.subarray(0,n), head:head.subarray(0,n)};
+}
+
+/* ============================================================
+   2. SIGNAL PROCESSING / PHYSICS
+   ============================================================ */
+function movAvg(a, w){
+  const N=a.length, out=new Float32Array(N), h=w>>1;
+  let sum=0, cnt=0;
+  // simple sliding window (edges shrink)
+  for(let i=0;i<N;i++){
+    if(i===0){ for(let j=0;j<=h && j<N;j++){sum+=a[j];cnt++;} }
+    else{
+      const add=i+h, rem=i-h-1;
+      if(add<N){sum+=a[add];cnt++;}
+      if(rem>=0){sum-=a[rem];cnt--;}
+    }
+    out[i]=sum/cnt;
+  }
+  return out;
+}
+
+function computeChannels(d){
+  const N=d.N, t=d.t;
+  const spdS = movAvg(d.spd, CONFIG.speedSmooth);
+  const leanS = movAvg(d.lean, 5);
+
+  // longitudinal g: central difference of smoothed speed (~0.24s window)
+  const along = new Float32Array(N);
+  for(let i=0;i<N;i++){
+    const lo=Math.max(0,i-3), hi=Math.min(N-1,i+3);
+    const dt=t[hi]-t[lo];
+    along[i] = dt>0 ? ((spdS[hi]-spdS[lo])/dt)/G : 0;
+  }
+  const alongS = movAvg(along, 5);
+
+  // lateral g from lean (tan), signed (left = -, right = +)
+  const alat = new Float32Array(N);
+  for(let i=0;i<N;i++) alat[i] = Math.tan(leanS[i]*Math.PI/180);
+
+  // combined magnitude + direction
+  const comb = new Float32Array(N), theta = new Float32Array(N);
+  for(let i=0;i<N;i++){
+    comb[i]=Math.hypot(alongS[i], alat[i]);
+    theta[i]=Math.atan2(alongS[i], alat[i]);   // x=lat, y=long
+  }
+
+  d.spdS=spdS; d.leanS=leanS; d.along=alongS; d.alat=alat; d.comb=comb; d.theta=theta;
+  return d;
+}
+
+// empirical traction envelope: 90th-pct radius per angular bin, across all fast points
+function computeEnvelope(d){
+  const NB=72, bins=Array.from({length:NB},()=>[]);
+  for(let i=0;i<d.N;i++){
+    if(d.spdS[i] > CONFIG.envMinSpeed/3.6){
+      const b=(((d.theta[i]+Math.PI)/(2*Math.PI))*NB|0)%NB;
+      bins[b].push(d.comb[i]);
+    }
+  }
+  const env=new Float32Array(NB);
+  for(let b=0;b<NB;b++){
+    const arr=bins[b];
+    if(arr.length){ arr.sort((x,y)=>x-y); env[b]=arr[Math.min(arr.length-1, Math.floor(CONFIG.envPct/100*arr.length))]; }
+    else env[b]=NaN;
+  }
+  // fill gaps from nearest neighbour
+  for(let b=0;b<NB;b++){
+    if(isNaN(env[b])){
+      for(let j=1;j<NB;j++){
+        const a=env[(b-j+NB)%NB], c=env[(b+j)%NB];
+        if(!isNaN(a)){env[b]=a;break;} if(!isNaN(c)){env[b]=c;break;}
+      }
+    }
+  }
+  // circular smooth
+  const sm=new Float32Array(NB), H=2;
+  for(let b=0;b<NB;b++){ let s=0; for(let k=-H;k<=H;k++) s+=env[(b+k+NB)%NB]; sm[b]=s/(2*H+1); }
+  d.env=sm; d.NB=NB;
+  let gref=0; for(let b=0;b<NB;b++) gref=Math.max(gref, sm[b]);
+  d.gref=gref;              // peak grip capacity — normalises the transient demand
+  const envR = th => { const b=(((th+Math.PI)/(2*Math.PI))*NB); const i=(Math.floor(b)%NB+NB)%NB; return sm[i]; };
+  d.envR=envR;
+
+  // utilization channel (smoothed a touch for map coloring)
+  const util=new Float32Array(d.N);
+  for(let i=0;i<d.N;i++){ const r=envR(d.theta[i]); util[i]= r>0 ? d.comb[i]/r : 0; }
+  d.util=movAvg(util,3);
+  return d;
+}
+
+// LOAD / TRANSIENT channels: rate of change of the g-g operating point (jerk).
+// jLong = fore/aft transfer rate (dive/squat), jLat = side/side (flick),
+// loadRate = |dG/dt| = how fast the whole load state is moving. Frame-independent.
+function computeLoad(d){
+  const N=d.N, t=d.t;
+  const jL=new Float32Array(N), jT=new Float32Array(N);
+  for(let i=0;i<N;i++){
+    const lo=Math.max(0,i-3), hi=Math.min(N-1,i+3), dt=t[hi]-t[lo];
+    jL[i]=dt>0?(d.along[hi]-d.along[lo])/dt:0;
+    jT[i]=dt>0?(d.alat[hi]-d.alat[lo])/dt:0;
+  }
+  d.jLong=movAvg(jL,5); d.jLat=movAvg(jT,5);
+  const rate=new Float32Array(N);
+  for(let i=0;i<N;i++) rate[i]=Math.hypot(d.jLong[i], d.jLat[i]);
+  d.loadRate=rate;
+  return d;
+}
+// front weight fraction (0..1) at a sample, given current CONFIG.K
+function frontFrac(i){ return Math.max(0.02, Math.min(0.98, 0.5 - CONFIG.K*SESSION.along[i])); }
+
+// COMBINED metric: grip utilisation with the transient folded in as an orthogonal demand.
+// workload = hypot(gripUtil, tau*loadRate/gref). Recompute whenever τ changes.
+function computeCombined(d){
+  const N=d.N, gref=d.gref||0.95, uc=new Float32Array(N);
+  for(let i=0;i<N;i++){
+    const tr=Math.min(1.3, CONFIG.tau*d.loadRate[i]/gref);   // transient demand, normalised to peak grip
+    uc[i]=Math.hypot(d.util[i], tr);
+  }
+  d.utilC=uc;
+  return d;
+}
+// active utilisation at a sample — grip-only or grip+load depending on the toggle
+function au(i){ return INCLUDE_LOAD ? SESSION.utilC[i] : SESSION.util[i]; }
+function metricName(){ return INCLUDE_LOAD ? WL_NAME : 'Grip utilization'; }
+// live corner stats against the ACTIVE metric (so the toggle updates cards instantly)
+function cornerU(c){
+  const utils=[]; for(let j=c.l;j<=c.r;j++) utils.push(au(j));
+  utils.sort((a,b)=>a-b);
+  const win=[]; for(let j=Math.max(c.l,c.ap-3);j<=Math.min(c.r,c.ap+3);j++) win.push(au(j));
+  win.sort((a,b)=>a-b);
+  const apexUtil=win[win.length>>1];
+  const peakUtil=Math.max(apexUtil, utils[Math.floor(0.90*(utils.length-1))]);
+  return {apexUtil, peakUtil};
+}
+
+/* ============================================================
+   3. LAPS & CORNERS
+   ============================================================ */
+function buildLaps(d){
+  const laps=[];
+  // group contiguous samples by lap number (ignore lap 0 = out/in/pit)
+  let start=0;
+  for(let i=1;i<=d.N;i++){
+    if(i===d.N || d.lap[i]!==d.lap[i-1]){
+      const num=d.lap[start];
+      if(num>0){
+        const idx=[]; for(let j=start;j<i;j++) idx.push(j);
+        laps.push({num, idx});
+      }
+      start=i;
+    }
+  }
+  // attach metadata lap time
+  for(const lp of laps){
+    const m=d.meta.laps.find(x=>new RegExp('Lap\\s*'+lp.num+'\\b','i').test(x.name));
+    lp.time=m?m.time:(d.t[lp.idx[lp.idx.length-1]]-d.t[lp.idx[0]]);
+    lp.corners=detectCorners(d, lp);
+  }
+  laps.sort((a,b)=>a.num-b.num);
+  return laps;
+}
+
+function detectCorners(d, lp){
+  const idx=lp.idx, sp=d.spdS, ln=d.leanS, t=d.t, util=d.util;
+  const a=idx[0], b=idx[idx.length-1];
+  // local minima of speed with prominence + lean confirmation
+  const mins=[];
+  for(let i=a+1;i<b;i++){
+    if(sp[i]<=sp[i-1] && sp[i]<sp[i+1]) mins.push(i);
+  }
+  // merge minima < 1.2s apart, keep lowest
+  const filt=[];
+  for(const mi of mins){
+    if(filt.length && t[mi]-t[filt[filt.length-1]]<CONFIG.mergeGap){
+      if(sp[mi]<sp[filt[filt.length-1]]) filt[filt.length-1]=mi;
+    } else filt.push(mi);
+  }
+  // prominence: speed must rise ≥2 m/s on both sides within 3s, and lean>8°
+  const apexes=[];
+  for(const mi of filt){
+    let lmax=sp[mi], rmax=sp[mi];
+    for(let j=Math.max(a,mi-75);j<=mi;j++) lmax=Math.max(lmax,sp[j]);
+    for(let j=mi;j<=Math.min(b,mi+75);j++) rmax=Math.max(rmax,sp[j]);
+    if(Math.min(lmax,rmax)-sp[mi] > CONFIG.cornerDrop/3.6 && Math.abs(ln[mi])>CONFIG.cornerLean) apexes.push(mi);
+  }
+  // build corner windows + stats
+  const corners=[];
+  apexes.forEach((ap,k)=>{
+    // expand to surrounding speed maxima (cap ~4s)
+    let l=ap; while(l>a && sp[l-1]>=sp[l]-0.05 && t[ap]-t[l]<4) l--;
+    let r=ap; while(r<b && sp[r+1]>=sp[r]-0.05 && t[r]-t[ap]<4) r++;
+    let minSpeed=Infinity, maxLean=0, dir=ln[ap]<0?'L':'R', peakLoad=0;
+    const utils=[];
+    for(let j=l;j<=r;j++){
+      minSpeed=Math.min(minSpeed, sp[j]);
+      maxLean=Math.max(maxLean, Math.abs(ln[j]));
+      if(d.loadRate) peakLoad=Math.max(peakLoad, d.loadRate[j]);
+      utils.push(util[j]);
+    }
+    utils.sort((x,y)=>x-y);
+    // apex util = median of ±3 samples about apex
+    const win=[]; for(let j=Math.max(l,ap-3);j<=Math.min(r,ap+3);j++) win.push(util[j]);
+    win.sort((x,y)=>x-y); const apexUtil=win[win.length>>1];
+    // robust peak (90th pct through the corner), never below the apex reading
+    const peakUtil=Math.max(apexUtil, utils[Math.floor(0.90*(utils.length-1))]);
+    corners.push({n:k+1, l, r, ap, dir, minSpeed, maxLean, apexUtil, peakUtil, peakLoad,
+                  tStart:t[l], tApex:t[ap], tEnd:t[r]});
+  });
+  return corners;
+}
+
+/* ============================================================
+   4. COLOR
+   ============================================================ */
+function lerp(a,b,t){return a+(b-a)*t;}
+function hexToRgb(h){h=h.replace('#','');return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];}
+const C_LO=hexToRgb('0ca30c'), C_MID=hexToRgb('fab219'), C_HI=hexToRgb('d03b3b');
+// utilization -> color (0..1+), green->amber->red
+function utilColor(u){
+  u=Math.max(0,Math.min(1.05,u));
+  let a,b,f;
+  if(u<0.6){ a=C_LO;b=C_MID;f=u/0.6; }
+  else{ a=C_MID;b=C_HI;f=(u-0.6)/0.45; f=Math.min(1,f); }
+  return `rgb(${Math.round(lerp(a[0],b[0],f))},${Math.round(lerp(a[1],b[1],f))},${Math.round(lerp(a[2],b[2],f))})`;
+}
+// load-transfer-rate ramp: dim slate -> cyan -> white (an "energy"/transient encoding, distinct from util)
+const R0=hexToRgb('3d4a63'), R1=hexToRgb('4fb0ff'), R2=hexToRgb('ffffff');
+function rateColor(n){
+  n=Math.max(0,Math.min(1,n));
+  let a,b,f;
+  if(n<0.6){ a=R0;b=R1;f=n/0.6; } else { a=R1;b=R2;f=(n-0.6)/0.4; }
+  return `rgb(${Math.round(lerp(a[0],b[0],f))},${Math.round(lerp(a[1],b[1],f))},${Math.round(lerp(a[2],b[2],f))})`;
+}
+
+/* ============================================================
+   5. GEOMETRY / PROJECTION
+   ============================================================ */
+function projectTrack(d){
+  // equirectangular around session centroid -> meters
+  let lat0=0,lon0=0,c=0;
+  for(let i=0;i<d.N;i++){ if(d.lat[i]){lat0+=d.lat[i];lon0+=d.lon[i];c++;} }
+  lat0/=c; lon0/=c;
+  const kx=Math.cos(lat0*Math.PI/180)*111320, ky=110540;
+  const x=new Float32Array(d.N), y=new Float32Array(d.N);
+  for(let i=0;i<d.N;i++){ x[i]=(d.lon[i]-lon0)*kx; y[i]=(d.lat[i]-lat0)*ky; }
+  d.px=x; d.py=y;
+}
+
+/* ============================================================
+   6. RENDERING
+   ============================================================ */
+function fitCanvas(cv){
+  const dpr=window.devicePixelRatio||1;
+  const r=cv.getBoundingClientRect();
+  cv.width=Math.round(r.width*dpr); cv.height=Math.round(r.height*dpr);
+  const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {ctx, w:r.width, h:r.height};
+}
+
+function drawMap(){
+  const d=SESSION, lp=curLap;
+  const cv=$('#mapCanvas'); const {ctx,w,h}=fitCanvas(cv);
+  ctx.clearRect(0,0,w,h);
+  const idx=lp.idx;
+  // bounds for this lap
+  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+  for(const i of idx){ minX=Math.min(minX,d.px[i]);maxX=Math.max(maxX,d.px[i]);minY=Math.min(minY,d.py[i]);maxY=Math.max(maxY,d.py[i]); }
+  const pad=34;
+  const sx=(w-2*pad)/(maxX-minX), sy=(h-2*pad)/(maxY-minY);
+  const s=Math.min(sx,sy);
+  const ox=(w-(maxX-minX)*s)/2 - minX*s;
+  const oy=(h-(maxY-minY)*s)/2 - minY*s;
+  const X=i=> d.px[i]*s+ox;
+  const Y=i=> h-(d.py[i]*s+oy);  // flip y
+
+  // track base (dark casing)
+  ctx.lineJoin='round'; ctx.lineCap='round';
+  ctx.strokeStyle='#000'; ctx.lineWidth=13;
+  ctx.beginPath(); idx.forEach((i,k)=>{ k?ctx.lineTo(X(i),Y(i)):ctx.moveTo(X(i),Y(i)); }); ctx.stroke();
+
+  // colored racing line by active metric (grip, or grip+load)
+  ctx.lineWidth=8;
+  for(let k=1;k<idx.length;k++){
+    const i0=idx[k-1], i1=idx[k];
+    ctx.strokeStyle=utilColor((au(i0)+au(i1))/2);
+    ctx.beginPath(); ctx.moveTo(X(i0),Y(i0)); ctx.lineTo(X(i1),Y(i1)); ctx.stroke();
+  }
+
+  // corner number badges
+  ctx.font='600 12px '+getComputedStyle(document.body).fontFamily;
+  for(const c of lp.corners){
+    const px=X(c.ap), py=Y(c.ap);
+    // offset label outward from track centroid
+    const cx=(minX+maxX)/2*s+ox, cy=h-((minY+maxY)/2*s+oy);
+    let dx=px-cx, dy=py-cy; const L=Math.hypot(dx,dy)||1; dx/=L; dy/=L;
+    const lx=px+dx*16, ly=py+dy*16;
+    ctx.fillStyle=utilColor(cornerU(c).apexUtil);
+    ctx.beginPath(); ctx.arc(lx,ly,10,0,7); ctx.fill();
+    ctx.fillStyle='#0a0a0a'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(c.n, lx, ly+0.5);
+  }
+
+  // start/finish
+  ctx.fillStyle='#fff'; ctx.strokeStyle='#000'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.arc(X(idx[0]),Y(idx[0]),4,0,7); ctx.fill(); ctx.stroke();
+
+  // current position
+  const ci=idx[cursor];
+  ctx.save();
+  ctx.shadowColor='#fff'; ctx.shadowBlur=10;
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(X(ci),Y(ci),6,0,7); ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle=utilColor(au(ci)); ctx.lineWidth=3;
+  ctx.beginPath(); ctx.arc(X(ci),Y(ci),9,0,7); ctx.stroke();
+
+  // store transform for click-to-seek
+  cv._geo={X,Y,idx};
+}
+
+function drawGG(){
+  const d=SESSION, lp=curLap;
+  const cv=$('#ggCanvas'); const {ctx,w,h}=fitCanvas(cv);
+  ctx.clearRect(0,0,w,h);
+  const cx=w/2, cy=h/2, pad=26;
+  const R=Math.min(w,h)/2 - pad;
+  const GMAX=1.3;                      // full-scale g at radius R
+  const P=(gx,gy)=>[cx+gx/GMAX*R, cy-gy/GMAX*R];
+
+  // grid rings
+  ctx.strokeStyle='#2c2c2a'; ctx.fillStyle='#66655f'; ctx.lineWidth=1;
+  ctx.font='10px '+getComputedStyle(document.body).fontFamily; ctx.textAlign='center'; ctx.textBaseline='middle';
+  for(let g=0.25;g<=GMAX+0.001;g+=0.25){
+    ctx.beginPath(); ctx.arc(cx,cy,g/GMAX*R,0,7); ctx.stroke();
+  }
+  // axes
+  ctx.strokeStyle='#3a3a37';
+  ctx.beginPath(); ctx.moveTo(cx-R,cy); ctx.lineTo(cx+R,cy); ctx.moveTo(cx,cy-R); ctx.lineTo(cx,cy+R); ctx.stroke();
+  ctx.fillStyle='#898781';
+  ctx.fillText('BRAKE', cx, cy+R+12);
+  ctx.fillText('ACCEL', cx, cy-R-12);
+  ctx.save(); ctx.translate(cx-R-13,cy); ctx.rotate(-Math.PI/2); ctx.fillText('LEFT',0,0); ctx.restore();
+  ctx.save(); ctx.translate(cx+R+13,cy); ctx.rotate(Math.PI/2); ctx.fillText('RIGHT',0,0); ctx.restore();
+  ctx.fillStyle='#66655f'; ctx.fillText('1.0g', P(0,1.0)[0]+13, P(0,1.0)[1]);
+
+  // envelope curve
+  ctx.strokeStyle='rgba(255,255,255,0.55)'; ctx.lineWidth=1.5; ctx.setLineDash([4,3]);
+  ctx.beginPath();
+  for(let b=0;b<=d.NB;b++){
+    const th=-Math.PI + (b/d.NB)*2*Math.PI;
+    const r=d.envR(th);
+    const gx=r*Math.cos(th), gy=r*Math.sin(th);
+    const [x,y]=P(gx,gy); b?ctx.lineTo(x,y):ctx.moveTo(x,y);
+  }
+  ctx.stroke(); ctx.setLineDash([]);
+
+  // faint scatter for this lap (context: where you operate)
+  for(const i of lp.idx){
+    const [x,y]=P(d.alat[i], d.along[i]);
+    ctx.fillStyle=utilColor(au(i));
+    ctx.globalAlpha=0.28;
+    ctx.beginPath(); ctx.arc(x,y,1.5,0,7); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+
+  // COMET TRAIL — the recent path, brightness+width = load-transfer rate (|dG/dt|).
+  // A hard throttle<->brake swap streaks brightly straight through the origin.
+  const TRAIL=45; // ~1.8s
+  ctx.lineCap='round'; ctx.lineJoin='round';
+  for(let k=Math.max(1,cursor-TRAIL); k<=cursor; k++){
+    const i0=lp.idx[k-1], i1=lp.idx[k];
+    const age=(cursor-k)/TRAIL;              // 0 = now, 1 = oldest
+    const n=Math.min(1, d.loadRate[i1]/CONFIG.rateFS);
+    const [x0,y0]=P(d.alat[i0], d.along[i0]);
+    const [x1,y1]=P(d.alat[i1], d.along[i1]);
+    ctx.globalAlpha=(1-age)*(0.25+0.75*n);
+    ctx.strokeStyle=rateColor(n);
+    ctx.lineWidth=1+n*4;
+    ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+
+  // current point + radius vector
+  const ci=lp.idx[cursor];
+  const [px,py]=P(d.alat[ci], d.along[ci]);
+  ctx.strokeStyle='rgba(255,255,255,0.4)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(px,py); ctx.stroke();
+
+  // dG/dt arrow — direction & speed the load state is moving right now
+  const n=Math.min(1, d.loadRate[ci]/CONFIG.rateFS);
+  if(d.loadRate[ci]>0.08){
+    const ang=Math.atan2(-d.jLong[ci], d.jLat[ci]);   // screen: y down
+    const len=10+n*34;
+    const ex=px+Math.cos(ang)*len, ey=py+Math.sin(ang)*len;
+    ctx.strokeStyle=rateColor(n); ctx.fillStyle=rateColor(n); ctx.lineWidth=1.5+n*2;
+    ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(ex,ey); ctx.stroke();
+    const ah=4+n*3;
+    ctx.beginPath();
+    ctx.moveTo(ex,ey);
+    ctx.lineTo(ex-Math.cos(ang-0.4)*ah, ey-Math.sin(ang-0.4)*ah);
+    ctx.lineTo(ex-Math.cos(ang+0.4)*ah, ey-Math.sin(ang+0.4)*ah);
+    ctx.closePath(); ctx.fill();
+  }
+
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(px,py,5,0,7); ctx.fill();
+  ctx.strokeStyle=utilColor(au(ci)); ctx.lineWidth=2.5;
+  ctx.beginPath(); ctx.arc(px,py,5,0,7); ctx.stroke();
+}
+
+// LOAD & TRANSIENT TIMELINE — two bands, shared time axis (no dual y-scale).
+// Top: longitudinal g (accel up / brake down). Bottom: |dG/dt| transfer rate.
+// The point of the panel: a_long crossing zero WHILE the rate spikes = "loaded through the origin".
+function drawLoad(){
+  const d=SESSION, lp=curLap;
+  const cv=$('#loadCanvas'); const {ctx,w,h}=fitCanvas(cv);
+  ctx.clearRect(0,0,w,h);
+  const idx=lp.idx, n=idx.length, base=idx[0];
+  const padL=8, padR=8;
+  const X=k=> padL + (k/(n-1))*(w-padL-padR);
+  const topH=h*0.50, gap=8, botTop=topH+gap, botH=h-botTop-4;
+  const A_FS=1.0, R_FS=CONFIG.rateFS;
+  const zeroY=topH*0.5;
+  ctx.font='10px '+getComputedStyle(document.body).fontFamily;
+
+  // apex ticks (context) across both bands
+  ctx.strokeStyle='rgba(255,255,255,0.07)'; ctx.lineWidth=1;
+  for(const c of lp.corners){ const x=X(c.ap-base); ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+
+  // --- top band: a_long ---
+  const g1=ctx.createLinearGradient(0,0,0,topH);
+  g1.addColorStop(0,'rgba(25,158,112,0.85)');   // accel (aqua)
+  g1.addColorStop(0.5,'rgba(120,120,110,0.15)');
+  g1.addColorStop(1,'rgba(208,59,59,0.85)');     // brake (red)
+  ctx.beginPath(); ctx.moveTo(X(0),zeroY);
+  for(let k=0;k<n;k++){ const v=Math.max(-A_FS,Math.min(A_FS,d.along[base+k])); ctx.lineTo(X(k), zeroY-(v/A_FS)*(topH*0.5-3)); }
+  ctx.lineTo(X(n-1),zeroY); ctx.closePath(); ctx.fillStyle=g1; ctx.fill();
+  ctx.strokeStyle='#2c2c2a'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(padL,zeroY); ctx.lineTo(w-padR,zeroY); ctx.stroke();
+  ctx.fillStyle='#66655f'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('ACCEL',padL+2,2); ctx.textBaseline='bottom'; ctx.fillText('BRAKE',padL+2,topH-2);
+
+  // --- bottom band: transfer rate ---
+  const baseY=botTop+botH;
+  const g2=ctx.createLinearGradient(0,baseY,0,botTop);
+  g2.addColorStop(0,'rgba(61,74,99,0.55)'); g2.addColorStop(0.6,'rgba(79,176,255,0.85)'); g2.addColorStop(1,'rgba(255,255,255,0.95)');
+  ctx.beginPath(); ctx.moveTo(X(0),baseY);
+  for(let k=0;k<n;k++){ const rr=Math.min(1,d.loadRate[base+k]/R_FS); ctx.lineTo(X(k), baseY-rr*(botH-2)); }
+  ctx.lineTo(X(n-1),baseY); ctx.closePath(); ctx.fillStyle=g2; ctx.fill();
+  ctx.strokeStyle='#2c2c2a'; ctx.beginPath(); ctx.moveTo(padL,baseY); ctx.lineTo(w-padR,baseY); ctx.stroke();
+  ctx.fillStyle='#66655f'; ctx.textBaseline='top'; ctx.fillText('TRANSFER RATE (g/s)',padL+2,botTop+1);
+
+  // cursor
+  const cx2=X(cursor);
+  ctx.strokeStyle='rgba(255,255,255,0.85)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(cx2,0); ctx.lineTo(cx2,h); ctx.stroke();
+  const ci=idx[cursor], rr=Math.min(1,d.loadRate[ci]/R_FS);
+  ctx.fillStyle=rateColor(rr); ctx.beginPath(); ctx.arc(cx2, baseY-rr*(botH-2), 3.5,0,7); ctx.fill();
+
+  cv._geoN=n;
+}
+
+function fmt(v,dp=1){return v.toFixed(dp);}
+function drawReadout(){
+  const d=SESSION, ci=curLap.idx[cursor];
+  const u=au(ci);
+  const cornerName=(()=>{ const c=curLap.corners.find(c=>ci>=c.l&&ci<=c.r); return c?`In corner ${c.n} (${c.dir})`:'Straight / transition'; })();
+  $('#posCorner').textContent=cornerName;
+  const rows=[
+    {k:'Speed', v:fmt(d.spdS[ci]*3.6,0), u:'km/h', big:true},
+    {k:'Lean', v:fmt(Math.abs(d.leanS[ci]),0), u:'°'+(d.leanS[ci]<0?' L':d.leanS[ci]>0?' R':'')},
+    {k:'Lat g', v:fmt(Math.abs(d.alat[ci]),2), u:'g'},
+    {k:'Long g', v:(d.along[ci]>=0?'+':'')+fmt(d.along[ci],2), u:d.along[ci]>=0?'g accel':'g brake'},
+  ];
+  let html='';
+  for(const r of rows){
+    html+=`<div class="stat ${r.big?'big':''}"><div class="k">${r.k}</div><div class="v">${r.v}<span class="u"> ${r.u}</span></div></div>`;
+  }
+  // utilization / workload stat spanning full width
+  const subK = INCLUDE_LOAD ? `<span style="color:var(--ink-3);font-weight:400"> · grip ${Math.round(d.util[ci]*100)} ⊕ load ${Math.round(Math.min(1.3,CONFIG.tau*d.loadRate[ci]/d.gref)*100)}</span>` : '';
+  html+=`<div class="stat big" style="grid-column:1/-1">
+      <div class="k">${metricName()}${subK}</div>
+      <div class="v" style="color:${utilColor(u)}">${Math.round(u*100)}<span class="u"> %</span></div>
+      <div class="umeter" style="margin-top:8px"><i style="width:${Math.min(100,u*100)}%;background:${utilColor(u)}"></i></div>
+    </div>`;
+  // weight distribution (state) + load-transfer rate (transient)
+  const fr=frontFrac(ci), rear=Math.round((1-fr)*100), frontP=Math.round(fr*100);
+  const lr=d.loadRate[ci], nlr=Math.min(1,lr/CONFIG.rateFS);
+  html+=`<div class="distrib">
+      <div class="dh">
+        <span>rear <b>${rear}%</b></span>
+        <span class="ratebadge"><span class="dot" style="background:${rateColor(nlr)}"></span>${lr.toFixed(2)} g/s transfer</span>
+        <span><b>${frontP}%</b> front</span>
+      </div>
+      <div class="distbar">
+        <div class="fill rear" style="left:0;width:${rear}%;opacity:.85"></div>
+        <div class="fill front" style="right:0;width:${frontP}%;opacity:.85"></div>
+        <div class="mid"></div>
+      </div>
+    </div>`;
+  $('#readout').innerHTML=html;
+}
+
+function drawCorners(){
+  const lp=curLap;
+  const grid=$('#cornerGrid'); grid.innerHTML='';
+  const label = INCLUDE_LOAD ? 'apex load' : 'apex grip';
+  // live stats against active metric
+  const stats=new Map(lp.corners.map(c=>[c.n, cornerU(c)]));
+  // lede: biggest opportunities (lowest apex usage = most margin)
+  const ranked=[...lp.corners].sort((a,b)=>stats.get(a.n).apexUtil-stats.get(b.n).apexUtil);
+  const opp=ranked.slice(0,3).map(c=>`T${c.n}`).join(', ');
+  $('#cornerLede').innerHTML = lp.corners.length
+    ? `${lp.corners.length} corners · most margin at <b style="color:var(--u-lo)">${opp}</b> — colour = ${label} used${INCLUDE_LOAD?' (grip + load transfer)':''}`
+    : 'No corners detected on this lap.';
+
+  for(const c of lp.corners){
+    const {apexUtil,peakUtil}=stats.get(c.n);
+    const margin=Math.max(0,100-apexUtil*100);
+    const goHarder=apexUtil<CONFIG.goHarder/100;
+    const el=document.createElement('div');
+    el.className='ccard'; el.dataset.n=c.n;
+    el.innerHTML=`
+      ${goHarder?`<div class="flag">▲ ${Math.round(margin)}% spare</div>`:''}
+      <div class="cnum">
+        <div class="cbadge" style="background:${utilColor(apexUtil)}">${c.n}</div>
+        <div><div class="cdir">Turn ${c.n} · ${c.dir==='L'?'Left':'Right'}</div></div>
+      </div>
+      <div class="cutil" style="color:${utilColor(apexUtil)}">${Math.round(apexUtil*100)}<span style="font-size:13px;color:var(--ink-3)">% ${label}</span></div>
+      <div class="csub">peak ${Math.round(peakUtil*100)}% through corner</div>
+      <div class="cbar"><i style="width:${Math.min(100,apexUtil*100)}%;background:${utilColor(apexUtil)}"></i></div>
+      <div class="cmeta"><span>${Math.round(c.minSpeed*3.6)} km/h</span><span>${Math.round(c.maxLean)}° lean</span><span style="color:${rateColor(Math.min(1,c.peakLoad/CONFIG.rateFS))}">◍ ${c.peakLoad.toFixed(1)} g/s</span></div>`;
+    el.addEventListener('click',()=>{ seekToIndex(c.ap); highlightCorner(c.n); });
+    grid.appendChild(el);
+  }
+}
+function highlightCorner(n){
+  document.querySelectorAll('.ccard').forEach(e=>e.classList.toggle('active', +e.dataset.n===n));
+}
+
+/* ============================================================
+   7. TRANSPORT / INTERACTION
+   ============================================================ */
+function renderAll(){ drawMap(); drawGG(); drawLoad(); drawReadout(); syncActiveCorner(); }
+function syncActiveCorner(){
+  const ci=curLap.idx[cursor];
+  const c=curLap.corners.find(c=>ci>=c.l&&ci<=c.r);
+  highlightCorner(c?c.n:-1);
+}
+function setCursor(i){
+  cursor=Math.max(0,Math.min(curLap.idx.length-1,i));
+  $('#scrub').value=cursor;
+  $('#tCur').textContent=(SESSION.t[curLap.idx[cursor]]-SESSION.t[curLap.idx[0]]).toFixed(2)+'s';
+  renderAll();
+}
+function seekToIndex(globalIdx){
+  const local=curLap.idx.indexOf(globalIdx);
+  if(local>=0) setCursor(local);
+}
+function loop(ts){
+  if(!playing) return;
+  if(!lastT) lastT=ts;
+  const dt=(ts-lastT)/1000; lastT=ts;
+  // advance playback by real time * playSpeed (data is 25Hz). Accumulate as a
+  // float — rounding into `cursor` each frame would discard sub-sample progress
+  // and freeze playback at 1× on a 60Hz display (0.42 samples/frame → round 0).
+  playPos += dt*25*playSpeed;
+  if(playPos>=curLap.idx.length-1){ setCursor(curLap.idx.length-1); stop(); return; }
+  setCursor(Math.round(playPos));
+  requestAnimationFrame(loop);
+}
+function play(){ if(cursor>=curLap.idx.length-1) cursor=0; playPos=cursor; playing=true; lastT=0; $('#playBtn').textContent='❚❚'; requestAnimationFrame(loop); }
+function stop(){ playing=false; $('#playBtn').textContent='▶'; }
+
+/* ---------- lap switching ---------- */
+function selectLap(lap){
+  stop(); curLap=lap; cursor=0;
+  $('#scrub').max=lap.idx.length-1; $('#scrub').value=0;
+  $('#tTot').textContent=lap.time.toFixed(2)+'s';
+  document.querySelectorAll('.laptab').forEach(t=>t.classList.toggle('active',+t.dataset.num===lap.num));
+  drawCorners();
+  setCursor(0);
+}
+
+function buildLapTabs(){
+  const tabs=$('#lapTabs'); tabs.innerHTML='';
+  const best=SESSION.laps.reduce((a,b)=>b.time<a.time?b:a, SESSION.laps[0]);
+  for(const lp of SESSION.laps){
+    const el=document.createElement('button');
+    el.className='laptab'+(lp===best?' best':''); el.dataset.num=lp.num;
+    el.innerHTML=`<b>Lap ${lp.num}${lp===best?' ★':''}</b><span class="lt">${lp.time.toFixed(2)}s</span>`;
+    el.addEventListener('click',()=>selectLap(lp));
+    tabs.appendChild(el);
+  }
+  return best;
+}
+
+/* ============================================================
+   8. LOAD FLOW
+   ============================================================ */
+function loadText(text){
+  try{
+    const d=parseCSV(text);
+    computeChannels(d); computeEnvelope(d); computeLoad(d); computeCombined(d); projectTrack(d);
+    SESSION=d;                       // needed by frontFrac() during corner build
+    d.laps=buildLaps(d);
+    if(!d.laps.length) throw new Error('No timed laps (Lap ≥ 1) found in this session.');
+    SESSION=d;
+    // session meta
+    $('#sessionMeta').classList.remove('hidden');
+    $('#sessionMeta').innerHTML=`
+      <div class="m"><b>${d.meta.track||'Unknown track'}</b><span>${d.meta.config||'circuit'}</span></div>
+      <div class="m"><b>${d.meta.date||'—'}</b><span>session date</span></div>
+      <div class="m"><b class="mono">${(d.meta.best??0).toFixed(2)}s</b><span>best lap</span></div>
+      <div class="m"><b class="mono">${d.laps.length}</b><span>timed laps</span></div>`;
+    $('#dropzone').classList.add('hidden');
+    $('#dash').classList.remove('hidden');
+    $('#loadAnother').classList.remove('hidden');
+    $('#settingsBtn').classList.remove('hidden');
+    updateMetricLabels();            // sync toggle/labels to the default mode
+    const best=buildLapTabs();
+    selectLap(best);
+  }catch(e){
+    $('#err').textContent='⚠ '+e.message; console.error(e);
+  }
+}
+function handleFile(file){
+  $('#err').textContent='';
+  const r=new FileReader();
+  r.onload=()=>loadText(r.result);
+  r.onerror=()=>{$('#err').textContent='Could not read the file.';};
+  r.readAsText(file);
+}
+
+/* ---------- wire up ---------- */
+$('#pickBtn').addEventListener('click',()=>$('#fileInput').click());
+$('#loadAnother').addEventListener('click',()=>{ $('#dash').classList.add('hidden'); $('#dropzone').classList.remove('hidden'); $('#sessionMeta').classList.add('hidden'); $('#loadAnother').classList.add('hidden'); $('#fileInput').value=''; });
+$('#fileInput').addEventListener('change',e=>{ if(e.target.files[0]) handleFile(e.target.files[0]); });
+const dz=$('#dropzone');
+['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('hot');}));
+['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('hot');}));
+dz.addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f) handleFile(f); });
+
+$('#playBtn').addEventListener('click',()=>playing?stop():play());
+$('#scrub').addEventListener('input',e=>{ stop(); setCursor(+e.target.value); });
+// speed buttons
+const speeds=[0.5,1,2,4];
+const ss=$('#speedSel');
+speeds.forEach(s=>{ const b=document.createElement('button'); b.textContent=s+'×'; if(s===1)b.classList.add('on'); b.onclick=()=>{playSpeed=s; ss.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));}; ss.appendChild(b); });
+// click map to seek
+$('#mapCanvas').addEventListener('click',e=>{
+  const cv=$('#mapCanvas'); if(!cv._geo) return;
+  const r=cv.getBoundingClientRect(); const mx=e.clientX-r.left, my=e.clientY-r.top;
+  let best=0,bd=Infinity; const {X,Y,idx}=cv._geo;
+  idx.forEach((gi,k)=>{ const d=(X(gi)-mx)**2+(Y(gi)-my)**2; if(d<bd){bd=d;best=k;} });
+  stop(); setCursor(best);
+});
+// click load timeline to seek
+$('#loadCanvas').addEventListener('click',e=>{
+  const cv=$('#loadCanvas'); if(!cv._geoN) return;
+  const r=cv.getBoundingClientRect(); const f=(e.clientX-r.left-8)/(r.width-16);
+  stop(); setCursor(Math.round(Math.max(0,Math.min(1,f))*(cv._geoN-1)));
+});
+// metric mode toggle: grip-only <-> grip+load (dynamic load)
+function updateMetricLabels(){
+  $('#mapMetricName').textContent = INCLUDE_LOAD ? WL_NAME.toLowerCase() : 'grip utilization';
+  $('#modeSeg').querySelectorAll('button').forEach(x=>x.classList.toggle('on', (x.dataset.mode==='load')===INCLUDE_LOAD));
+}
+$('#modeSeg').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  INCLUDE_LOAD = b.dataset.mode==='load';
+  updateMetricLabels();
+  if(SESSION){ drawCorners(); renderAll(); }
+});
+
+/* ---------- re-derivation when settings change ---------- */
+function fullRecompute(){
+  const d=SESSION; if(!d) return;
+  const num=curLap?curLap.num:null;
+  const frac=(curLap && curLap.idx.length>1) ? cursor/(curLap.idx.length-1) : 0;
+  computeChannels(d); computeEnvelope(d); computeLoad(d); computeCombined(d);
+  d.laps=buildLaps(d);
+  const best=buildLapTabs();
+  const lap=d.laps.find(l=>l.num===num)||best;
+  selectLap(lap);
+  setCursor(Math.round(frac*(lap.idx.length-1)));
+}
+function applySetting(level){
+  if(!SESSION) return;
+  if(level==='recompute') fullRecompute();
+  else if(level==='combined'){ computeCombined(SESSION); drawCorners(); renderAll(); }
+  else { drawCorners(); renderAll(); }
+}
+
+/* ---------- settings panel (built from SETTINGS_SCHEMA) ---------- */
+function renderSettings(){
+  const form=$('#settingsForm'); form.innerHTML='';
+  for(const g of SETTINGS_SCHEMA){
+    const grp=document.createElement('div'); grp.className='sgroup';
+    grp.innerHTML=`<h5>${g.group}</h5>`;
+    for(const it of g.items){
+      const row=document.createElement('div'); row.className='srow';
+      const recompute = it.apply==='recompute';
+      row.innerHTML=`
+        <div class="slabel">
+          <span class="name">${it.label}
+            <span class="info" data-tip="${it.help.replace(/"/g,'&quot;')}">i</span>
+            ${recompute?'<span class="badge recompute">recompute</span>':''}
+          </span>
+          <span class="val" id="sv_${it.key}">${CONFIG[it.key].toFixed(it.dp)}${it.unit?' '+it.unit:''}</span>
+        </div>
+        <input type="range" id="ss_${it.key}" min="${it.min}" max="${it.max}" step="${it.step}" value="${CONFIG[it.key]}">`;
+      grp.appendChild(row);
+      const input=row.querySelector('input');
+      input.addEventListener('input',()=>{
+        CONFIG[it.key]=+input.value;
+        $('#sv_'+it.key).textContent=(+input.value).toFixed(it.dp)+(it.unit?' '+it.unit:'');
+        applySetting(it.apply);
+      });
+    }
+    form.appendChild(grp);
+  }
+}
+function syncSettingsInputs(){   // after a reset
+  for(const g of SETTINGS_SCHEMA) for(const it of g.items){
+    const inp=$('#ss_'+it.key); if(inp){ inp.value=CONFIG[it.key]; $('#sv_'+it.key).textContent=CONFIG[it.key].toFixed(it.dp)+(it.unit?' '+it.unit:''); }
+  }
+}
+$('#resetSettings').addEventListener('click',()=>{
+  for(const g of SETTINGS_SCHEMA) for(const it of g.items) CONFIG[it.key]=it.def;
+  syncSettingsInputs();
+  if(SESSION) fullRecompute();
+});
+
+/* ---------- drawer open/close + tabs ---------- */
+function openDrawer(tab){
+  renderSettings();
+  showTab(tab||'settings');
+  $('#scrim').classList.remove('hidden');
+  $('#drawer').classList.remove('hidden');
+  $('#drawer').setAttribute('aria-hidden','false');
+}
+function closeDrawer(){
+  $('#drawer').classList.add('hidden'); $('#scrim').classList.add('hidden');
+  $('#drawer').setAttribute('aria-hidden','true');
+}
+function showTab(name){
+  $('#tabSettings').classList.toggle('hidden', name!=='settings');
+  $('#tabHelp').classList.toggle('hidden', name!=='help');
+  document.querySelectorAll('.dtab').forEach(b=>b.classList.toggle('on', b.dataset.tab===name));
+}
+document.querySelectorAll('.dtab').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
+$('#settingsBtn').addEventListener('click',()=>openDrawer('settings'));
+$('#tuneBtn').addEventListener('click',()=>openDrawer('settings'));
+$('#settingsLink').addEventListener('click',()=>openDrawer('settings'));
+$('#helpBtn').addEventListener('click',()=>openDrawer('help'));
+$('#helpLink').addEventListener('click',()=>openDrawer('help'));
+$('#drawerClose').addEventListener('click',closeDrawer);
+$('#scrim').addEventListener('click',closeDrawer);
+
+/* ---------- tooltips (floating, driven by [data-tip]) ---------- */
+const tip=document.createElement('div'); tip.id='tooltip'; document.body.appendChild(tip);
+function showTip(el){
+  tip.textContent=el.getAttribute('data-tip'); tip.classList.add('show');
+  const r=el.getBoundingClientRect(); tip.style.left='0px'; tip.style.top='0px';
+  const tr=tip.getBoundingClientRect();
+  let x=r.left+r.width/2-tr.width/2, y=r.top-tr.height-8;
+  x=Math.max(8,Math.min(x,innerWidth-tr.width-8));
+  if(y<8) y=r.bottom+8;
+  tip.style.left=x+'px'; tip.style.top=y+'px';
+}
+function hideTip(){ tip.classList.remove('show'); }
+document.addEventListener('mouseover',e=>{ const t=e.target.closest('[data-tip]'); if(t) showTip(t); });
+document.addEventListener('mouseout',e=>{ if(e.target.closest('[data-tip]')) hideTip(); });
+document.addEventListener('click',e=>{ const t=e.target.closest('[data-tip]'); if(t){ tip.classList.contains('show')?hideTip():showTip(t); } });
+// keyboard
+window.addEventListener('keydown',e=>{
+  if(e.key==='Escape' && !$('#drawer').classList.contains('hidden')){ closeDrawer(); return; }
+  if(!SESSION) return;
+  if(e.target.closest('#drawer')) return;   // don't scrub while dragging sliders
+  if(e.key===' '){e.preventDefault(); playing?stop():play();}
+  else if(e.key==='ArrowRight'){stop(); setCursor(cursor+ (e.shiftKey?25:1));}
+  else if(e.key==='ArrowLeft'){stop(); setCursor(cursor- (e.shiftKey?25:1));}
+});
+// redraw on resize
+let rz; window.addEventListener('resize',()=>{ clearTimeout(rz); rz=setTimeout(()=>{ if(SESSION) renderAll(); },120); });
+</script>
+</body>
+</html>

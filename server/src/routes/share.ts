@@ -8,8 +8,10 @@ const authedRoute = new Hono<{ Variables: AuthVariables }>();
 authedRoute.use(requireAuth);
 
 function buildShareUrl(token: string): string {
+  // The SPA lives under the /dynorun/ subpath of the suite domain. APP_URL is
+  // the origin (no subpath). Keep in sync with client shareUrlFor().
   const base = process.env.APP_URL ?? 'https://wasgoht.ch';
-  return `${base.replace(/\/$/, '')}/share/${token}`;
+  return `${base.replace(/\/$/, '')}/dynorun/share/${token}`;
 }
 
 authedRoute.post('/runs/:id/share-token', async (c) => {

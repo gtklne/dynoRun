@@ -34,11 +34,12 @@ function oppositeUnit(unit: PowerUnit): PowerUnit {
   return unit === 'kW' ? 'hp' : 'kW';
 }
 
+// A share link is a fixed, public, canonical web URL — it must be valid even
+// when produced by the native app (whose origin is capacitor://) and must point
+// at the /dynorun/ subpath on the suite domain. So it is NOT origin- or
+// BASE_URL-derived. Keep in sync with server buildShareUrl().
 function shareUrlFor(token: string): string {
-  if (typeof window !== 'undefined' && window.location?.origin) {
-    return `${window.location.origin}/share/${token}`;
-  }
-  return `https://wasgoht.ch/share/${token}`;
+  return `https://wasgoht.ch/dynorun/share/${token}`;
 }
 
 function hasAnyCondition(c: RunConditions): boolean {
