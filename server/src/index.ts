@@ -11,6 +11,7 @@ import { recordingsRoute } from './routes/recordings.js';
 import { shareTokenRoute, publicShareRoute } from './routes/share.js';
 import { adminRoute } from './routes/admin.js';
 import { accountRoute } from './routes/account.js';
+import { devAuthRoute } from './routes/dev-auth.js';
 
 const app = new Hono();
 
@@ -21,6 +22,14 @@ app.use(cors({
 
 // better-auth handles all /api/auth/* routes
 app.on(['GET', 'POST'], '/api/auth/**', (c) => auth.handler(c.req.raw));
+
+// Dev-only login bypass (skips magic-link email + captcha). Mounted only when
+// DEV_LOGIN is explicitly enabled — never registered in prod, so the route
+// surface stays absent there.
+if (process.env.DEV_LOGIN === 'true' && process.env.NODE_ENV !== 'production') {
+  app.route('/api', devAuthRoute);
+  console.warn('⚠  DEV_LOGIN enabled — POST /api/dev/login bypasses email auth');
+}
 
 // Public share route — must mount before any auth-gated routes so a logged-out
 // browser can read a shared run without redirecting to /login.

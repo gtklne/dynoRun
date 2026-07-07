@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { authClient } from '@/auth/auth-client';
 import { BrandLogo } from '@/ui/components/brand-logo';
 import { TurnstileWidget, type TurnstileWidgetHandle } from '@/ui/auth/turnstile-widget';
+import { DevLoginPanel } from '@/ui/auth/dev-login-panel';
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string;
 
@@ -100,7 +101,8 @@ export function LoginScreen() {
     <div className="flex min-h-screen items-center justify-center p-4 bg-zinc-950 lg:grid lg:grid-cols-2 lg:items-stretch lg:p-0">
       <BrandPanel />
       <div className="contents lg:flex lg:items-center lg:justify-center lg:p-4">
-        <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-6">
+        <div className="flex w-full max-w-sm flex-col items-center gap-6">
+        <form onSubmit={handleSubmit} className="w-full space-y-6">
           <BrandHeader />
           <div className="space-y-4">
             <input
@@ -129,6 +131,8 @@ export function LoginScreen() {
           </div>
           <LegalFootnote />
         </form>
+        {import.meta.env.DEV && <DevLoginPanel />}
+        </div>
       </div>
     </div>
   );
