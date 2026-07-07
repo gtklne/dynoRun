@@ -62,9 +62,8 @@ export function LoginScreen() {
     setError(null);
     const res = await authClient.signIn.magicLink({
       email,
-      // Post-verify landing must be inside the app's base ('/dynorun/' on web,
-      // '/' on native), not the suite homescreen at the domain root.
-      callbackURL: import.meta.env.BASE_URL,
+      // Post-verify landing = the authed system home (not the public landing at /).
+      callbackURL: '/home',
       fetchOptions: { headers: { 'x-captcha-response': captchaToken! } },
     });
     setLoading(false);

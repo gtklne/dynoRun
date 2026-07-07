@@ -4,10 +4,9 @@ import tailwindcss from '@tailwindcss/vite';
 import path from 'node:path';
 
 export default defineConfig({
-  // Web prod is served under the /dynorun/ subpath of the wasgoht.ch suite, so
-  // CI builds with VITE_DEPLOY_BASE=/dynorun/. The Capacitor native build must
-  // NOT set it — the webview serves from root, so base stays '/'.
-  base: process.env.VITE_DEPLOY_BASE || '/',
+  // The whole system is one app served at the domain root (wasgoht.ch/), and the
+  // Capacitor webview also serves from root — so base is '/' everywhere.
+  base: '/',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: { '@': path.resolve(__dirname, 'src') },

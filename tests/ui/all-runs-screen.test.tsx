@@ -110,7 +110,7 @@ describe('AllRunsScreen', () => {
 
     expect(screen.getByText('Start your first run')).toBeInTheDocument();
     const link = screen.getByRole('link', { name: /Go to garage/i });
-    expect(link).toHaveAttribute('href', '/');
+    expect(link).toHaveAttribute('href', '/garage');
     expect(screen.queryByRole('tablist', { name: /Filter by vehicle/i })).not.toBeInTheDocument();
     cleanup();
   });

@@ -148,7 +148,7 @@ export function VehicleDetail() {
     try {
       await vehicleRepository.delete(vehicle.id);
       toast.show('Vehicle deleted', { variant: 'success' });
-      navigate('/');
+      navigate('/garage');
     } catch {
       toast.show('Failed to delete vehicle', { variant: 'error' });
       setDeleting(false);
@@ -158,7 +158,7 @@ export function VehicleDetail() {
   return (
     <div className="space-y-5">
       {/* Back nav */}
-      <Link to="/" className="inline-flex items-center gap-1.5 text-zinc-400 hover:text-zinc-200 text-sm transition-colors">
+      <Link to="/garage" className="inline-flex items-center gap-1.5 text-zinc-400 hover:text-zinc-200 text-sm transition-colors">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="15 18 9 12 15 6"/>
         </svg>

@@ -40,9 +40,8 @@ export async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise
     if (publicEndpoint) {
       throw new ApiError(401, 'Unauthorized');
     }
-    // Imperative nav, so it isn't basename-aware like react-router links.
-    // BASE_URL has a trailing slash → '/dynorun/login' (web) or '/login' (native).
-    window.location.href = `${import.meta.env.BASE_URL}login`;
+    // Imperative nav (not basename-aware). App is served at root, so → /login.
+    window.location.href = '/login';
     throw new ApiError(401, 'Unauthorized');
   }
   if (!res.ok) {

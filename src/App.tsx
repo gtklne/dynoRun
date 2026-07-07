@@ -6,6 +6,10 @@ import { AppShell } from './ui/app-shell';
 import { ErrorBoundary } from './ui/error-boundary';
 import { ToastProvider } from './ui/components/toast';
 import { LoginScreen } from './ui/auth/login-screen';
+import { LandingScreen } from './ui/home/landing-screen';
+import { SystemHome } from './ui/home/system-home';
+import { GripScreen } from './ui/grip/grip-screen';
+import { isNative } from './app/platform';
 import { GarageScreen } from './ui/garage/garage-screen';
 import { VehicleDetail } from './ui/garage/vehicle-detail';
 import { ReplayLabIndex } from './ui/replay-lab/replay-lab-index';
@@ -35,29 +39,38 @@ function RequireAuth({ children }: { children: ReactNode }) {
 // Cosmetic guard only — the server 404s /api/admin/* for non-admins regardless.
 function RequireAdmin({ children }: { children: ReactNode }) {
   const { isAdmin } = useAuth();
-  if (!isAdmin) return <Navigate to="/" replace />;
+  if (!isAdmin) return <Navigate to="/home" replace />;
   return <>{children}</>;
 }
 
+// The domain root: public marketing landing for logged-out web visitors; signed-in
+// users skip it for the app home; native never shows marketing.
+function RootRoute() {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="flex min-h-screen items-center justify-center">Loading…</div>;
+  if (user) return <Navigate to="/home" replace />;
+  if (isNative()) return <Navigate to="/login" replace />;
+  return <LandingScreen />;
+}
+
 export default function App() {
-  // Mirrors Vite `base` (BASE_URL has a trailing slash; router basename must not).
-  // '/dynorun' for the web suite build, '' (root) for the native/dev build.
-  const basename = import.meta.env.BASE_URL.replace(/\/$/, '');
   return (
     <ErrorBoundary>
       <AuthProvider>
         <UnitsProvider>
           <ToastProvider>
-            <BrowserRouter basename={basename}>
+            <BrowserRouter>
               <CookieNotice />
               <Routes>
+                <Route path="/" element={<RootRoute />} />
                 <Route path="/login" element={<LoginScreen />} />
                 <Route path="/share/:token" element={<PublicShareScreen />} />
                 <Route path="/demo" element={<DemoRunScreen />} />
                 <Route path="/imprint" element={<ImprintScreen />} />
                 <Route path="/privacy" element={<PrivacyScreen />} />
                 <Route element={<RequireAuth><AppShell /></RequireAuth>}>
-                  <Route index element={<GarageScreen />} />
+                  <Route path="/home" element={<SystemHome />} />
+                  <Route path="/garage" element={<GarageScreen />} />
                   <Route path="/vehicles/:id" element={<VehicleDetail />} />
                   <Route path="/vehicles/:vehicleId/calibrations/new" element={<CalibrationWizardScreen />} />
                   <Route path="/vehicles/:vehicleId/calibrations/:calibrationId/run" element={<LiveRunScreen />} />
@@ -69,9 +82,10 @@ export default function App() {
                   <Route path="/replay/local" element={<ReplayLabPlayer />} />
                   <Route path="/replay/:recordingId" element={<ReplayLabPlayer />} />
                   <Route path="/vehicles/:vehicleId/compare" element={<CompareScreen />} />
+                  <Route path="/grip" element={<GripScreen />} />
                   <Route path="/settings" element={<SettingsScreen />} />
                   <Route path="/admin" element={<RequireAdmin><AdminScreen /></RequireAdmin>} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
+                  <Route path="*" element={<Navigate to="/home" replace />} />
                 </Route>
               </Routes>
             </BrowserRouter>

@@ -1,7 +1,17 @@
-import { Link, NavLink, Outlet } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/auth/auth-context';
-import { BrandLogo } from './components/brand-logo';
+import { SuiteMark, Wordmark } from './components/brand-wordmark';
 import { HelpButton } from './components/help-drawer';
+
+function HomeIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 10.5 12 3l9 7.5" />
+      <path d="M5 9.5V21h14V9.5" />
+      <path d="M9 21v-6h6v6" />
+    </svg>
+  );
+}
 
 function GarageIcon() {
   return (
@@ -19,6 +29,19 @@ function RunsIcon() {
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="3 17 9 11 13 15 21 7" />
       <polyline points="15 7 21 7 21 13" />
+    </svg>
+  );
+}
+
+function GripIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="4.5" />
+      <line x1="12" y1="2.5" x2="12" y2="6" />
+      <line x1="12" y1="18" x2="12" y2="21.5" />
+      <line x1="2.5" y1="12" x2="6" y2="12" />
+      <line x1="18" y1="12" x2="21.5" y2="12" />
     </svg>
   );
 }
@@ -42,7 +65,7 @@ function SettingsIcon() {
 
 // Bottom-tab style (mobile): stacked icon over tiny label, evenly spread.
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
-  `flex flex-col items-center gap-1 py-2 px-4 flex-1 transition-colors ${
+  `flex flex-col items-center gap-1 py-2 px-2 flex-1 transition-colors ${
     isActive ? 'text-amber-400' : 'text-zinc-500 hover:text-zinc-300'
   }`;
 
@@ -54,31 +77,35 @@ const sideLinkClass = ({ isActive }: { isActive: boolean }) =>
       : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
   }`;
 
-const Wordmark = () => (
-  <span className="font-bold text-lg tracking-tight">
-    <span className="text-amber-400">dyno</span>
-    <span className="text-zinc-100">Run</span>
-  </span>
-);
-
 export function AppShell() {
   const { isAdmin } = useAuth();
+  // The Grip tool is a full-page iframe — give it the whole content area,
+  // without the padded/centered container and footer used by other screens.
+  const fullBleed = useLocation().pathname === '/grip';
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col">
       {/* Desktop sidebar (lg+). Slim fixed rail; mobile uses the bottom nav instead. */}
       <aside className="hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:left-0 lg:w-56 lg:z-40 bg-zinc-900/40 border-r border-zinc-800/60 px-3 py-5 overflow-y-auto">
-        <Link to="/" className="flex items-center gap-2 px-2 mb-7 transition-opacity hover:opacity-80">
-          <BrandLogo size={24} />
-          <Wordmark />
+        <Link to="/home" className="flex items-center gap-2 px-2 mb-7 transition-opacity hover:opacity-80">
+          <SuiteMark size={24} />
+          <Wordmark brand="suite" />
         </Link>
         <nav className="flex flex-col gap-1">
-          <NavLink to="/" end className={sideLinkClass}>
+          <NavLink to="/home" end className={sideLinkClass}>
+            <HomeIcon />
+            <span>Home</span>
+          </NavLink>
+          <NavLink to="/garage" end className={sideLinkClass}>
             <GarageIcon />
             <span>Garage</span>
           </NavLink>
           <NavLink to="/runs" className={sideLinkClass}>
             <RunsIcon />
             <span>Runs</span>
+          </NavLink>
+          <NavLink to="/grip" className={sideLinkClass}>
+            <GripIcon />
+            <span>Grip</span>
           </NavLink>
           <NavLink to="/settings" className={sideLinkClass}>
             <SettingsIcon />
@@ -98,36 +125,46 @@ export function AppShell() {
 
       {/* Top header (mobile only — the sidebar carries the brand on desktop). */}
       <header className="lg:hidden pt-safe sticky top-0 z-50 bg-zinc-950/95 backdrop-blur-sm border-b border-zinc-800/60 px-4 py-3 flex items-center gap-2">
-        <Link to="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
-          <BrandLogo size={22} />
-          <Wordmark />
+        <Link to="/home" className="flex items-center gap-2 transition-opacity hover:opacity-80">
+          <SuiteMark size={22} />
+          <Wordmark brand="suite" />
         </Link>
         <div className="ml-auto">
           <HelpButton />
         </div>
       </header>
 
-      {/* Main content. Mobile stays the scroll container (pb-20 clears the bottom
-          nav); desktop offsets past the sidebar and centers within a max width. */}
-      <main className="flex-1 overflow-y-auto px-4 pt-4 pb-20 lg:pl-64 lg:pr-8 lg:pt-8 lg:pb-12">
-        <div className="mx-auto w-full lg:max-w-6xl">
+      {/* Main content. Full-bleed (Grip) fills the area; everything else uses the
+          padded, centered container with the footer. */}
+      {fullBleed ? (
+        <main className="relative flex-1 overflow-hidden pb-16 lg:pb-0 lg:pl-56">
           <Outlet />
-          <footer className="mt-10 flex justify-center gap-4 pb-4 text-[11px] text-zinc-600">
-            <Link to="/privacy" className="hover:text-zinc-400 transition-colors">Privacy Policy</Link>
-            <Link to="/imprint" className="hover:text-zinc-400 transition-colors">Imprint</Link>
-          </footer>
-        </div>
-      </main>
+        </main>
+      ) : (
+        <main className="flex-1 overflow-y-auto px-4 pt-4 pb-20 lg:pl-64 lg:pr-8 lg:pt-8 lg:pb-12">
+          <div className="mx-auto w-full lg:max-w-6xl">
+            <Outlet />
+            <footer className="mt-10 flex justify-center gap-4 pb-4 text-[11px] text-zinc-600">
+              <Link to="/privacy" className="hover:text-zinc-400 transition-colors">Privacy Policy</Link>
+              <Link to="/imprint" className="hover:text-zinc-400 transition-colors">Imprint</Link>
+            </footer>
+          </div>
+        </main>
+      )}
 
       {/* Bottom navigation (mobile only). */}
       <nav className="lg:hidden pb-safe fixed bottom-0 left-0 right-0 bg-zinc-900/95 border-t border-zinc-800 backdrop-blur-sm flex z-50">
-        <NavLink to="/" end className={navLinkClass}>
+        <NavLink to="/home" end className={navLinkClass}>
+          <HomeIcon />
+          <span className="text-[10px] font-medium">Home</span>
+        </NavLink>
+        <NavLink to="/garage" end className={navLinkClass}>
           <GarageIcon />
           <span className="text-[10px] font-medium">Garage</span>
         </NavLink>
-        <NavLink to="/runs" className={navLinkClass}>
-          <RunsIcon />
-          <span className="text-[10px] font-medium">Runs</span>
+        <NavLink to="/grip" className={navLinkClass}>
+          <GripIcon />
+          <span className="text-[10px] font-medium">Grip</span>
         </NavLink>
         <NavLink to="/settings" className={navLinkClass}>
           <SettingsIcon />

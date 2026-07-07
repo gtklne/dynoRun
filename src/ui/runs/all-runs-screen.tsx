@@ -251,7 +251,7 @@ export function AllRunsScreen() {
             Add a vehicle and calibrate a gear to record your power curve.
           </p>
           <Link
-            to="/"
+            to="/garage"
             className="inline-block bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold text-sm px-4 py-2 rounded-xl transition-colors"
           >
             Go to garage

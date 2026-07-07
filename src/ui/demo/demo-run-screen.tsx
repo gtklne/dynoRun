@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { analyzeRun } from '@/analysis/pipeline';
 import { computeRollout } from '@/shared/units';
 import { BrandLogo } from '@/ui/components/brand-logo';
+import { Wordmark } from '@/ui/components/brand-wordmark';
 import { PowerCurveChart } from '@/ui/components/power-curve-chart';
 import { AccelTimesCard } from '@/ui/components/accel-times-card';
 import { RunQualityBadge } from '@/ui/components/run-quality-badge';
@@ -55,12 +56,9 @@ export function DemoRunScreen() {
     <div className="min-h-screen bg-zinc-950 flex flex-col">
       <header className="pt-safe bg-zinc-950 border-b border-zinc-800/60 px-4 py-3">
         <div className="flex items-center justify-between gap-2 max-w-2xl w-full mx-auto lg:max-w-5xl">
-          <Link to="/" className="flex items-center gap-2" aria-label="DynoRun home">
+          <Link to="/" className="flex items-center gap-2" aria-label="Home">
             <BrandLogo size={22} />
-            <span className="font-bold text-lg tracking-tight">
-              <span className="text-amber-400">dyno</span>
-              <span className="text-zinc-100">Run</span>
-            </span>
+            <Wordmark brand="dynorun" />
           </Link>
           <Link
             to="/login"
