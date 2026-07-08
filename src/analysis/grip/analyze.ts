@@ -16,11 +16,11 @@ import type { GripSettings } from './settings';
 export function analyzeGripSession(parsed: ParsedGripSession, settings: GripSettings): GripAnalysis {
   const { ch, meta, n } = parsed;
   const channels = computeChannels(ch, settings.speedSmooth);
-  const envelope = computeEnvelope(channels, settings);
+  const envelope = computeEnvelope(channels, settings, ch.lap);
   const load = computeLoad(ch.t, channels.along, channels.alat);
   const laps = buildLaps(
     ch,
-    { spdS: channels.spdS, leanS: channels.leanS, util: envelope.util, loadRate: load.loadRate },
+    { spdS: channels.spdS, leanS: channels.leanS, comb: channels.comb, loadRate: load.loadRate },
     meta,
     settings,
   );

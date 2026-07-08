@@ -56,12 +56,12 @@ export interface GripDerivedChannels {
 }
 
 export interface GripEnvelope {
-  /** fitted grip limit per angular bin (ENVELOPE_BINS entries) */
+  /** fitted personal envelope radius per angular bin, g (ENVELOPE_BINS entries) */
   env: Float32Array;
-  /** peak grip capacity across all bins — normalises transient demand */
+  /** peak envelope radius across all bins, g — hardest sustained direction */
   gref: number;
-  /** grip utilization per sample: comb / envelope radius at theta */
-  util: Float32Array;
+  /** session score: 100 × RMS envelope radius (100 ≈ a full 1 g circle) */
+  sessionScore: number;
 }
 
 export interface GripLoadChannels {
@@ -84,9 +84,9 @@ export interface GripCorner {
   minSpeed: number;
   /** deg */
   maxLean: number;
-  /** grip-only utilization stats (live metric stats come from cornerStats) */
-  apexUtil: number;
-  peakUtil: number;
+  /** grip-only demand stats in g (live metric stats come from cornerStats) */
+  apexG: number;
+  peakG: number;
   /** peak load-transfer rate through the corner, g/s */
   peakLoad: number;
   tStart: number;

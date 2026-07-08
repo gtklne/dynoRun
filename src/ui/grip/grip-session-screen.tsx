@@ -89,8 +89,8 @@ export function GripSessionScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [parsed, recomputeSig],
   );
-  const utilC = useMemo(
-    () => (analysis ? computeCombined(analysis.util, analysis.loadRate, analysis.gref, settings.tau) : null),
+  const dynC = useMemo(
+    () => (analysis ? computeCombined(analysis.comb, analysis.loadRate, settings.tau) : null),
     [analysis, settings.tau],
   );
 
@@ -99,16 +99,32 @@ export function GripSessionScreen() {
   const lapLength = lap ? lap.end - lap.start + 1 : 1;
   const playback = useGripPlayback(lapLength, `${sessionId}:${lap?.num}`);
 
-  const metric: ArrayLike<number> | null = mode === 'load' ? utilC : analysis?.util ?? null;
+  const metric: ArrayLike<number> | null = mode === 'load' ? dynC : analysis?.comb ?? null;
 
   const cornerLive = useMemo(() => {
-    if (!lap || !metric) return new Map<number, { apexUtil: number; peakUtil: number }>();
-    return new Map(lap.corners.map((c) => [c.n, cornerStats(c, metric)]));
+    if (!lap || !metric) return new Map<number, { apexG: number; peakG: number }>();
+    return new Map(lap.corners.map((c) => {
+      const { apex, peak } = cornerStats(c, metric);
+      return [c.n, { apexG: apex, peakG: peak }] as const;
+    }));
   }, [lap, metric]);
-  const cornerApexUtil = useMemo(
-    () => new Map(Array.from(cornerLive, ([n, s]) => [n, s.apexUtil])),
+  const cornerApexG = useMemo(
+    () => new Map(Array.from(cornerLive, ([n, s]) => [n, s.apexG])),
     [cornerLive],
   );
+  // best apex demand per corner number across ALL laps — the "you have proven
+  // you can" reference the spare flag compares against
+  const bestApexG = useMemo(() => {
+    const best = new Map<number, number>();
+    if (!metric) return best;
+    for (const l of laps) {
+      for (const c of l.corners) {
+        const apex = cornerStats(c, metric).apex;
+        if (apex > (best.get(c.n) ?? 0)) best.set(c.n, apex);
+      }
+    }
+    return best;
+  }, [laps, metric]);
 
   // Persist tuned settings, debounced; skip the initial load's setSettings.
   const persistArmed = useRef(false);
@@ -169,7 +185,7 @@ export function GripSessionScreen() {
       </div>
     );
   }
-  if (!session || !analysis || !lap || !metric || !utilC) {
+  if (!session || !analysis || !lap || !metric || !dynC) {
     return <div className="py-16 text-center text-sm text-zinc-500">Loading session…</div>;
   }
 
@@ -197,6 +213,7 @@ export function GripSessionScreen() {
             {[session.track, session.config, session.session_date].filter(Boolean).join(' · ')}
             {session.best_lap_s != null && <> · best <span className="font-mono text-zinc-400">{formatLapTime(session.best_lap_s)}</span></>}
             {' · '}{laps.length} timed laps
+            {' · '}session score <span className="font-mono text-zinc-300">{Math.round(analysis.sessionScore)}</span>
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -249,9 +266,9 @@ export function GripSessionScreen() {
           title={<>Track map — {metricModeName(mode).toLowerCase()}</>}
           hint={
             <span className="flex items-center gap-2 text-[11px] text-zinc-500">
-              margin
+              0
               <span className="h-2 w-24 rounded" style={{ background: 'linear-gradient(90deg,#0ca30c,#fab219,#d03b3b)' }} />
-              at limit
+              tyre {settings.anchorG.toFixed(2)}g
             </span>
           }
         >
@@ -260,14 +277,15 @@ export function GripSessionScreen() {
             lap={lap}
             cursor={playback.cursor}
             metric={metric}
-            cornerApexUtil={cornerApexUtil}
+            cornerApexG={cornerApexG}
+            anchorG={settings.anchorG}
             onSeek={playback.scrub}
           />
         </Panel>
 
         <div className="flex flex-col gap-4">
           <Panel title="Traction circle">
-            <TractionCircle analysis={analysis} lap={lap} cursor={playback.cursor} metric={metric} rateFS={settings.rateFS} />
+            <TractionCircle analysis={analysis} lap={lap} cursor={playback.cursor} metric={metric} rateFS={settings.rateFS} anchorG={settings.anchorG} />
           </Panel>
           <Panel
             title="Live telemetry"
@@ -296,6 +314,7 @@ export function GripSessionScreen() {
       <CornerCards
         lap={lap}
         liveStats={cornerLive}
+        bestApexG={bestApexG}
         mode={mode}
         settings={settings}
         activeCorner={activeCorner?.n ?? null}

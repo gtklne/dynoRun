@@ -39,7 +39,9 @@ export function syntheticRows(): SyntheticRow[] {
     const t = i / HZ;
     const lap = t < OUT_S ? 0 : 1 + Math.floor((t - OUT_S) / LAP_S);
     const tl = lap === 0 ? t : (t - OUT_S) % LAP_S;
-    let spd = lap === 0 ? 15 : BASE_SPEED;
+    // out-lap ramps into lap speed over its last 2 s — a hard step would
+    // differentiate into a fake multi-g spike no real bike can produce
+    let spd = lap === 0 ? 15 + Math.max(0, (t - (OUT_S - 2)) / 2) * (BASE_SPEED - 15) : BASE_SPEED;
     let lean = 0;
     if (lap > 0) {
       for (const apex of APEXES) {

@@ -1,9 +1,8 @@
 import type { GripAnalysis, GripLap } from '@/analysis/grip/types';
 import { envelopeRadius, ENVELOPE_BINS } from '@/analysis/grip/envelope';
-import { rateColor, utilColor } from './colors';
+import { rateColor, scoreColor } from './colors';
 import { CANVAS_FONT, useCanvasDraw } from './use-canvas-draw';
 
-const GMAX = 1.3; // full-scale g at the outer radius
 const TRAIL = 45; // comet trail length in samples (~1.8 s)
 
 interface TractionCircleProps {
@@ -12,6 +11,8 @@ interface TractionCircleProps {
   cursor: number;
   metric: ArrayLike<number>;
   rateFS: number;
+  /** tyre-class colour anchor, g — also drawn as the reference ring */
+  anchorG: number;
 }
 
 /**
@@ -20,12 +21,13 @@ interface TractionCircleProps {
  * load-transfer rate, so a fast throttle↔brake move streaks through the
  * centre; the arrow shows where the load is heading next.
  */
-export function TractionCircle({ analysis, lap, cursor, metric, rateFS }: TractionCircleProps) {
+export function TractionCircle({ analysis, lap, cursor, metric, rateFS, anchorG }: TractionCircleProps) {
   const ref = useCanvasDraw(({ ctx, w, h }) => {
     const d = analysis;
     ctx.clearRect(0, 0, w, h);
     const cx = w / 2, cy = h / 2, pad = 26;
     const R = Math.min(w, h) / 2 - pad;
+    const GMAX = Math.max(1.3, anchorG + 0.15); // full-scale g at the outer radius
     const P = (gx: number, gy: number): [number, number] => [cx + (gx / GMAX) * R, cy - (gy / GMAX) * R];
 
     // grid rings + axes
@@ -50,6 +52,15 @@ export function TractionCircle({ analysis, lap, cursor, metric, rateFS }: Tracti
     ctx.fillStyle = '#66655f';
     ctx.fillText('1.0g', P(0, 1.0)[0] + 13, P(0, 1.0)[1]);
 
+    // tyre-class reference ring — the "textbook" limit the colours anchor to
+    ctx.strokeStyle = 'rgba(208,59,59,0.45)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 4]);
+    ctx.beginPath(); ctx.arc(cx, cy, (anchorG / GMAX) * R, 0, 7); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(208,59,59,0.7)';
+    ctx.fillText(`tyre ${anchorG.toFixed(2)}g`, cx, cy - (anchorG / GMAX) * R - 7);
+
     // fitted envelope
     ctx.strokeStyle = 'rgba(255,255,255,0.55)';
     ctx.lineWidth = 1.5;
@@ -68,7 +79,7 @@ export function TractionCircle({ analysis, lap, cursor, metric, rateFS }: Tracti
     ctx.globalAlpha = 0.28;
     for (let i = lap.start; i <= lap.end; i++) {
       const [x, y] = P(d.alat[i], d.along[i]);
-      ctx.fillStyle = utilColor(metric[i]);
+      ctx.fillStyle = scoreColor(metric[i], anchorG);
       ctx.beginPath(); ctx.arc(x, y, 1.5, 0, 7); ctx.fill();
     }
     ctx.globalAlpha = 1;
@@ -115,10 +126,10 @@ export function TractionCircle({ analysis, lap, cursor, metric, rateFS }: Tracti
 
     ctx.fillStyle = '#fff';
     ctx.beginPath(); ctx.arc(px, py, 5, 0, 7); ctx.fill();
-    ctx.strokeStyle = utilColor(metric[cur]);
+    ctx.strokeStyle = scoreColor(metric[cur], anchorG);
     ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.arc(px, py, 5, 0, 7); ctx.stroke();
-  }, [analysis, lap, cursor, metric, rateFS]);
+  }, [analysis, lap, cursor, metric, rateFS, anchorG]);
 
   return (
     <canvas

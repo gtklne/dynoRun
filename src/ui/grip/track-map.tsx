@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import type { GripAnalysis, GripLap } from '@/analysis/grip/types';
-import { utilColor } from './colors';
+import { scoreColor } from './colors';
 import { CANVAS_FONT, useCanvasDraw } from './use-canvas-draw';
 
 interface TrackMapProps {
@@ -8,10 +8,12 @@ interface TrackMapProps {
   lap: GripLap;
   /** local sample index within the lap */
   cursor: number;
-  /** active metric per global sample (grip util or dynamic load) */
+  /** active metric per global sample in g (grip demand or dynamic load) */
   metric: ArrayLike<number>;
-  /** live apex utilization per corner number, against the active metric */
-  cornerApexUtil: Map<number, number>;
+  /** live apex demand (g) per corner number, against the active metric */
+  cornerApexG: Map<number, number>;
+  /** tyre-class colour anchor, g */
+  anchorG: number;
   onSeek: (localIndex: number) => void;
 }
 
@@ -21,7 +23,7 @@ interface Geo {
 }
 
 /** Racing line coloured by the active metric; corner badges sit on apexes. */
-export function TrackMap({ analysis, lap, cursor, metric, cornerApexUtil, onSeek }: TrackMapProps) {
+export function TrackMap({ analysis, lap, cursor, metric, cornerApexG, anchorG, onSeek }: TrackMapProps) {
   const geoRef = useRef<Geo | null>(null);
 
   const ref = useCanvasDraw(({ ctx, w, h }) => {
@@ -54,7 +56,7 @@ export function TrackMap({ analysis, lap, cursor, metric, cornerApexUtil, onSeek
     // racing line coloured by the active metric
     ctx.lineWidth = 8;
     for (let i = start + 1; i <= end; i++) {
-      ctx.strokeStyle = utilColor((metric[i - 1] + metric[i]) / 2);
+      ctx.strokeStyle = scoreColor((metric[i - 1] + metric[i]) / 2, anchorG);
       ctx.beginPath();
       ctx.moveTo(X(i - 1), Y(i - 1));
       ctx.lineTo(X(i), Y(i));
@@ -71,7 +73,7 @@ export function TrackMap({ analysis, lap, cursor, metric, cornerApexUtil, onSeek
       const L = Math.hypot(dx, dy) || 1;
       dx /= L; dy /= L;
       const lx = bx + dx * 16, ly = by + dy * 16;
-      ctx.fillStyle = utilColor(cornerApexUtil.get(c.n) ?? 0);
+      ctx.fillStyle = scoreColor(cornerApexG.get(c.n) ?? 0, anchorG);
       ctx.beginPath(); ctx.arc(lx, ly, 10, 0, 7); ctx.fill();
       ctx.fillStyle = '#0a0a0a';
       ctx.textAlign = 'center';
@@ -90,9 +92,9 @@ export function TrackMap({ analysis, lap, cursor, metric, cornerApexUtil, onSeek
     ctx.fillStyle = '#fff';
     ctx.beginPath(); ctx.arc(X(ci), Y(ci), 6, 0, 7); ctx.fill();
     ctx.restore();
-    ctx.strokeStyle = utilColor(metric[ci]); ctx.lineWidth = 3;
+    ctx.strokeStyle = scoreColor(metric[ci], anchorG); ctx.lineWidth = 3;
     ctx.beginPath(); ctx.arc(X(ci), Y(ci), 9, 0, 7); ctx.stroke();
-  }, [analysis, lap, cursor, metric, cornerApexUtil]);
+  }, [analysis, lap, cursor, metric, cornerApexG, anchorG]);
 
   function onClick(e: React.MouseEvent<HTMLCanvasElement>) {
     const geo = geoRef.current;

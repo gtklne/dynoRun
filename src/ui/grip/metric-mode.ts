@@ -5,5 +5,5 @@
 export type GripMetricMode = 'grip' | 'load';
 
 export function metricModeName(mode: GripMetricMode): string {
-  return mode === 'load' ? 'Dynamic load' : 'Grip utilization';
+  return mode === 'load' ? 'Dynamic load' : 'Grip score';
 }

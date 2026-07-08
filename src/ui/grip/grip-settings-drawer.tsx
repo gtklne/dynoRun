@@ -20,20 +20,27 @@ function HelpContent() {
       <h4>What the numbers are</h4>
       <p>
         Longitudinal g comes from how fast your GPS speed changes; lateral g from lean angle
-        (<span className="font-mono">tan θ</span>). Your personal <b>traction envelope</b> is fit from the hardest
-        slice of every corner you rode this session, so <b>100% means you touched your own limit</b> — not a
-        textbook one. It comes out asymmetric (more grip cornering than braking, least on throttle) because a
-        bike is power/wheelie-limited on exit.
+        (<span className="font-mono">tan θ</span>). Every score is simply <b>measured g demand × 100</b>, so
+        100 ≈ pulling 1 g. Scores are absolute: they compare honestly between laps, sessions, bikes and riders —
+        a slow, careful day scores lower than a fast one, which is the point. Colours (green→red) are anchored
+        to a <b>tyre-class grip level</b> you pick in Settings; changing it recolours, never rescores.
+      </p>
+      <p>
+        Your <b>traction envelope</b> (dashed line on the circle) is the boundary of what you actually did:
+        the hardest ~1% in each direction. It comes out asymmetric (more grip cornering than braking, least on
+        throttle) because a bike is power/wheelie-limited on exit. The <b>session score</b> in the header is the
+        envelope's overall size — 100 would mean working a full 1 g circle in every direction. Watch it across
+        sessions to see your riding grow.
       </p>
 
-      <h4>Grip utilization vs Dynamic load</h4>
+      <h4>Grip score vs Dynamic load</h4>
       <p>
-        <b>Grip utilization</b> is pure steady-state grip demand ÷ your limit. In that mode a straight-line
-        throttle→brake swap passes through the centre of the circle as green — it looks harmless.
+        <b>Grip score</b> is pure steady-state grip demand. In that mode a straight-line throttle→brake swap
+        passes through the centre of the circle as green — it looks harmless.
       </p>
       <p><b>Dynamic load</b> folds the transient in as an orthogonal demand:</p>
       <p className="rounded-lg border border-zinc-700 bg-zinc-800/60 px-3 py-2 text-center font-mono text-zinc-100">
-        dynamic load = √( grip² + (τ · transfer-rate ÷ peak-grip)² )
+        dynamic load = √( grip-g² + (τ · transfer-rate)² )
       </p>
       <p>
         so that same swap now reads <b>red</b> even though net g is zero — the tyre and suspension are working
@@ -61,9 +68,11 @@ function HelpContent() {
 
       <h4>Corner analysis</h4>
       <p>
-        Corners are found from speed minima confirmed by lean, then labelled in order. <b>Apex %</b> is how much
-        of your limit you used at the slowest point — low (green) means grip to spare, a place to carry more
-        speed. The <span className="font-mono">◍ g/s</span> badge is how violently you loaded the chassis there.
+        Corners are found from speed minima confirmed by lean, then labelled in order. The big number is the
+        <b> apex score</b> (g demand ×100 at the slowest point). Each card also shows your <b>best at that same
+        corner across all laps</b> — if this lap sits well below it, the green “spare” flag marks proven,
+        repeatable room to push. The <span className="font-mono">◍ g/s</span> badge is how violently you loaded
+        the chassis there.
       </p>
 
       <h4>Honest caveats</h4>

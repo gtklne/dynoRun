@@ -18,9 +18,12 @@ const U_LO = hexToRgb('0ca30c');
 const U_MID = hexToRgb('fab219');
 const U_HI = hexToRgb('d03b3b');
 
-/** Utilization (0..1+) → green→amber→red. */
-export function utilColor(u: number): string {
-  u = Math.max(0, Math.min(1.05, u));
+/**
+ * Grip/load demand in g → green→amber→red, anchored so red = the tyre-class
+ * grip level (settings.anchorG). Scores are absolute; only colours rescale.
+ */
+export function scoreColor(g: number, anchorG: number): string {
+  const u = Math.max(0, Math.min(1.05, g / (anchorG || 1)));
   if (u < 0.6) return mix(U_LO, U_MID, u / 0.6);
   return mix(U_MID, U_HI, Math.min(1, (u - 0.6) / 0.45));
 }

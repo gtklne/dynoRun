@@ -9,7 +9,7 @@ import type { GripSettings } from './settings';
  */
 export function buildLaps(
   ch: GripChannels,
-  derived: Pick<GripDerivedChannels, 'spdS' | 'leanS'> & { util: Float32Array; loadRate: Float32Array },
+  derived: Pick<GripDerivedChannels, 'spdS' | 'leanS' | 'comb'> & { loadRate: Float32Array },
   meta: GripSessionMeta,
   settings: Pick<GripSettings, 'cornerLean' | 'cornerDrop' | 'mergeGap'>,
 ): GripLap[] {
@@ -28,7 +28,7 @@ export function buildLaps(
           end,
           time: m ? m.time : ch.t[end] - ch.t[start],
           corners: detectCorners(
-            { t: ch.t, spdS: derived.spdS, leanS: derived.leanS, util: derived.util, loadRate: derived.loadRate },
+            { t: ch.t, spdS: derived.spdS, leanS: derived.leanS, comb: derived.comb, loadRate: derived.loadRate },
             start,
             end,
             settings,

@@ -8,8 +8,8 @@ export interface GripSettings {
   K: number;
   /** transient weighting for Dynamic load, seconds */
   tau: number;
-  /** envelope fit percentile */
-  envPct: number;
+  /** g — tyre-class grip level that anchors the colour ramp (red = anchor) */
+  anchorG: number;
   /** km/h — samples slower than this are excluded from the envelope fit */
   envMinSpeed: number;
   /** deg — minimum apex lean for a corner */
@@ -18,8 +18,8 @@ export interface GripSettings {
   cornerDrop: number;
   /** s — speed minima closer than this merge into one corner */
   mergeGap: number;
-  /** % — corners with apex usage below this get the "spare" flag */
-  goHarder: number;
+  /** points — corners this far below your session best get the "spare" flag */
+  spareScore: number;
   /** g/s — load-transfer rate that reads as full-scale */
   rateFS: number;
   /** samples — smoothing window for GPS speed (25 samples = 1 s) */
@@ -54,11 +54,15 @@ export const GRIP_SETTINGS_SCHEMA: GripSettingGroup[] = [
     { key: 'tau', label: 'Transient weighting τ', def: 0.30, min: 0.05, max: 0.60, step: 0.01, unit: 's', dp: 2, apply: 'combined',
       help: 'How strongly load-transfer rate counts toward Dynamic load, expressed as a suspension/tyre settling time in seconds. 0 = ignore transients (pure grip); higher = snappy throttle/brake/steer inputs read hotter.' },
   ] },
-  { group: 'Traction envelope (your limit)', items: [
-    { key: 'envPct', label: 'Envelope percentile', def: 90, min: 80, max: 99, step: 1, unit: '%', dp: 0, apply: 'recompute',
-      help: 'Your grip limit is fit at this percentile of the hardest points in each direction. 100% chases the single most extreme sample (noisy, optimistic); lower is robust but conservative. 90% ignores the wildest 10%.' },
+  { group: 'Scores & colours', items: [
+    { key: 'anchorG', label: 'Colour anchor (tyre class)', def: 1.10, min: 0.70, max: 1.50, step: 0.05, unit: 'g', dp: 2, apply: 'render',
+      help: 'The g demand that reads as full red — set it to what your tyres can roughly deliver: rain ≈ 0.80, sport road ≈ 1.00, race road ≈ 1.10, slicks ≈ 1.30. Scores themselves never change with this; only the colours do.' },
+    { key: 'spareScore', label: '“Spare” flag threshold', def: 10, min: 3, max: 30, step: 1, unit: 'pts', dp: 0, apply: 'render',
+      help: 'A corner scoring at least this many points below your best at the same corner (other laps) gets the green “spare” flag — you have proven you can go harder there.' },
+  ] },
+  { group: 'Traction envelope', items: [
     { key: 'envMinSpeed', label: 'Min speed for envelope', def: 18, min: 5, max: 60, step: 1, unit: 'km/h', dp: 0, apply: 'recompute',
-      help: 'Samples slower than this are excluded from the limit fit, so pit-lane and crawling don’t pollute your envelope. Raise it if a slow section drags the limit down.' },
+      help: 'Samples slower than this are excluded from the envelope fit, so pit-lane and crawling don’t pollute it. Raise it if a slow section drags the boundary down.' },
   ] },
   { group: 'Corner detection', items: [
     { key: 'cornerLean', label: 'Min lean for a corner', def: 8, min: 4, max: 25, step: 1, unit: '°', dp: 0, apply: 'recompute',
@@ -69,10 +73,8 @@ export const GRIP_SETTINGS_SCHEMA: GripSettingGroup[] = [
       help: 'Two speed minima closer together in time than this are treated as one corner. Prevents a bumpy apex from registering as two turns.' },
   ] },
   { group: 'Display & thresholds', items: [
-    { key: 'goHarder', label: '“Go harder” threshold', def: 85, min: 60, max: 95, step: 1, unit: '%', dp: 0, apply: 'render',
-      help: 'Corners whose apex usage sits below this get the green “spare” flag as an opportunity to push. Lower it to flag only the clearest cases.' },
-    { key: 'rateFS', label: 'Transient full-scale', def: 1.6, min: 1.0, max: 3.5, step: 0.1, unit: 'g/s', dp: 1, apply: 'render',
-      help: 'The load-transfer rate that reads as full brightness on the comet trail and full-scale on the timeline and corner badges. Lower it to make moderate transitions pop more.' },
+    { key: 'rateFS', label: 'Transient full-scale', def: 3.0, min: 1.0, max: 3.5, step: 0.1, unit: 'g/s', dp: 1, apply: 'render',
+      help: 'The load-transfer rate that reads as full brightness on the comet trail and full-scale on the timeline and corner badges. Hard racing flicks and brake hits top out near 3 g/s; lower it to make moderate transitions pop more.' },
     { key: 'speedSmooth', label: 'Speed smoothing', def: 9, min: 3, max: 19, step: 2, unit: 'samples', dp: 0, apply: 'recompute',
       help: 'Window used to smooth GPS speed before differentiating it into g-force and jerk. Wider = cleaner traces but slightly laggy; narrower = twitchier. 25 samples = 1 second.' },
   ] },

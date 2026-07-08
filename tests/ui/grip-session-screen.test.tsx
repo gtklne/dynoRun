@@ -104,7 +104,7 @@ describe('GripSessionScreen', () => {
     await renderScreen();
 
     fireEvent.click(screen.getByRole('tab', { name: /^Grip$/i }));
-    expect(screen.getByText(/Track map — grip utilization/i)).toBeInTheDocument();
+    expect(screen.getByText(/Track map — grip score/i)).toBeInTheDocument();
     cleanup();
   });
 

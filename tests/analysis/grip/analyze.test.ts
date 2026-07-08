@@ -30,19 +30,22 @@ describe('analyzeGripSession', () => {
         expect(c.maxLean).toBeGreaterThan(PEAK_LEAN - 3);
         expect(c.l).toBeLessThan(c.ap);
         expect(c.ap).toBeLessThan(c.r);
-        // clean gaussian corners run essentially at the fitted limit
-        expect(c.apexUtil).toBeGreaterThan(0.6);
-        expect(c.apexUtil).toBeLessThanOrEqual(c.peakUtil);
+        // clean gaussian corners at 40° lean demand ≈ tan(40°) ≈ 0.84 g
+        expect(c.apexG).toBeGreaterThan(0.6);
+        expect(c.apexG).toBeLessThanOrEqual(c.peakG);
         expect(c.peakLoad).toBeGreaterThan(0);
       }
     }
   });
 
-  it('produces a sane envelope and projected track', () => {
+  it('produces a sane envelope, session score and projected track', () => {
     const a = analyze();
     const expectedPeak = Math.tan((PEAK_LEAN * Math.PI) / 180);
     expect(a.gref).toBeGreaterThan(expectedPeak * 0.7);
     expect(a.gref).toBeLessThan(expectedPeak * 1.3);
+    // absolute session score: bigger envelope → bigger number, 100 ≈ 1 g circle
+    expect(a.sessionScore).toBeGreaterThan(30);
+    expect(a.sessionScore).toBeLessThan(100);
     // track spans at least a few hundred metres and projection is finite
     let minX = Infinity, maxX = -Infinity;
     for (let i = 0; i < a.n; i++) {
@@ -53,19 +56,19 @@ describe('analyzeGripSession', () => {
     expect(maxX - minX).toBeGreaterThan(100);
   });
 
-  it('keeps dynamic load ≥ grip utilization everywhere', () => {
+  it('keeps dynamic load ≥ grip demand everywhere', () => {
     const a = analyze();
-    const utilC = computeCombined(a.util, a.loadRate, a.gref, DEFAULT_GRIP_SETTINGS.tau);
+    const dynC = computeCombined(a.comb, a.loadRate, DEFAULT_GRIP_SETTINGS.tau);
     for (let i = 0; i < a.n; i += 13) {
-      expect(utilC[i]).toBeGreaterThanOrEqual(a.util[i] - 1e-6);
+      expect(dynC[i]).toBeGreaterThanOrEqual(a.comb[i] - 1e-6);
     }
   });
 
   it('cornerStats against the grip metric matches the stored stats', () => {
     const a = analyze();
     const c = a.laps[0].corners[0];
-    const live = cornerStats(c, a.util);
-    expect(live.apexUtil).toBeCloseTo(c.apexUtil, 6);
-    expect(live.peakUtil).toBeCloseTo(c.peakUtil, 6);
+    const live = cornerStats(c, a.comb);
+    expect(live.apex).toBeCloseTo(c.apexG, 6);
+    expect(live.peak).toBeCloseTo(c.peakG, 6);
   });
 });

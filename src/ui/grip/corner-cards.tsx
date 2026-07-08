@@ -1,28 +1,36 @@
 import type { GripCorner, GripLap } from '@/analysis/grip/types';
 import type { GripSettings } from '@/analysis/grip/settings';
 import type { GripMetricMode } from './metric-mode';
-import { rateColor, utilColor } from './colors';
+import { rateColor, scoreColor } from './colors';
 
 export interface CornerLiveStats {
-  apexUtil: number;
-  peakUtil: number;
+  /** apex demand in g against the active metric */
+  apexG: number;
+  /** robust peak demand in g through the corner */
+  peakG: number;
 }
 
 interface CornerCardsProps {
   lap: GripLap;
   liveStats: Map<number, CornerLiveStats>;
+  /** best apex demand per corner number across ALL laps (same metric) */
+  bestApexG: Map<number, number>;
   mode: GripMetricMode;
-  settings: Pick<GripSettings, 'goHarder' | 'rateFS'>;
+  settings: Pick<GripSettings, 'spareScore' | 'rateFS' | 'anchorG'>;
   activeCorner: number | null;
   onSelect: (corner: GripCorner) => void;
 }
 
-export function CornerCards({ lap, liveStats, mode, settings, activeCorner, onSelect }: CornerCardsProps) {
+const score = (g: number) => Math.round(g * 100);
+
+export function CornerCards({ lap, liveStats, bestApexG, mode, settings, activeCorner, onSelect }: CornerCardsProps) {
   const label = mode === 'load' ? 'apex load' : 'apex grip';
-  const ranked = [...lap.corners].sort(
-    (a, b) => (liveStats.get(a.n)?.apexUtil ?? 0) - (liveStats.get(b.n)?.apexUtil ?? 0),
-  );
-  const opportunities = ranked.slice(0, 3).map((c) => `T${c.n}`).join(', ');
+  // corners with the biggest proven gap to the rider's own best on other laps
+  const gaps = lap.corners
+    .map((c) => ({ c, gap: score(bestApexG.get(c.n) ?? 0) - score(liveStats.get(c.n)?.apexG ?? 0) }))
+    .filter((x) => x.gap >= settings.spareScore)
+    .sort((a, b) => b.gap - a.gap);
+  const opportunities = gaps.slice(0, 3).map((x) => `T${x.c.n}`).join(', ');
 
   return (
     <section>
@@ -32,8 +40,12 @@ export function CornerCards({ lap, liveStats, mode, settings, activeCorner, onSe
           <p className="text-xs text-zinc-500">
             {lap.corners.length ? (
               <>
-                {lap.corners.length} corners · most margin at{' '}
-                <b style={{ color: utilColor(0) }}>{opportunities}</b> — colour = {label} used
+                {lap.corners.length} corners · score = {label} ×100 (100 ≈ 1 g)
+                {opportunities && (
+                  <>
+                    {' '}· below your best at <b style={{ color: scoreColor(0, 1) }}>{opportunities}</b>
+                  </>
+                )}
                 {mode === 'load' && ' (grip + load transfer)'}
               </>
             ) : (
@@ -46,10 +58,12 @@ export function CornerCards({ lap, liveStats, mode, settings, activeCorner, onSe
       <div className="grid grid-cols-[repeat(auto-fill,minmax(184px,1fr))] gap-3">
         {lap.corners.map((c) => {
           const stats = liveStats.get(c.n);
-          const apexUtil = stats?.apexUtil ?? 0;
-          const peakUtil = stats?.peakUtil ?? 0;
-          const margin = Math.max(0, 100 - apexUtil * 100);
-          const goHarder = apexUtil < settings.goHarder / 100;
+          const apexG = stats?.apexG ?? 0;
+          const peakG = stats?.peakG ?? 0;
+          const best = bestApexG.get(c.n) ?? 0;
+          const gap = score(best) - score(apexG);
+          const spare = gap >= settings.spareScore;
+          const isBest = best > 0 && score(apexG) >= score(best);
           const active = activeCorner === c.n;
           return (
             <button
@@ -60,15 +74,20 @@ export function CornerCards({ lap, liveStats, mode, settings, activeCorner, onSe
                 active ? 'border-sky-500 bg-[#12161c]' : 'border-zinc-800 hover:border-zinc-600'
               }`}
             >
-              {goHarder && (
-                <span className="absolute right-3 top-2.5 text-[10px] font-bold uppercase tracking-wide" style={{ color: utilColor(0) }}>
-                  ▲ {Math.round(margin)}% spare
+              {spare && (
+                <span className="absolute right-3 top-2.5 text-[10px] font-bold uppercase tracking-wide" style={{ color: scoreColor(0, 1) }}>
+                  ▲ {gap} below best
+                </span>
+              )}
+              {isBest && !spare && (
+                <span className="absolute right-3 top-2.5 text-[10px] font-bold uppercase tracking-wide text-sky-400">
+                  ★ session best
                 </span>
               )}
               <div className="mb-2 flex items-center gap-2">
                 <span
                   className="flex h-[26px] w-[26px] items-center justify-center rounded-lg font-mono text-xs font-bold text-zinc-950"
-                  style={{ background: utilColor(apexUtil) }}
+                  style={{ background: scoreColor(apexG, settings.anchorG) }}
                 >
                   {c.n}
                 </span>
@@ -76,15 +95,17 @@ export function CornerCards({ lap, liveStats, mode, settings, activeCorner, onSe
                   Turn {c.n} · {c.dir === 'L' ? 'Left' : 'Right'}
                 </span>
               </div>
-              <div className="font-mono text-[26px] leading-none" style={{ color: utilColor(apexUtil) }}>
-                {Math.round(apexUtil * 100)}
-                <span className="text-[13px] text-zinc-500">% {label}</span>
+              <div className="font-mono text-[26px] leading-none" style={{ color: scoreColor(apexG, settings.anchorG) }}>
+                {score(apexG)}
+                <span className="text-[13px] text-zinc-500"> {label}</span>
               </div>
-              <div className="mt-1 text-[11px] text-zinc-500">peak {Math.round(peakUtil * 100)}% through corner</div>
+              <div className="mt-1 text-[11px] text-zinc-500">
+                peak {score(peakG)} through corner{best > 0 && <> · best here {score(best)}</>}
+              </div>
               <div className="relative mt-2.5 h-[7px] overflow-hidden rounded border border-zinc-800 bg-zinc-950">
                 <i
                   className="absolute inset-y-0 left-0 rounded"
-                  style={{ width: `${Math.min(100, apexUtil * 100)}%`, background: utilColor(apexUtil) }}
+                  style={{ width: `${Math.min(100, (apexG / settings.anchorG) * 100)}%`, background: scoreColor(apexG, settings.anchorG) }}
                 />
               </div>
               <div className="mt-2.5 flex justify-between font-mono text-[11px] text-zinc-400">

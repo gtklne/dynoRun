@@ -5,7 +5,8 @@ interface CornerInputs {
   t: number[];
   spdS: Float32Array;
   leanS: Float32Array;
-  util: Float32Array;
+  /** combined g demand per sample — the stored per-corner stats are grip-only */
+  comb: Float32Array;
   loadRate: Float32Array;
 }
 
@@ -15,7 +16,7 @@ interface CornerInputs {
  * on both sides within ~3 s) and by lean angle. Each apex expands outward to
  * the surrounding speed maxima (capped at ~4 s per side).
  *
- * apexUtil/peakUtil here are grip-only; use cornerStats() to evaluate a corner
+ * apexG/peakG here are grip-only; use cornerStats() to evaluate a corner
  * against whichever metric is live (grip vs dynamic load).
  */
 export function detectCorners(
@@ -24,7 +25,7 @@ export function detectCorners(
   b: number,
   settings: Pick<GripSettings, 'cornerLean' | 'cornerDrop' | 'mergeGap'>,
 ): GripCorner[] {
-  const { t, spdS: sp, leanS: ln, util } = ch;
+  const { t, spdS: sp, leanS: ln, comb } = ch;
 
   const mins: number[] = [];
   for (let i = a + 1; i < b; i++) {
@@ -65,18 +66,18 @@ export function detectCorners(
     let maxLean = 0;
     let peakLoad = 0;
     const dir: 'L' | 'R' = ln[ap] < 0 ? 'L' : 'R';
-    const utils: number[] = [];
+    const vals: number[] = [];
     for (let j = l; j <= r; j++) {
       minSpeed = Math.min(minSpeed, sp[j]);
       maxLean = Math.max(maxLean, Math.abs(ln[j]));
       peakLoad = Math.max(peakLoad, ch.loadRate[j]);
-      utils.push(util[j]);
+      vals.push(comb[j]);
     }
-    utils.sort((x, y) => x - y);
+    vals.sort((x, y) => x - y);
 
-    const { apexUtil, peakUtil } = windowStats(util, utils, l, r, ap);
+    const { apex, peak } = windowStats(comb, vals, l, r, ap);
     corners.push({
-      n: k + 1, l, r, ap, dir, minSpeed, maxLean, apexUtil, peakUtil, peakLoad,
+      n: k + 1, l, r, ap, dir, minSpeed, maxLean, apexG: apex, peakG: peak, peakLoad,
       tStart: t[l], tApex: t[ap], tEnd: t[r],
     });
   });
@@ -85,19 +86,19 @@ export function detectCorners(
 
 // apex = median of ±3 samples about the apex; peak = robust 90th percentile
 // through the corner, never below the apex reading
-function windowStats(metric: ArrayLike<number>, sortedUtils: number[], l: number, r: number, ap: number) {
+function windowStats(metric: ArrayLike<number>, sortedVals: number[], l: number, r: number, ap: number) {
   const win: number[] = [];
   for (let j = Math.max(l, ap - 3); j <= Math.min(r, ap + 3); j++) win.push(metric[j]);
   win.sort((x, y) => x - y);
-  const apexUtil = win[win.length >> 1];
-  const peakUtil = Math.max(apexUtil, sortedUtils[Math.floor(0.9 * (sortedUtils.length - 1))]);
-  return { apexUtil, peakUtil };
+  const apex = win[win.length >> 1];
+  const peak = Math.max(apex, sortedVals[Math.floor(0.9 * (sortedVals.length - 1))]);
+  return { apex, peak };
 }
 
 /** Re-evaluate a detected corner against the currently active metric. */
 export function cornerStats(corner: Pick<GripCorner, 'l' | 'r' | 'ap'>, metric: ArrayLike<number>) {
-  const utils: number[] = [];
-  for (let j = corner.l; j <= corner.r; j++) utils.push(metric[j]);
-  utils.sort((x, y) => x - y);
-  return windowStats(metric, utils, corner.l, corner.r, corner.ap);
+  const vals: number[] = [];
+  for (let j = corner.l; j <= corner.r; j++) vals.push(metric[j]);
+  vals.sort((x, y) => x - y);
+  return windowStats(metric, vals, corner.l, corner.r, corner.ap);
 }

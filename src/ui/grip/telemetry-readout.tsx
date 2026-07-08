@@ -3,7 +3,7 @@ import { frontWeightFraction } from '@/analysis/grip/load';
 import type { GripSettings } from '@/analysis/grip/settings';
 import type { GripMetricMode } from './metric-mode';
 import { metricModeName } from './metric-mode';
-import { rateColor, utilColor } from './colors';
+import { rateColor, scoreColor } from './colors';
 
 interface TelemetryReadoutProps {
   analysis: GripAnalysis;
@@ -11,7 +11,7 @@ interface TelemetryReadoutProps {
   cursor: number;
   metric: ArrayLike<number>;
   mode: GripMetricMode;
-  settings: Pick<GripSettings, 'K' | 'tau' | 'rateFS'>;
+  settings: Pick<GripSettings, 'K' | 'tau' | 'rateFS' | 'anchorG'>;
 }
 
 function Stat({ k, v, u, big }: { k: string; v: string; u: string; big?: boolean }) {
@@ -32,8 +32,8 @@ export function TelemetryReadout({ analysis, lap, cursor, metric, mode, settings
   const u = metric[ci];
   const lean = d.leanS[ci];
   const along = d.along[ci];
-  const gripPct = Math.round(d.util[ci] * 100);
-  const loadPct = Math.round(Math.min(1.3, (settings.tau * d.loadRate[ci]) / d.gref) * 100);
+  const gripScore = Math.round(d.comb[ci] * 100);
+  const loadScore = Math.round(settings.tau * d.loadRate[ci] * 100);
   const front = frontWeightFraction(along, settings.K);
   const frontPct = Math.round(front * 100);
   const rearPct = Math.round((1 - front) * 100);
@@ -51,17 +51,17 @@ export function TelemetryReadout({ analysis, lap, cursor, metric, mode, settings
         <div className="mb-1.5 text-[10.5px] font-medium uppercase tracking-wider text-zinc-500">
           {metricModeName(mode)}
           {mode === 'load' && (
-            <span className="normal-case tracking-normal text-zinc-600"> · grip {gripPct} ⊕ load {loadPct}</span>
+            <span className="normal-case tracking-normal text-zinc-600"> · grip {gripScore} ⊕ transient {loadScore}</span>
           )}
         </div>
-        <div className="font-mono text-3xl leading-none tabular-nums" style={{ color: utilColor(u) }}>
+        <div className="font-mono text-3xl leading-none tabular-nums" style={{ color: scoreColor(u, settings.anchorG) }}>
           {Math.round(u * 100)}
-          <span className="text-[11px] text-zinc-500"> %</span>
+          <span className="text-[11px] text-zinc-500"> pts (100 ≈ 1 g)</span>
         </div>
         <div className="relative mt-2 h-2.5 overflow-hidden rounded-md border border-zinc-800 bg-zinc-900">
           <i
             className="absolute inset-y-0 left-0 rounded-md"
-            style={{ width: `${Math.min(100, u * 100)}%`, background: utilColor(u) }}
+            style={{ width: `${Math.min(100, (u / settings.anchorG) * 100)}%`, background: scoreColor(u, settings.anchorG) }}
           />
         </div>
       </div>

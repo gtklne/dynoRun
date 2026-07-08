@@ -27,17 +27,16 @@ export function computeLoad(t: number[], along: Float32Array, alat: Float32Array
 }
 
 /**
- * Dynamic-load metric: grip utilization with the transient folded in as an
- * orthogonal demand — hypot(util, τ·loadRate/gref). Depends only on τ, so it
- * can be re-mixed without re-deriving anything else.
+ * Dynamic-load metric: steady-state grip demand with the transient folded in
+ * as an orthogonal demand — hypot(comb, τ·loadRate). τ (seconds) × g/s = g,
+ * so the mix is dimensionally a g demand on the same absolute scale as comb.
+ * Depends only on τ, so it can be re-mixed without re-deriving anything else.
  */
-export function computeCombined(util: Float32Array, loadRate: Float32Array, gref: number, tau: number): Float32Array {
-  const N = util.length;
-  const ref = gref || 0.95;
+export function computeCombined(comb: Float32Array, loadRate: Float32Array, tau: number): Float32Array {
+  const N = comb.length;
   const out = new Float32Array(N);
   for (let i = 0; i < N; i++) {
-    const tr = Math.min(1.3, (tau * loadRate[i]) / ref);
-    out[i] = Math.hypot(util[i], tr);
+    out[i] = Math.hypot(comb[i], tau * loadRate[i]);
   }
   return out;
 }
