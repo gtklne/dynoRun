@@ -2,6 +2,20 @@ import type { GripChannels, GripDerivedChannels } from './types';
 
 export const GRAVITY = 9.80665;
 
+// Fixed generic-race-motorcycle constants — a rough guideline by design, not a
+// per-bike calibration: ρ 1.20 kg/m³, CdA 0.40 m², 260 kg bike+rider, Crr 0.015.
+const K_DRAG = (0.5 * 1.2 * 0.4) / (260 * GRAVITY); // g per (m/s)²
+
+const CRR = 0.015; // rolling resistance, g
+
+/**
+ * Aero drag + rolling resistance the tire must overcome at speed v (m/s), in g.
+ * ~0.10 g at 100 km/h, ~0.31 g at 200 km/h.
+ */
+export function resistanceG(v: number): number {
+  return K_DRAG * v * v + CRR;
+}
+
 /** Sliding moving average; the window shrinks at the edges. */
 export function movAvg(a: ArrayLike<number>, w: number): Float32Array {
   const N = a.length;
@@ -26,7 +40,11 @@ export function movAvg(a: ArrayLike<number>, w: number): Float32Array {
 /**
  * Derive the g-force channels from raw speed and lean.
  * Longitudinal g is the central difference of smoothed speed (~0.24 s window
- * at 25 Hz); lateral g comes from steady-state lean (tan θ), signed.
+ * at 25 Hz) plus resistanceG(v) — dv/dt alone is *vehicle* acceleration, but
+ * the tire also carries the drive force that holds speed against drag, and
+ * during braking the wind decelerates the body without loading the tire, so
+ * the correction shifts `along` from net accel to tire demand in both
+ * directions. Lateral g comes from steady-state lean (tan θ), signed.
  */
 export function computeChannels(ch: GripChannels, speedSmooth: number): GripDerivedChannels {
   const { t } = ch;
@@ -41,7 +59,10 @@ export function computeChannels(ch: GripChannels, speedSmooth: number): GripDeri
     const dt = t[hi] - t[lo];
     along[i] = dt > 0 ? ((spdS[hi] - spdS[lo]) / dt) / GRAVITY : 0;
   }
-  const alongS = movAvg(along, 5);
+  const alongRaw = movAvg(along, 5);
+
+  const alongT = new Float32Array(N);
+  for (let i = 0; i < N; i++) alongT[i] = alongRaw[i] + resistanceG(spdS[i]);
 
   const alat = new Float32Array(N);
   for (let i = 0; i < N; i++) alat[i] = Math.tan((leanS[i] * Math.PI) / 180);
@@ -49,9 +70,9 @@ export function computeChannels(ch: GripChannels, speedSmooth: number): GripDeri
   const comb = new Float32Array(N);
   const theta = new Float32Array(N);
   for (let i = 0; i < N; i++) {
-    comb[i] = Math.hypot(alongS[i], alat[i]);
-    theta[i] = Math.atan2(alongS[i], alat[i]); // x = lat, y = long
+    comb[i] = Math.hypot(alongT[i], alat[i]);
+    theta[i] = Math.atan2(alongT[i], alat[i]); // x = lat, y = long
   }
 
-  return { spdS, leanS, along: alongS, alat, comb, theta };
+  return { spdS, leanS, along: alongT, alongRaw, alat, comb, theta };
 }

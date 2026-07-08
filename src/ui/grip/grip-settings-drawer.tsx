@@ -19,8 +19,11 @@ function HelpContent() {
     <div className="space-y-2 text-[12.5px] leading-relaxed text-zinc-300 [&_h4]:mb-1.5 [&_h4]:mt-5 [&_h4]:text-[13px] [&_h4]:font-semibold [&_h4]:text-zinc-100 [&_h4:first-child]:mt-0 [&_b]:text-zinc-100">
       <h4>What the numbers are</h4>
       <p>
-        Longitudinal g comes from how fast your GPS speed changes; lateral g from lean angle
-        (<span className="font-mono">tan θ</span>). Every score is simply <b>measured g demand × 100</b>, so
+        Longitudinal g is <b>tire demand</b>, not raw deceleration: the GPS speed derivative corrected for aero
+        drag + rolling resistance (fixed generic-race-bike constants: CdA 0.40 m², 260 kg with rider). Holding
+        200 km/h therefore reads as ~+0.3 g of drive — the tire really is pushing that hard — and braking reads
+        lower than raw GPS decel because the wind slows the bike without loading the tire. Lateral g comes from
+        lean angle (<span className="font-mono">tan θ</span>). Every score is simply <b>measured g demand × 100</b>, so
         100 ≈ pulling 1 g. Scores are absolute: they compare honestly between laps, sessions, bikes and riders —
         a slow, careful day scores lower than a fast one, which is the point. Colours (green→red) are anchored
         to a <b>tyre-class grip level</b> you pick in Settings; changing it recolours, never rescores.
@@ -78,7 +81,8 @@ function HelpContent() {
       <h4>Honest caveats</h4>
       <p>
         This is a heuristic budget model, not a tyre thermal or carcass simulation. Grip margin at a fast kink
-        can be geometry-limited, not courage-limited. Lateral g assumes a balanced bike (steady-state lean), and
+        can be geometry-limited, not courage-limited. The drag correction uses one fixed CdA — rider tuck vs
+        sit-up, wind and track slope are not modelled. Lateral g assumes a balanced bike (steady-state lean), and
         load-transfer is derived from GPS + lean, not a direct fork-travel sensor — though your gyro channels
         back it up.
       </p>

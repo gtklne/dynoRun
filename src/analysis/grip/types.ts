@@ -45,8 +45,11 @@ export interface GripDerivedChannels {
   spdS: Float32Array;
   /** smoothed lean, deg */
   leanS: Float32Array;
-  /** longitudinal g */
+  /** longitudinal tire-demand g: dv/dt + aero drag + rolling resistance */
   along: Float32Array;
+  /** kinematic longitudinal g (dv/dt only) — weight transfer is driven by
+   *  total deceleration, drag included, so it uses this, not `along` */
+  alongRaw: Float32Array;
   /** lateral g (tan of lean), signed */
   alat: Float32Array;
   /** combined |g| */

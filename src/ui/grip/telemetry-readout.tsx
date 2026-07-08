@@ -34,7 +34,7 @@ export function TelemetryReadout({ analysis, lap, cursor, metric, mode, settings
   const along = d.along[ci];
   const gripScore = Math.round(d.comb[ci] * 100);
   const loadScore = Math.round(settings.tau * d.loadRate[ci] * 100);
-  const front = frontWeightFraction(along, settings.K);
+  const front = frontWeightFraction(d.alongRaw[ci], settings.K);
   const frontPct = Math.round(front * 100);
   const rearPct = Math.round((1 - front) * 100);
   const lr = d.loadRate[ci];
