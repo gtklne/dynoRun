@@ -3,7 +3,7 @@
 // login-screen. DynoRun keeps amber; Grip keeps blue; the suite is neutral with
 // a multi-accent mark (mirrors the palette used across the tools).
 
-const GRIP_BLUE = '#4c95ec';
+import { GRIP_BLUE } from '@/ui/grip/colors';
 
 interface WordmarkProps {
   brand?: 'suite' | 'dynorun' | 'grip';

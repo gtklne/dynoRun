@@ -2,8 +2,7 @@ import { useEffect, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { BrandLogo } from '@/ui/components/brand-logo';
 import { SuiteMark, Wordmark } from '@/ui/components/brand-wordmark';
-
-const GRIP_BLUE = '#4c95ec';
+import { GRIP_BLUE } from '@/ui/grip/colors';
 
 function GripGlyph({ size = 26 }: { size?: number }) {
   return (
@@ -134,7 +133,7 @@ export function LandingScreen() {
             icon={<GripGlyph size={26} />}
             name="Grip Utilization"
             blurb="Load a RaceBox track session and see how much of your traction circle you actually used, corner by corner — entirely in the browser."
-            points={['Traction-circle & grip analysis', 'Per-corner utilization breakdown', 'Your CSV never leaves your device']}
+            points={['Traction-circle & grip analysis', 'Per-corner utilization breakdown', 'Sessions saved to your account']}
             footer={
               <Link to="/grip" className="text-sm font-semibold hover:opacity-80" style={{ color: GRIP_BLUE }}>
                 Open Grip →

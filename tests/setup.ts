@@ -17,6 +17,19 @@ if (typeof window !== 'undefined' && !window.matchMedia) {
   });
 }
 
+// jsdom's Blob/File lack the async read methods (text/arrayBuffer) that every
+// real browser has; upload flows call file.text().
+if (typeof Blob !== 'undefined' && !Blob.prototype.text) {
+  Blob.prototype.text = function (this: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result as string);
+      r.onerror = () => reject(r.error);
+      r.readAsText(this);
+    });
+  };
+}
+
 // jsdom doesn't implement canvas 2d context; mock getContext so uPlot and
 // the share-card renderer don't throw during tests. Use a Proxy so any
 // method we forget falls back to a no-op rather than breaking tests.

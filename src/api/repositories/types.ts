@@ -2,6 +2,8 @@ import type {
   Vehicle, Calibration, Run, RunUpdate, Sample, DerivedCurve,
   VehicleKind, Drivetrain, RunConditions, Transmission, BodyShape,
 } from '@/shared/types';
+import type { GripSettings } from '@/analysis/grip/settings';
+import type { StoredGripData } from '@/analysis/grip/storage';
 
 export interface NewVehicle {
   name: string;
@@ -109,5 +111,47 @@ export interface IRecordingRepository {
   get(id: string): Promise<(RecordingSummary & { data: { gps_fixes: unknown[]; motion_fixes: unknown[] } }) | null>;
   create(input: NewRecording): Promise<RecordingSummary>;
   setLabel(id: string, label: string | null): Promise<void>;
+  delete(id: string): Promise<void>;
+}
+
+export interface GripSessionSummary {
+  id: string;
+  vehicle_id: string | null;
+  label: string | null;
+  track: string;
+  config: string;
+  session_date: string;
+  best_lap_s: number | null;
+  lap_count: number;
+  sample_count: number;
+  duration_s: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type GripSessionFull = GripSessionSummary & {
+  /** tuned settings as last saved; null = defaults */
+  settings: unknown;
+  data: StoredGripData;
+};
+
+export interface NewGripSession {
+  label?: string | null;
+  vehicle_id?: string | null;
+  settings?: GripSettings;
+  data: StoredGripData;
+}
+
+export interface GripSessionPatch {
+  label?: string | null;
+  vehicle_id?: string | null;
+  settings?: GripSettings;
+}
+
+export interface IGripSessionRepository {
+  list(): Promise<GripSessionSummary[]>;
+  get(id: string): Promise<GripSessionFull | null>;
+  create(input: NewGripSession): Promise<GripSessionSummary>;
+  update(id: string, patch: GripSessionPatch): Promise<void>;
   delete(id: string): Promise<void>;
 }

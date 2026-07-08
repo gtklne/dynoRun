@@ -99,6 +99,30 @@ export const recordings = pgTable('recordings', {
   index('recordings_user_run_idx').on(t.userId, t.run_id),
 ]);
 
+// Grip Utilization track sessions. `data` is the versioned columnar channel
+// envelope (see src/analysis/grip/storage.ts); everything derived is
+// recomputed client-side on load, so only raw channels + tuned settings live
+// here. Summary columns are denormalised out of `data` for cheap listing.
+export const gripSessions = pgTable('grip_sessions', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  vehicle_id: text('vehicle_id'),
+  label: text('label'),
+  track: text('track').notNull().default(''),
+  config: text('config').notNull().default(''),
+  session_date: text('session_date').notNull().default(''),
+  best_lap_s: real('best_lap_s'),
+  lap_count: integer('lap_count').notNull(),
+  sample_count: integer('sample_count').notNull(),
+  duration_s: real('duration_s').notNull(),
+  settings: jsonb('settings'),
+  data: jsonb('data').notNull(),
+  created_at: text('created_at').notNull(),
+  updated_at: text('updated_at').notNull(),
+}, (t) => [
+  index('grip_sessions_user_created_idx').on(t.userId, sql`${t.created_at} DESC`),
+]);
+
 export const derivedCurves = pgTable('derived_curves', {
   run_id: text('run_id').primaryKey(),
   rpm_min: real('rpm_min').notNull(),

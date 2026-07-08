@@ -18,5 +18,6 @@ export default defineConfig({
     'samples',
     'derived_curves',
     'recordings',
+    'grip_sessions',
   ],
 });

@@ -1,9 +1,8 @@
 import { useMemo, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { BrandLogo } from '@/ui/components/brand-logo';
+import { GRIP_BLUE } from '@/ui/grip/colors';
 import { computeDashboard, useGarageData, HeroStats, RecentActivity } from './dashboard';
-
-const GRIP_BLUE = '#4c95ec';
 
 function GripGlyph({ size = 26 }: { size?: number }) {
   return (

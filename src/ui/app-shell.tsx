@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '@/auth/auth-context';
 import { SuiteMark, Wordmark } from './components/brand-wordmark';
 import { HelpButton } from './components/help-drawer';
@@ -79,9 +79,6 @@ const sideLinkClass = ({ isActive }: { isActive: boolean }) =>
 
 export function AppShell() {
   const { isAdmin } = useAuth();
-  // The Grip tool is a full-page iframe — give it the whole content area,
-  // without the padded/centered container and footer used by other screens.
-  const fullBleed = useLocation().pathname === '/grip';
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col">
       {/* Desktop sidebar (lg+). Slim fixed rail; mobile uses the bottom nav instead. */}
@@ -134,23 +131,16 @@ export function AppShell() {
         </div>
       </header>
 
-      {/* Main content. Full-bleed (Grip) fills the area; everything else uses the
-          padded, centered container with the footer. */}
-      {fullBleed ? (
-        <main className="relative flex-1 overflow-hidden pb-16 lg:pb-0 lg:pl-56">
+      {/* Main content. */}
+      <main className="flex-1 overflow-y-auto px-4 pt-4 pb-20 lg:pl-64 lg:pr-8 lg:pt-8 lg:pb-12">
+        <div className="mx-auto w-full lg:max-w-6xl">
           <Outlet />
-        </main>
-      ) : (
-        <main className="flex-1 overflow-y-auto px-4 pt-4 pb-20 lg:pl-64 lg:pr-8 lg:pt-8 lg:pb-12">
-          <div className="mx-auto w-full lg:max-w-6xl">
-            <Outlet />
-            <footer className="mt-10 flex justify-center gap-4 pb-4 text-[11px] text-zinc-600">
-              <Link to="/privacy" className="hover:text-zinc-400 transition-colors">Privacy Policy</Link>
-              <Link to="/imprint" className="hover:text-zinc-400 transition-colors">Imprint</Link>
-            </footer>
-          </div>
-        </main>
-      )}
+          <footer className="mt-10 flex justify-center gap-4 pb-4 text-[11px] text-zinc-600">
+            <Link to="/privacy" className="hover:text-zinc-400 transition-colors">Privacy Policy</Link>
+            <Link to="/imprint" className="hover:text-zinc-400 transition-colors">Imprint</Link>
+          </footer>
+        </div>
+      </main>
 
       {/* Bottom navigation (mobile only). */}
       <nav className="lg:hidden pb-safe fixed bottom-0 left-0 right-0 bg-zinc-900/95 border-t border-zinc-800 backdrop-blur-sm flex z-50">

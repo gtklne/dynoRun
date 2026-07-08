@@ -8,10 +8,10 @@ import { runsRoute } from './routes/runs.js';
 import { samplesRoute } from './routes/samples.js';
 import { curvesRoute } from './routes/curves.js';
 import { recordingsRoute } from './routes/recordings.js';
+import { gripSessionsRoute } from './routes/grip-sessions.js';
 import { shareTokenRoute, publicShareRoute } from './routes/share.js';
 import { adminRoute } from './routes/admin.js';
 import { accountRoute } from './routes/account.js';
-import { authzRoute } from './routes/authz.js';
 import { devAuthRoute } from './routes/dev-auth.js';
 
 const app = new Hono();
@@ -43,10 +43,10 @@ app.route('/api', runsRoute);
 app.route('/api', samplesRoute);
 app.route('/api', curvesRoute);
 app.route('/api', recordingsRoute);
+app.route('/api', gripSessionsRoute);
 app.route('/api', shareTokenRoute);
 app.route('/api', adminRoute);
 app.route('/api', accountRoute);
-app.route('/api', authzRoute);
 
 const port = parseInt(process.env.PORT ?? '3000', 10);
 

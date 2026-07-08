@@ -40,12 +40,6 @@ jobs:
         run: |
           rsync -rlgoDzv --delete -e "ssh -i ~/.ssh/id_ed25519" dist/ "deploy@${{ secrets.DEPLOY_HOST }}:/var/www/dynorun/"
 
-      # grip-utilization — self-contained static tool, iframed at /grip and
-      # edge-gated (nginx auth_request) at /grip-tool/.
-      - name: Deploy grip
-        run: |
-          rsync -rlgoDzv --delete -e "ssh -i ~/.ssh/id_ed25519" apps/grip/ "deploy@${{ secrets.DEPLOY_HOST }}:/var/www/grip-tool/"
-
   deploy-api:
     needs: deploy
     runs-on: ubuntu-latest

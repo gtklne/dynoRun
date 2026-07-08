@@ -8,7 +8,8 @@ import { ToastProvider } from './ui/components/toast';
 import { LoginScreen } from './ui/auth/login-screen';
 import { LandingScreen } from './ui/home/landing-screen';
 import { SystemHome } from './ui/home/system-home';
-import { GripScreen } from './ui/grip/grip-screen';
+import { GripHome } from './ui/grip/grip-home';
+import { GripSessionScreen } from './ui/grip/grip-session-screen';
 import { isNative } from './app/platform';
 import { GarageScreen } from './ui/garage/garage-screen';
 import { VehicleDetail } from './ui/garage/vehicle-detail';
@@ -82,7 +83,8 @@ export default function App() {
                   <Route path="/replay/local" element={<ReplayLabPlayer />} />
                   <Route path="/replay/:recordingId" element={<ReplayLabPlayer />} />
                   <Route path="/vehicles/:vehicleId/compare" element={<CompareScreen />} />
-                  <Route path="/grip" element={<GripScreen />} />
+                  <Route path="/grip" element={<GripHome />} />
+                  <Route path="/grip/sessions/:sessionId" element={<GripSessionScreen />} />
                   <Route path="/settings" element={<SettingsScreen />} />
                   <Route path="/admin" element={<RequireAdmin><AdminScreen /></RequireAdmin>} />
                   <Route path="*" element={<Navigate to="/home" replace />} />

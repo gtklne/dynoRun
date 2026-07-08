@@ -31,18 +31,19 @@ Server (`cd server`):
 ```
 src/
   analysis/      Pure-function dyno pipeline (RawSpeedSample[] → power curve)
+  analysis/grip/ Pure-function grip pipeline (RaceBox CSV → envelope, corners, load transfer)
   run/           RunController + CalibrationController + their state machines
   sensors/       SpeedSource abstraction (GPS-web, GPS-native, recorded, mock) + SensorRecorder
   api/           apiFetch client + per-table repository implementations (server-backed)
   app/           Platform glue: wake lock, geolocation permission, export, isNative()
   auth/          better-auth React client + AuthProvider context
   shared/        Types, units (km/h ↔ m/s, RPM ↔ ω), observable Subject, haversine, UUID, ISO time
-  ui/            Screens (garage, calibration wizard, run, recordings, compare, settings) + chart components
+  ui/            Screens (garage, calibration wizard, run, recordings, compare, grip, settings) + chart components
 server/src/
-  schema.ts      Drizzle schema — source of truth for Postgres (vehicles, calibrations, runs, samples, recordings, derived_curves)
+  schema.ts      Drizzle schema — source of truth for Postgres (vehicles, calibrations, runs, samples, recordings, derived_curves, grip_sessions)
   index.ts       Hono app, CORS, mounts /api/* routes + better-auth /api/auth/**
   auth.ts        better-auth config (magic-link via Resend + Cloudflare Turnstile captcha → /etc/dynorun.env)
-  routes/        vehicles, calibrations, runs, samples, curves, recordings
+  routes/        vehicles, calibrations, runs, samples, curves, recordings, grip-sessions
   middleware/    requireAuth: validates session, sets c.var.userId
   lib/           runBelongsToUser ownership check
   db.ts          pg Pool + drizzle instance
@@ -72,6 +73,8 @@ This single number bundles tire circumference × gear ratio × final drive. From
 6. `binByRpm` — 100 RPM bins, average power/torque per bin
 
 Output is **wheel power**. No driveline-loss or aero/rolling-resistance corrections — this is a comparative measurement, not a calibrated absolute. **If you change the math, bump `PIPELINE_VERSION` so stored `derived_curves` rows can be invalidated.**
+
+**Grip Utilization** (`src/analysis/grip/`) is the second tool in the suite: upload a RaceBox track-session CSV (25 Hz GPS + lean), and pure functions derive g-force channels (long g from speed derivative, lat g from `tan(lean)`), fit a per-rider **traction envelope** (percentile radius per angular bin — "100%" means *your own* observed limit), detect corners per lap (speed minima confirmed by lean), and compute load-transfer transients (`|dG/dt|`). Only the parsed base channels are persisted (`grip_sessions.data` jsonb envelope, `GRIP_DATA_VERSION = 1` in `types.ts`, pack/unpack in `storage.ts`); every derived channel is recomputed client-side on load, so tuning never invalidates stored sessions. Tunable estimates live in `settings.ts` (`GRIP_SETTINGS_SCHEMA` is the single source of truth for defaults/bounds/UI); tuned values persist per session via debounced PATCH. Screens in `src/ui/grip/`: `/grip` session library + CSV dropzone, `/grip/sessions/:id` analyzer (track map, traction circle, load timeline, corner cards, lap playback — plain canvas 2D, no chart lib).
 
 ## State machines
 
@@ -103,6 +106,8 @@ Frontend (`src/App.tsx`, react-router-dom 6, all behind `RequireAuth` except `/l
 | `/runs/:runId/review` | Curve + peak + notes + save/discard |
 | `/vehicles/:vehicleId/compare` | Overlay multiple runs' curves |
 | `/recordings` | List/manage raw sensor recordings |
+| `/grip` | Grip Utilization: saved track sessions + RaceBox CSV dropzone |
+| `/grip/sessions/:sessionId` | Grip session analyzer (map, traction circle, corners, playback) |
 | `/replay` | Upload JSON fixture, run pipeline offline |
 | `/settings` | Load replay recording, view permissions |
 | `/admin` | Admin panel (admins only): user/content KPIs, growth & activity charts, users table, recent runs, leaderboard, system health |
@@ -119,6 +124,7 @@ API (Hono, all `/api/*` require session cookie):
 | POST, GET | `/api/runs/:id/samples` | Bulk insert / list raw samples |
 | GET, PUT | `/api/runs/:id/curve` | Upsert derived RPM-bin curve |
 | CRUD | `/api/recordings[/:id]` | Raw sensor recordings (jsonb) |
+| CRUD | `/api/grip-sessions[/:id]` | Grip track sessions (columnar jsonb channels; summary columns derived server-side from the envelope) |
 | GET | `/api/admin/{overview,timeseries,users,activity}` | Admin stats (requireAdmin) |
 | ALL | `/api/auth/**` | Delegated to better-auth |
 
@@ -147,6 +153,7 @@ API (Hono, all `/api/*` require session cookie):
 - **Turnstile captcha gates every magic-link request** (`server/src/auth.ts`, `captcha({ endpoints: ['/sign-in/magic-link'] })`) — since there's no separate sign-up flow, returning users solve a captcha on every sign-in too, not just new-account creation. If `TURNSTILE_SECRET_KEY` is unset server-side, every sign-in silently fails.
 - **Dev login bypass (no email):** magic-link sends real mail, which is painful on dev. `POST /api/dev/login {email}` (`server/src/routes/dev-auth.ts`) mints a real better-auth session cookie for that email (find-or-create, same semantics as magic-link verify) and skips the email + captcha. Gated by `DEV_LOGIN=true` in `server/.env` (absent from prod `/etc/dynorun.env`, so the route is never mounted in prod). The login screen shows a "Dev sign-in" panel under `import.meta.env.DEV` — Vite strips it from prod builds. Prefill the panel via `VITE_DEV_LOGIN_EMAIL` (root `.env`); the endpoint defaults to `DEV_LOGIN_EMAIL` when the body omits one. Restart the API after adding the env var (`--env-file` is read at process start, not on watch-reload).
 - **`@capacitor-community/sqlite` is in `package.json` but unused** — leftover from a pre-Postgres local-first architecture. Safe to remove if you want to slim the install (would also drop `sql.js`, `localforage`, `jeep-sqlite` transitive deps). Not removed yet because no functional impact.
+- **Grip session uploads are multi-MB POST bodies** (a 30-min RaceBox session ≈ 2–3 MB of columnar jsonb even with per-channel rounding in `packGripData`). nginx's default `client_max_body_size` is 1 MB, so prod sets `client_max_body_size 20m` in the `/api/` location — without it uploads 413 and the error surfaces as a generic toast. Vite's dev proxy has no such limit, so the bug only appears in prod.
 - **`crypto.randomUUID` is used in `server/routes/*.ts`** assuming Node 18+; build env pins Node 22.
 - **Frontend builds on Node 20, server builds on Node 22** in CI (`.github/workflows/deploy.yml`). Don't unify without checking — they're separate jobs.
 - **The `samples` repository's `deleteByRun` is a no-op** (`src/api/repositories/sample-repository.ts`). Real cascade happens server-side in `DELETE /api/runs/:id` via a transaction. Don't add it to the API client without removing the server-side cascade.
