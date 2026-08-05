@@ -9,6 +9,7 @@ import { LoginScreen } from './ui/auth/login-screen';
 import { LandingScreen } from './ui/home/landing-screen';
 import { SystemHome } from './ui/home/system-home';
 import { GripHome } from './ui/grip/grip-home';
+import { GripCompareScreen } from './ui/grip/grip-compare-screen';
 import { GripSessionScreen } from './ui/grip/grip-session-screen';
 import { isNative } from './app/platform';
 import { GarageScreen } from './ui/garage/garage-screen';
@@ -84,6 +85,7 @@ export default function App() {
                   <Route path="/replay/:recordingId" element={<ReplayLabPlayer />} />
                   <Route path="/vehicles/:vehicleId/compare" element={<CompareScreen />} />
                   <Route path="/grip" element={<GripHome />} />
+                  <Route path="/grip/compare" element={<GripCompareScreen />} />
                   <Route path="/grip/sessions/:sessionId" element={<GripSessionScreen />} />
                   <Route path="/settings" element={<SettingsScreen />} />
                   <Route path="/admin" element={<RequireAdmin><AdminScreen /></RequireAdmin>} />

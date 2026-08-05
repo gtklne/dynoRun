@@ -1,0 +1,157 @@
+import type { GripComparison } from '@/analysis/grip/compare';
+import { deltaColor } from './compare-colors';
+import {
+  distanceFrame,
+  drawCursor,
+  drawDistanceLabels,
+  drawTurnTicks,
+  niceStep,
+  seekFromClick,
+} from './compare-chart-frame';
+import { CANVAS_FONT, useCanvasDraw } from './use-canvas-draw';
+
+interface Props {
+  cmp: GripComparison;
+  /** lap key → series colour */
+  colorOf: Map<string, string>;
+  /** keys to draw (reference is the zero line and is never drawn as a series) */
+  keys: string[];
+  /** shared cursor position, metres along the reference */
+  cursor: number;
+  onSeek: (s: number) => void;
+  height?: number;
+}
+
+/**
+ * Cumulative time delta against the reference lap, along the track.
+ *
+ * This is the one chart that answers "where did the lap go". A trace sloping
+ * upward is losing time *right there*; a flat trace is matching the reference
+ * even if it is already a second behind. Reading the slope rather than the
+ * height is the whole skill, so the gradient fill is keyed to slope sign.
+ */
+export function CompareDeltaChart({ cmp, colorOf, keys, cursor, onSeek, height = 210 }: Props) {
+  const series = cmp.laps.filter((l) => keys.includes(l.key) && !l.isReference);
+
+  const ref = useCanvasDraw(({ ctx, w, h }) => {
+    ctx.clearRect(0, 0, w, h);
+    const f = distanceFrame(w, h, cmp.refLength);
+
+    let maxAbs = 0.2;
+    for (const l of series) for (const v of l.grid.dt) if (!Number.isNaN(v)) maxAbs = Math.max(maxAbs, Math.abs(v));
+    maxAbs *= 1.12;
+    const Y = (v: number) => f.y1 - ((v + maxAbs) / (2 * maxAbs)) * (f.y1 - f.y0);
+
+    // y grid
+    const step = niceStep(maxAbs, 2.5);
+    ctx.font = `9px ${CANVAS_FONT}`;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    for (let v = -Math.floor(maxAbs / step) * step; v <= maxAbs; v += step) {
+      const y = Y(v);
+      ctx.strokeStyle = Math.abs(v) < 1e-9 ? 'rgba(228,228,231,0.35)' : 'rgba(255,255,255,0.055)';
+      ctx.setLineDash(Math.abs(v) < 1e-9 ? [4, 3] : []);
+      ctx.beginPath();
+      ctx.moveTo(f.x0, y);
+      ctx.lineTo(f.x1, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = Math.abs(v) < 1e-9 ? '#a1a1aa' : '#6b6b74';
+      ctx.fillText(Math.abs(v) < 1e-9 ? 'ref' : `${v > 0 ? '+' : '−'}${Math.abs(v).toFixed(2)}s`, f.x0 - 5, y);
+    }
+
+    drawTurnTicks(ctx, f, cmp.corners);
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = '#6b6b74';
+    ctx.fillText('LOSING', f.x0 + 3, f.y0 + 2);
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('GAINING', f.x0 + 3, f.y1 - 2);
+
+    // one pass per series: a slope-coloured band under the trace, then the line
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    for (const l of series) {
+      const dt = l.grid.dt;
+      const n = Math.min(dt.length, cmp.s.length);
+      for (let k = 1; k < n; k++) {
+        if (Number.isNaN(dt[k]) || Number.isNaN(dt[k - 1])) continue;
+        const slope = (dt[k] - dt[k - 1]) / Math.max(1e-6, (cmp.s[k] - cmp.s[k - 1]) / 100);
+        ctx.globalAlpha = 0.16;
+        ctx.fillStyle = deltaColor(slope, 0.1);
+        ctx.beginPath();
+        ctx.moveTo(f.X(cmp.s[k - 1]), Y(0));
+        ctx.lineTo(f.X(cmp.s[k - 1]), Y(dt[k - 1]));
+        ctx.lineTo(f.X(cmp.s[k]), Y(dt[k]));
+        ctx.lineTo(f.X(cmp.s[k]), Y(0));
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = colorOf.get(l.key) ?? '#e4e4e7';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      let open = false;
+      for (let k = 0; k < n; k++) {
+        if (Number.isNaN(dt[k])) { open = false; continue; }
+        const x = f.X(cmp.s[k]);
+        const y = Y(dt[k]);
+        if (open) ctx.lineTo(x, y);
+        else { ctx.moveTo(x, y); open = true; }
+      }
+      ctx.stroke();
+
+      // where the lap left the reference layout, say so rather than leave a gap
+      if (l.sectionFraction < 0.98) {
+        for (const edge of [l.section.sIn, l.section.sOut]) {
+          if (edge <= 0 || edge >= cmp.refLength) continue;
+          ctx.save();
+          ctx.strokeStyle = colorOf.get(l.key) ?? '#e4e4e7';
+          ctx.setLineDash([2, 3]);
+          ctx.globalAlpha = 0.7;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(f.X(edge), f.y0);
+          ctx.lineTo(f.X(edge), f.y1);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+    }
+
+    drawDistanceLabels(ctx, f);
+    drawCursor(ctx, f, cursor);
+
+    // read-out dots where the cursor crosses each trace
+    for (const l of series) {
+      const k = nearestIndex(cmp.s, cursor);
+      if (Number.isNaN(l.grid.dt[k])) continue;
+      ctx.fillStyle = colorOf.get(l.key) ?? '#e4e4e7';
+      ctx.beginPath();
+      ctx.arc(f.X(cursor), Y(l.grid.dt[k]), 3.5, 0, 7);
+      ctx.fill();
+    }
+  }, [cmp, series, colorOf, cursor, height]);
+
+  return (
+    <canvas
+      ref={ref}
+      onClick={(e) => ref.current && onSeek(seekFromClick(e, ref.current, cmp.refLength))}
+      className="block w-full cursor-crosshair rounded-lg bg-zinc-950"
+      style={{ height }}
+    />
+  );
+}
+
+export function nearestIndex(s: Float32Array, value: number): number {
+  let lo = 0;
+  let hi = s.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (s[mid] <= value) lo = mid;
+    else hi = mid - 1;
+  }
+  if (lo + 1 < s.length && Math.abs(s[lo + 1] - value) < Math.abs(s[lo] - value)) return lo + 1;
+  return lo;
+}

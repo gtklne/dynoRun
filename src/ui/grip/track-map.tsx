@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import type { GripAnalysis, GripLap } from '@/analysis/grip/types';
 import { scoreColor } from './colors';
+import { fitTrackTransform } from './track-geometry';
 import { CANVAS_FONT, useCanvasDraw } from './use-canvas-draw';
 
 interface TrackMapProps {
@@ -31,17 +32,9 @@ export function TrackMap({ analysis, lap, cursor, metric, cornerApexG, anchorG, 
     const { start, end } = lap;
     ctx.clearRect(0, 0, w, h);
 
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (let i = start; i <= end; i++) {
-      minX = Math.min(minX, px[i]); maxX = Math.max(maxX, px[i]);
-      minY = Math.min(minY, py[i]); maxY = Math.max(maxY, py[i]);
-    }
-    const pad = 34;
-    const s = Math.min((w - 2 * pad) / (maxX - minX), (h - 2 * pad) / (maxY - minY));
-    const ox = (w - (maxX - minX) * s) / 2 - minX * s;
-    const oy = (h - (maxY - minY) * s) / 2 - minY * s;
-    const X = (i: number) => px[i] * s + ox;
-    const Y = (i: number) => h - (py[i] * s + oy);
+    const fit = fitTrackTransform(px, py, start, end, w, h, 34);
+    const X = (i: number) => fit.X(px[i]);
+    const Y = (i: number) => fit.Y(py[i]);
     geoRef.current = { X, Y };
 
     // track base (dark casing)
@@ -65,8 +58,7 @@ export function TrackMap({ analysis, lap, cursor, metric, cornerApexG, anchorG, 
 
     // corner number badges, offset outward from the track centroid
     ctx.font = `600 12px ${CANVAS_FONT}`;
-    const cx = ((minX + maxX) / 2) * s + ox;
-    const cy = h - (((minY + maxY) / 2) * s + oy);
+    const { cx, cy } = fit;
     for (const c of lap.corners) {
       const bx = X(c.ap), by = Y(c.ap);
       let dx = bx - cx, dy = by - cy;

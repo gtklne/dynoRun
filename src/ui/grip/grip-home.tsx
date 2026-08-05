@@ -63,11 +63,21 @@ export function GripHome() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold text-zinc-100">Grip Utilization</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          RaceBox track-session analyzer — traction-circle telemetry, per-corner grip usage, load transfer.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold text-zinc-100">Grip Utilization</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            RaceBox track-session analyzer — traction-circle telemetry, per-corner grip usage, load transfer.
+          </p>
+        </div>
+        {sessions && sessions.length > 0 && (
+          <button
+            onClick={() => navigate('/grip/compare')}
+            className="shrink-0 rounded-lg border border-sky-800/40 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-300 transition-colors hover:bg-sky-500/20"
+          >
+            Compare laps
+          </button>
+        )}
       </div>
 
       <label
