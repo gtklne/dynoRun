@@ -19,14 +19,44 @@ import { BASE_PACE, circuitCsv, simulateSession, type LapPace } from '../analysi
 const SLOW: LapPace = { aLat: 0.8, aAcc: 0.44, aBrk: 0.74, vMax: 54 };
 
 let origRect: () => DOMRect;
+let origGetContext: HTMLCanvasElement['getContext'];
+
+// Counting the draw calls is the point: with only "console.error stayed empty"
+// as an assertion this file passed verbatim when useCanvasDraw was mutated to
+// never invoke its draw callback at all — 66 files / 392 tests still green while
+// no grip chart painted a single pixel. Every case now has to prove it drew.
+const calls: Record<string, number> = {};
+const resetCalls = () => { for (const k of Object.keys(calls)) delete calls[k]; };
+
 beforeAll(() => {
   origRect = HTMLCanvasElement.prototype.getBoundingClientRect;
   HTMLCanvasElement.prototype.getBoundingClientRect = function (): DOMRect {
     return { x: 0, y: 0, width: 800, height: 300, top: 0, left: 0, right: 800, bottom: 300, toJSON: () => ({}) } as DOMRect;
   };
+  origGetContext = HTMLCanvasElement.prototype.getContext;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (HTMLCanvasElement.prototype as any).getContext = function (...args: unknown[]) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ctx = (origGetContext as any).apply(this, args);
+    if (!ctx) return ctx;
+    return new Proxy(ctx, {
+      get(target, prop) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const v = (target as any)[prop];
+        if (typeof v !== 'function') return v;
+        return (...a: unknown[]) => {
+          calls[String(prop)] = (calls[String(prop)] ?? 0) + 1;
+          return v.apply(target, a);
+        };
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      set(target, prop, value) { (target as any)[prop] = value; return true; },
+    });
+  };
 });
 afterAll(() => {
   HTMLCanvasElement.prototype.getBoundingClientRect = origRect;
+  HTMLCanvasElement.prototype.getContext = origGetContext;
 });
 
 function build(paces: LapPace[], mutate?: (parsed: ReturnType<typeof parseRaceboxCsv>) => void) {
@@ -52,6 +82,13 @@ describe('compare canvases draw without throwing', () => {
     errors.length = 0;
   }
 
+  /** Every canvas component must actually paint; a skipped draw is a failure. */
+  function expectDrew(minStrokes: number) {
+    expect(calls.stroke ?? 0).toBeGreaterThan(minStrokes);
+    expect(calls.beginPath ?? 0).toBeGreaterThan(minStrokes);
+    resetCalls();
+  }
+
   it('draws the delta chart, trace chart, map and envelopes for a clean comparison', () => {
     const { analysis, cmp } = build([BASE_PACE, SLOW]);
     const colorOf = colorsFor(cmp);
@@ -66,6 +103,7 @@ describe('compare canvases draw without throwing', () => {
     const env = equalBudgetEnvelope(analysis, DEFAULT_GRIP_SETTINGS, 1);
     render(<CompareEnvelopes series={[{ key: 's', label: 'S', env: env.env, color: '#4c95ec' }]} anchorG={1.1} />);
     expectClean();
+    expectDrew(30);
     cleanup();
   });
 
@@ -86,6 +124,7 @@ describe('compare canvases draw without throwing', () => {
     render(<CompareTrackMap cmp={cmp} subjectKey={cmp.laps[1].key} colorOf={colorOf} cursor={9e9} onSeek={() => {}} />);
     render(<CompareTraceChart cmp={cmp} channel="spd" colorOf={colorOf} keys={keys} cursor={0} onSeek={() => {}} />);
     expectClean();
+    expectDrew(20);
     cleanup();
   });
 
@@ -97,6 +136,7 @@ describe('compare canvases draw without throwing', () => {
     render(<CompareTraceChart cmp={cmp} channel="lean" colorOf={colorOf} keys={cmp.laps.map((l) => l.key)} cursor={0} onSeek={() => {}} />);
     render(<CompareEnvelopes series={[]} anchorG={1.1} />);
     expectClean();
+    expectDrew(20);
     cleanup();
     spy.mockRestore();
   });

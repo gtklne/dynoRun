@@ -1,7 +1,7 @@
 import type { GripAnalysis, GripLap } from '@/analysis/grip/types';
 import { envelopeRadius, ENVELOPE_BINS } from '@/analysis/grip/envelope';
 import { rateColor, scoreColor } from './colors';
-import { CANVAS_FONT, useCanvasDraw } from './use-canvas-draw';
+import { CANVAS_FONT, useCanvasDraw, useStaticLayer } from './use-canvas-draw';
 
 const TRAIL = 45; // comet trail length in samples (~1.8 s)
 
@@ -22,7 +22,10 @@ interface TractionCircleProps {
  * centre; the arrow shows where the load is heading next.
  */
 export function TractionCircle({ analysis, lap, cursor, metric, rateFS, anchorG }: TractionCircleProps) {
-  const ref = useCanvasDraw(({ ctx, w, h }) => {
+  const staticLayer = useStaticLayer();
+
+  const ref = useCanvasDraw((size) => {
+    const { ctx, w, h } = size;
     const d = analysis;
     ctx.clearRect(0, 0, w, h);
     const cx = w / 2, cy = h / 2, pad = 26;
@@ -30,59 +33,17 @@ export function TractionCircle({ analysis, lap, cursor, metric, rateFS, anchorG 
     const GMAX = Math.max(1.3, anchorG + 0.15); // full-scale g at the outer radius
     const P = (gx: number, gy: number): [number, number] => [cx + (gx / GMAX) * R, cy - (gy / GMAX) * R];
 
-    // grid rings + axes
-    ctx.strokeStyle = '#2c2c2a';
-    ctx.lineWidth = 1;
-    ctx.font = `10px ${CANVAS_FONT}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    for (let g = 0.25; g <= GMAX + 0.001; g += 0.25) {
-      ctx.beginPath(); ctx.arc(cx, cy, (g / GMAX) * R, 0, 7); ctx.stroke();
+    // The rings, the envelope and the whole-lap scatter are fixed for a given lap
+    // and metric — one filled arc per lap sample, ~1,900 of them, was being
+    // repainted on every playback frame for a cursor dot that moved a few pixels.
+    const layer = staticLayer([analysis, lap, metric, anchorG], size, (bg) => {
+      paintBackdrop(bg, { cx, cy, R, GMAX, P, d, lap, metric, anchorG });
+    });
+    if (layer) {
+      ctx.drawImage(layer, 0, 0, w, h);
+    } else {
+      paintBackdrop(ctx, { cx, cy, R, GMAX, P, d, lap, metric, anchorG });
     }
-    ctx.strokeStyle = '#3a3a37';
-    ctx.beginPath();
-    ctx.moveTo(cx - R, cy); ctx.lineTo(cx + R, cy);
-    ctx.moveTo(cx, cy - R); ctx.lineTo(cx, cy + R);
-    ctx.stroke();
-    ctx.fillStyle = '#898781';
-    ctx.fillText('BRAKE', cx, cy + R + 12);
-    ctx.fillText('ACCEL', cx, cy - R - 12);
-    ctx.save(); ctx.translate(cx - R - 13, cy); ctx.rotate(-Math.PI / 2); ctx.fillText('LEFT', 0, 0); ctx.restore();
-    ctx.save(); ctx.translate(cx + R + 13, cy); ctx.rotate(Math.PI / 2); ctx.fillText('RIGHT', 0, 0); ctx.restore();
-    ctx.fillStyle = '#66655f';
-    ctx.fillText('1.0g', P(0, 1.0)[0] + 13, P(0, 1.0)[1]);
-
-    // tyre-class reference ring — the "textbook" limit the colours anchor to
-    ctx.strokeStyle = 'rgba(208,59,59,0.45)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([2, 4]);
-    ctx.beginPath(); ctx.arc(cx, cy, (anchorG / GMAX) * R, 0, 7); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = 'rgba(208,59,59,0.7)';
-    ctx.fillText(`tyre ${anchorG.toFixed(2)}g`, cx, cy - (anchorG / GMAX) * R - 7);
-
-    // fitted envelope
-    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([4, 3]);
-    ctx.beginPath();
-    for (let b = 0; b <= ENVELOPE_BINS; b++) {
-      const th = -Math.PI + (b / ENVELOPE_BINS) * 2 * Math.PI;
-      const r = envelopeRadius(d.env, th);
-      const [x, y] = P(r * Math.cos(th), r * Math.sin(th));
-      b ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
-    }
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    // faint scatter: where you operate this lap
-    ctx.globalAlpha = 0.28;
-    for (let i = lap.start; i <= lap.end; i++) {
-      const [x, y] = P(d.alat[i], d.along[i]);
-      ctx.fillStyle = scoreColor(metric[i], anchorG);
-      ctx.beginPath(); ctx.arc(x, y, 1.5, 0, 7); ctx.fill();
-    }
-    ctx.globalAlpha = 1;
 
     // comet trail — recent path, brightness+width = load-transfer rate
     const cur = lap.start + cursor;
@@ -138,4 +99,76 @@ export function TractionCircle({ analysis, lap, cursor, metric, rateFS, anchorG 
       style={{ aspectRatio: '1 / 1' }}
     />
   );
+}
+
+interface Backdrop {
+  cx: number;
+  cy: number;
+  R: number;
+  GMAX: number;
+  P: (gx: number, gy: number) => [number, number];
+  d: GripAnalysis;
+  lap: GripLap;
+  metric: ArrayLike<number>;
+  anchorG: number;
+}
+
+/** Grid, labels, tyre ring, fitted envelope and the lap's whole g-g scatter. */
+function paintBackdrop(ctx: CanvasRenderingContext2D, s: Backdrop): void {
+  const { cx, cy, R, GMAX, P, d, lap, metric, anchorG } = s;
+  {
+    // grid rings + axes
+    ctx.strokeStyle = '#2c2c2a';
+    ctx.lineWidth = 1;
+    ctx.font = `10px ${CANVAS_FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (let g = 0.25; g <= GMAX + 0.001; g += 0.25) {
+      ctx.beginPath(); ctx.arc(cx, cy, (g / GMAX) * R, 0, 7); ctx.stroke();
+    }
+    ctx.strokeStyle = '#3a3a37';
+    ctx.beginPath();
+    ctx.moveTo(cx - R, cy); ctx.lineTo(cx + R, cy);
+    ctx.moveTo(cx, cy - R); ctx.lineTo(cx, cy + R);
+    ctx.stroke();
+    ctx.fillStyle = '#898781';
+    ctx.fillText('BRAKE', cx, cy + R + 12);
+    ctx.fillText('ACCEL', cx, cy - R - 12);
+    ctx.save(); ctx.translate(cx - R - 13, cy); ctx.rotate(-Math.PI / 2); ctx.fillText('LEFT', 0, 0); ctx.restore();
+    ctx.save(); ctx.translate(cx + R + 13, cy); ctx.rotate(Math.PI / 2); ctx.fillText('RIGHT', 0, 0); ctx.restore();
+    ctx.fillStyle = '#66655f';
+    ctx.fillText('1.0g', P(0, 1.0)[0] + 13, P(0, 1.0)[1]);
+
+    // tyre-class reference ring — the "textbook" limit the colours anchor to
+    ctx.strokeStyle = 'rgba(208,59,59,0.45)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 4]);
+    ctx.beginPath(); ctx.arc(cx, cy, (anchorG / GMAX) * R, 0, 7); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(208,59,59,0.7)';
+    ctx.fillText(`tyre ${anchorG.toFixed(2)}g`, cx, cy - (anchorG / GMAX) * R - 7);
+
+    // fitted envelope
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    for (let b = 0; b <= ENVELOPE_BINS; b++) {
+      const th = -Math.PI + (b / ENVELOPE_BINS) * 2 * Math.PI;
+      const r = envelopeRadius(d.env, th);
+      const [x, y] = P(r * Math.cos(th), r * Math.sin(th));
+      b ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // faint scatter: where you operate this lap
+    ctx.globalAlpha = 0.28;
+    for (let i = lap.start; i <= lap.end; i++) {
+      const [x, y] = P(d.alat[i], d.along[i]);
+      ctx.fillStyle = scoreColor(metric[i], anchorG);
+      ctx.beginPath(); ctx.arc(x, y, 1.5, 0, 7); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
 }

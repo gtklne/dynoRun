@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import type { GripAnalysis, GripLap } from '@/analysis/grip/types';
 import { scoreColor } from './colors';
 import { fitTrackTransform } from './track-geometry';
-import { CANVAS_FONT, useCanvasDraw } from './use-canvas-draw';
+import { CANVAS_FONT, useCanvasDraw, useStaticLayer } from './use-canvas-draw';
 
 interface TrackMapProps {
   analysis: GripAnalysis;
@@ -26,8 +26,10 @@ interface Geo {
 /** Racing line coloured by the active metric; corner badges sit on apexes. */
 export function TrackMap({ analysis, lap, cursor, metric, cornerApexG, anchorG, onSeek }: TrackMapProps) {
   const geoRef = useRef<Geo | null>(null);
+  const staticLayer = useStaticLayer();
 
-  const ref = useCanvasDraw(({ ctx, w, h }) => {
+  const ref = useCanvasDraw((size) => {
+    const { ctx, w, h } = size;
     const { px, py } = analysis;
     const { start, end } = lap;
     ctx.clearRect(0, 0, w, h);
@@ -37,45 +39,53 @@ export function TrackMap({ analysis, lap, cursor, metric, cornerApexG, anchorG, 
     const Y = (i: number) => fit.Y(py[i]);
     geoRef.current = { X, Y };
 
-    // track base (dark casing)
-    ctx.lineJoin = 'round';
-    ctx.lineCap = 'round';
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 13;
-    ctx.beginPath();
-    for (let i = start; i <= end; i++) (i === start ? ctx.moveTo(X(i), Y(i)) : ctx.lineTo(X(i), Y(i)));
-    ctx.stroke();
+    // Everything except the cursor marker is fixed for a given lap and metric,
+    // so it is painted once into an offscreen layer instead of ~1,900 stroked
+    // paths per playback frame.
+    const layer = staticLayer([analysis, lap, metric, cornerApexG, anchorG], size, (c) => {
+      // track base (dark casing)
+      c.lineJoin = 'round';
+      c.lineCap = 'round';
+      c.strokeStyle = '#000';
+      c.lineWidth = 13;
+      c.beginPath();
+      for (let i = start; i <= end; i++) (i === start ? c.moveTo(X(i), Y(i)) : c.lineTo(X(i), Y(i)));
+      c.stroke();
 
-    // racing line coloured by the active metric
-    ctx.lineWidth = 8;
-    for (let i = start + 1; i <= end; i++) {
-      ctx.strokeStyle = scoreColor((metric[i - 1] + metric[i]) / 2, anchorG);
-      ctx.beginPath();
-      ctx.moveTo(X(i - 1), Y(i - 1));
-      ctx.lineTo(X(i), Y(i));
-      ctx.stroke();
-    }
+      // racing line coloured by the active metric
+      c.lineWidth = 8;
+      for (let i = start + 1; i <= end; i++) {
+        c.strokeStyle = scoreColor((metric[i - 1] + metric[i]) / 2, anchorG);
+        c.beginPath();
+        c.moveTo(X(i - 1), Y(i - 1));
+        c.lineTo(X(i), Y(i));
+        c.stroke();
+      }
 
-    // corner number badges, offset outward from the track centroid
-    ctx.font = `600 12px ${CANVAS_FONT}`;
-    const { cx, cy } = fit;
-    for (const c of lap.corners) {
-      const bx = X(c.ap), by = Y(c.ap);
-      let dx = bx - cx, dy = by - cy;
-      const L = Math.hypot(dx, dy) || 1;
-      dx /= L; dy /= L;
-      const lx = bx + dx * 16, ly = by + dy * 16;
-      ctx.fillStyle = scoreColor(cornerApexG.get(c.n) ?? 0, anchorG);
-      ctx.beginPath(); ctx.arc(lx, ly, 10, 0, 7); ctx.fill();
-      ctx.fillStyle = '#0a0a0a';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(String(c.n), lx, ly + 0.5);
-    }
+      // corner number badges, offset outward from the track centroid
+      c.font = `600 12px ${CANVAS_FONT}`;
+      const { cx, cy } = fit;
+      for (const corner of lap.corners) {
+        const bx = X(corner.ap), by = Y(corner.ap);
+        let dx = bx - cx, dy = by - cy;
+        const L = Math.hypot(dx, dy) || 1;
+        dx /= L; dy /= L;
+        const lx = bx + dx * 16, ly = by + dy * 16;
+        c.fillStyle = scoreColor(cornerApexG.get(corner.n) ?? 0, anchorG);
+        c.beginPath(); c.arc(lx, ly, 10, 0, 7); c.fill();
+        c.fillStyle = '#0a0a0a';
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        // the track's turn number, not the per-lap detection index — the badge
+        // has to mean the same bend when the rider switches lap tabs
+        c.fillText(corner.turn ? String(corner.turn) : '·', lx, ly + 0.5);
+      }
 
-    // start/finish
-    ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(X(start), Y(start), 4, 0, 7); ctx.fill(); ctx.stroke();
+      // start/finish
+      c.fillStyle = '#fff'; c.strokeStyle = '#000'; c.lineWidth = 2;
+      c.beginPath(); c.arc(X(start), Y(start), 4, 0, 7); c.fill(); c.stroke();
+    });
+    if (layer) ctx.drawImage(layer, 0, 0, w, h);
 
     // current position
     const ci = start + cursor;

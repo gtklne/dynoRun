@@ -13,24 +13,28 @@ export interface CornerLiveStats {
 interface CornerCardsProps {
   lap: GripLap;
   liveStats: Map<number, CornerLiveStats>;
-  /** best apex demand per corner number across ALL laps (same metric) */
+  /** best apex demand per TRACK TURN across ALL laps (same metric) */
   bestApexG: Map<number, number>;
   mode: GripMetricMode;
   settings: Pick<GripSettings, 'spareScore' | 'rateFS' | 'anchorG'>;
+  /** global sample index of the corner the cursor is inside */
   activeCorner: number | null;
   onSelect: (corner: GripCorner) => void;
 }
 
 const score = (g: number) => Math.round(g * 100);
 
+/** A corner's own best across the session, or 0 when it has no turn identity. */
+const bestFor = (c: GripCorner, best: Map<number, number>) => (c.turn ? best.get(c.turn) ?? 0 : 0);
+
 export function CornerCards({ lap, liveStats, bestApexG, mode, settings, activeCorner, onSelect }: CornerCardsProps) {
   const label = mode === 'load' ? 'apex load' : 'apex grip';
   // corners with the biggest proven gap to the rider's own best on other laps
   const gaps = lap.corners
-    .map((c) => ({ c, gap: score(bestApexG.get(c.n) ?? 0) - score(liveStats.get(c.n)?.apexG ?? 0) }))
-    .filter((x) => x.gap >= settings.spareScore)
+    .map((c) => ({ c, gap: score(bestFor(c, bestApexG)) - score(liveStats.get(c.n)?.apexG ?? 0) }))
+    .filter((x) => x.gap >= settings.spareScore && x.c.turn > 0)
     .sort((a, b) => b.gap - a.gap);
-  const opportunities = gaps.slice(0, 3).map((x) => `T${x.c.n}`).join(', ');
+  const opportunities = gaps.slice(0, 3).map((x) => `T${x.c.turn}`).join(', ');
 
   return (
     <section>
@@ -46,6 +50,7 @@ export function CornerCards({ lap, liveStats, bestApexG, mode, settings, activeC
                     {' '}· below your best at <b style={{ color: scoreColor(0, 1) }}>{opportunities}</b>
                   </>
                 )}
+                {' · '}turn numbers are the same bend on every lap
                 {mode === 'load' && ' (grip + load transfer)'}
               </>
             ) : (
@@ -60,11 +65,11 @@ export function CornerCards({ lap, liveStats, bestApexG, mode, settings, activeC
           const stats = liveStats.get(c.n);
           const apexG = stats?.apexG ?? 0;
           const peakG = stats?.peakG ?? 0;
-          const best = bestApexG.get(c.n) ?? 0;
+          const best = bestFor(c, bestApexG);
           const gap = score(best) - score(apexG);
           const spare = gap >= settings.spareScore;
           const isBest = best > 0 && score(apexG) >= score(best);
-          const active = activeCorner === c.n;
+          const active = activeCorner === c.ap;
           return (
             <button
               key={c.n}
@@ -89,10 +94,10 @@ export function CornerCards({ lap, liveStats, bestApexG, mode, settings, activeC
                   className="flex h-[26px] w-[26px] items-center justify-center rounded-lg font-mono text-xs font-bold text-zinc-950"
                   style={{ background: scoreColor(apexG, settings.anchorG) }}
                 >
-                  {c.n}
+                  {c.turn || '·'}
                 </span>
                 <span className="text-[11px] uppercase tracking-wider text-zinc-500">
-                  Turn {c.n} · {c.dir === 'L' ? 'Left' : 'Right'}
+                  {c.turn ? `Turn ${c.turn}` : 'Extra bend'} · {c.dir === 'L' ? 'Left' : 'Right'}
                 </span>
               </div>
               <div className="font-mono text-[26px] leading-none" style={{ color: scoreColor(apexG, settings.anchorG) }}>

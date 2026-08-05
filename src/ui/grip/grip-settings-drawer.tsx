@@ -30,10 +30,16 @@ function HelpContent() {
       </p>
       <p>
         Your <b>traction envelope</b> (dashed line on the circle) is the boundary of what you actually did:
-        the hardest ~1% in each direction. It comes out asymmetric (more grip cornering than braking, least on
-        throttle) because a bike is power/wheelie-limited on exit. The <b>session score</b> in the header is the
-        envelope's overall size — 100 would mean working a full 1 g circle in every direction. Watch it across
-        sessions to see your riding grow.
+        the hardest in each direction, with the top few samples per direction dropped so one bad GPS fix cannot
+        define your limit. It comes out asymmetric (more grip cornering than braking, least on throttle) because
+        a bike is power/wheelie-limited on exit. The <b>session score</b> in the header is the envelope's overall
+        size — 100 would mean working a full 1 g circle in every direction.
+      </p>
+      <p>
+        One caveat on that score: the boundary can only grow as you add laps, so a longer session scores higher
+        for free — measured at about <b>+8 points from 1 lap to 10</b> of identical riding. That is why the header
+        prints the lap count next to it, and why <b>Compare laps</b> fits every session on the same number of laps
+        before putting two scores side by side. Comparing a 4-lap session with a 12-lap one here is not a fair fight.
       </p>
 
       <h4>Grip score vs Dynamic load</h4>
@@ -71,11 +77,17 @@ function HelpContent() {
 
       <h4>Corner analysis</h4>
       <p>
-        Corners are found from speed minima confirmed by lean, then labelled in order. The big number is the
-        <b> apex score</b> (g demand ×100 at the slowest point). Each card also shows your <b>best at that same
-        corner across all laps</b> — if this lap sits well below it, the green “spare” flag marks proven,
-        repeatable room to push. The <span className="font-mono">◍ g/s</span> badge is how violently you loaded
-        the chassis there.
+        Corners are found from speed minima confirmed by lean. Detection is not stable — the same ten laps of one
+        circuit yield anywhere from 6 to 9 detected corners — so a corner is identified by <b>where it is on the
+        track</b>, not by the order it was found: every lap's apexes are projected onto your fastest lap's line and
+        grouped by position. <b>Turn 4 is the same bend on every lap tab</b>, and the same bend the Compare screen
+        calls T4. A detection no other lap agrees with shows as “Extra bend” rather than taking a turn number.
+      </p>
+      <p>
+        The big number is the <b>apex score</b> (g demand ×100 at the slowest point). Each card also shows your
+        <b> best at that same turn across all laps</b> — if this lap sits well below it, the green “spare” flag marks
+        proven, repeatable room to push. The <span className="font-mono">◍ g/s</span> badge is how violently you
+        loaded the chassis there.
       </p>
 
       <h4>Honest caveats</h4>

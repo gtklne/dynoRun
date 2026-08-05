@@ -24,7 +24,9 @@ export function LoadTimeline({ analysis, lap, cursor, rateFS, onSeek }: LoadTime
     const d = analysis;
     ctx.clearRect(0, 0, w, h);
     const n = lap.end - lap.start + 1;
-    const X = (k: number) => PAD_L + (k / (n - 1)) * (w - PAD_L - PAD_R);
+    // a one-sample lap would divide by zero and put NaN into every moveTo
+    const span = Math.max(1, n - 1);
+    const X = (k: number) => PAD_L + (k / span) * (w - PAD_L - PAD_R);
     const topH = h * 0.5, gap = 8, botTop = topH + gap, botH = h - botTop - 4;
     const zeroY = topH * 0.5;
     ctx.font = `10px ${CANVAS_FONT}`;

@@ -38,6 +38,10 @@ export interface ParsedGripSession {
   meta: GripSessionMeta;
   n: number;
   ch: GripChannels;
+  /** rows whose GPS fix was missing, so the previous position was held */
+  noFix?: number;
+  /** rows skipped as truncated, unparseable, or out of chronological order */
+  dropped?: number;
 }
 
 export interface GripDerivedChannels {
@@ -65,6 +69,10 @@ export interface GripEnvelope {
   gref: number;
   /** session score: 100 × RMS envelope radius (100 ≈ a full 1 g circle) */
   sessionScore: number;
+  /** samples the fit used — 0 means there is no envelope, not a 0 g one */
+  fitSamples: number;
+  /** angular bins no sample of their own reached, so their radius is filled in */
+  emptyBins: number;
 }
 
 export interface GripLoadChannels {
@@ -77,7 +85,14 @@ export interface GripLoadChannels {
 }
 
 export interface GripCorner {
+  /** per-lap detection index, 1-based — NOT a track turn id, use `turn` */
   n: number;
+  /**
+   * Track turn id, stable across every lap of the session (see turns.ts).
+   * 0 when this detection could not be matched to a turn the session's other
+   * laps agree on — a one-off minimum, not a bend.
+   */
+  turn: number;
   /** global sample indices: window start / apex / end */
   l: number;
   ap: number;
@@ -116,4 +131,6 @@ export interface GripAnalysis extends GripDerivedChannels, GripEnvelope, GripLoa
   px: Float32Array;
   py: Float32Array;
   laps: GripLap[];
+  /** distinct track turns the session's laps agree on (see turns.ts) */
+  turnCount: number;
 }

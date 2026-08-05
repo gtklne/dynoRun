@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { GripComparison } from '@/analysis/grip/compare';
 import { deltaColor } from './compare-colors';
 import {
@@ -22,6 +23,12 @@ interface Props {
   height?: number;
 }
 
+// Slope buckets for the band fill. One closed path + fill() per grid station per
+// series was 6,855 fill() submissions per cursor step with six laps selected;
+// quantising the slope lets every station of one colour share a single path.
+const SLOPE_BUCKETS = 9;
+const SLOPE_FS = 0.1; // s per 100 m that saturates the ramp
+
 /**
  * Cumulative time delta against the reference lap, along the track.
  *
@@ -31,7 +38,12 @@ interface Props {
  * height is the whole skill, so the gradient fill is keyed to slope sign.
  */
 export function CompareDeltaChart({ cmp, colorOf, keys, cursor, onSeek, height = 210 }: Props) {
-  const series = cmp.laps.filter((l) => keys.includes(l.key) && !l.isReference);
+  // memoised so the deps array is stable: a fresh array identity on every parent
+  // render (setSubjectKey, setChannel, setLoading…) re-ran the whole draw
+  const series = useMemo(
+    () => cmp.laps.filter((l) => keys.includes(l.key) && !l.isReference),
+    [cmp, keys],
+  );
 
   const ref = useCanvasDraw(({ ctx, w, h }) => {
     ctx.clearRect(0, 0, w, h);
@@ -75,17 +87,28 @@ export function CompareDeltaChart({ cmp, colorOf, keys, cursor, onSeek, height =
     for (const l of series) {
       const dt = l.grid.dt;
       const n = Math.min(dt.length, cmp.s.length);
+      // sort the stations into slope buckets, then emit one path per bucket
+      const buckets: number[][] = [];
       for (let k = 1; k < n; k++) {
         if (Number.isNaN(dt[k]) || Number.isNaN(dt[k - 1])) continue;
         const slope = (dt[k] - dt[k - 1]) / Math.max(1e-6, (cmp.s[k] - cmp.s[k - 1]) / 100);
-        ctx.globalAlpha = 0.16;
-        ctx.fillStyle = deltaColor(slope, 0.1);
+        const norm = Math.max(-1, Math.min(1, slope / SLOPE_FS));
+        const b = Math.min(SLOPE_BUCKETS - 1, Math.round(((norm + 1) / 2) * (SLOPE_BUCKETS - 1)));
+        (buckets[b] ??= []).push(k);
+      }
+      ctx.globalAlpha = 0.16;
+      for (let b = 0; b < buckets.length; b++) {
+        const ks = buckets[b];
+        if (!ks) continue;
+        ctx.fillStyle = deltaColor(((b / (SLOPE_BUCKETS - 1)) * 2 - 1) * SLOPE_FS, SLOPE_FS);
         ctx.beginPath();
-        ctx.moveTo(f.X(cmp.s[k - 1]), Y(0));
-        ctx.lineTo(f.X(cmp.s[k - 1]), Y(dt[k - 1]));
-        ctx.lineTo(f.X(cmp.s[k]), Y(dt[k]));
-        ctx.lineTo(f.X(cmp.s[k]), Y(0));
-        ctx.closePath();
+        for (const k of ks) {
+          ctx.moveTo(f.X(cmp.s[k - 1]), Y(0));
+          ctx.lineTo(f.X(cmp.s[k - 1]), Y(dt[k - 1]));
+          ctx.lineTo(f.X(cmp.s[k]), Y(dt[k]));
+          ctx.lineTo(f.X(cmp.s[k]), Y(0));
+          ctx.closePath();
+        }
         ctx.fill();
       }
       ctx.globalAlpha = 1;

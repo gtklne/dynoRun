@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { analyzeGripSession } from '@/analysis/grip/analyze';
 import { compareLaps, type CompareLapInput, type CompareLapResult } from '@/analysis/grip/compare';
@@ -13,7 +13,7 @@ import {
   sectorScores,
 } from '@/analysis/grip/compare-stats';
 import { computeCombined } from '@/analysis/grip/load';
-import { unpackGripData } from '@/analysis/grip/storage';
+import { isStoredGripData, unpackGripData } from '@/analysis/grip/storage';
 import type { GripAnalysis } from '@/analysis/grip/types';
 import { gripSessionRepository } from '@/api/repositories/grip-session-repository';
 import { loadGripSession } from './grip-session-cache';
@@ -54,7 +54,13 @@ export function GripCompareScreen() {
   const [sessionIds, setSessionIds] = useState<string[]>(
     () => (params.get('sessions') ?? '').split(',').filter(Boolean),
   );
-  const [selected, setSelected] = useState<string[]>(() => (params.get('laps') ?? '').split(',').filter(Boolean));
+  // Deduped and capped on the way in: `toggle` enforces MAX_COMPARE_LAPS but the
+  // URL did not, and seriesColor wraps modulo 6 — a hand-edited link with seven
+  // laps gave the seventh the reference's own near-white, and a repeated key gave
+  // two traces one colour plus duplicate React keys.
+  const [selected, setSelected] = useState<string[]>(() =>
+    [...new Set((params.get('laps') ?? '').split(',').filter(Boolean))].slice(0, MAX_COMPARE_LAPS),
+  );
   const [refKey, setRefKey] = useState<string | null>(params.get('ref') || null);
   const [subjectKey, setSubjectKey] = useState<string | null>(null);
   const [mode, setMode] = useState<GripMetricMode>(params.get('m') === 'grip' ? 'grip' : 'load');
@@ -91,23 +97,39 @@ export function GripCompareScreen() {
     if (library && library.length > 0 && sessionIds.length === 0) setSessionIds([library[0].id]);
   }, [library, sessionIds.length]);
 
+  // Ids that came back empty — a deleted session, or (because GET is
+  // owner-scoped) any shared link opened by a different account. They must be
+  // remembered: this effect depends on `loaded`, and unconditionally publishing a
+  // new Map identity when nothing was fetched made it re-run forever, measured at
+  // ~120 requests/second with a full re-analysis of every loaded session on each
+  // pass and the picker stuck on "Loading sessions…".
+  const unavailable = useRef<Set<string>>(new Set());
+  const [missingIds, setMissingIds] = useState<string[]>([]);
+
   useEffect(() => {
-    const missing = sessionIds.filter((id) => !loaded.has(id));
+    const missing = sessionIds.filter((id) => !loaded.has(id) && !unavailable.current.has(id));
     if (missing.length === 0) return;
     let cancelled = false;
     setLoading(true);
     (async () => {
       const fetched: [string, GripSessionFull][] = [];
+      const failed: string[] = [];
       for (const id of missing) {
+        // wait for the library so `updated_at` is known and the cache can hit
         const full = await loadGripSession(id, library?.find((s2) => s2.id === id)?.updated_at);
         if (full) fetched.push([id, full]);
+        else failed.push(id);
       }
       if (cancelled) return;
-      setLoaded((prev) => {
-        const next = new Map(prev);
-        for (const [id, full] of fetched) next.set(id, full);
-        return next;
-      });
+      for (const id of failed) unavailable.current.add(id);
+      if (failed.length) setMissingIds((prev) => [...new Set([...prev, ...failed])]);
+      if (fetched.length) {
+        setLoaded((prev) => {
+          const next = new Map(prev);
+          for (const [id, full] of fetched) next.set(id, full);
+          return next;
+        });
+      }
     })()
       .catch(() => setError('Could not load one of the sessions.'))
       .finally(() => !cancelled && setLoading(false));
@@ -126,10 +148,13 @@ export function GripCompareScreen() {
 
   // Only a 'recompute'-class setting change may re-derive channels; τ re-mixes
   // cheaply below and 'render'-class settings just flow into props.
-  const recomputeSig = RECOMPUTE_KEYS.map((k) => settings[k]).join(',');
+  const recomputeSig = useDeferredValue(RECOMPUTE_KEYS.map((k) => settings[k]).join(','));
   const analyses = useMemo(() => {
     const map = new Map<string, GripAnalysis>();
     for (const s of activeSessions) {
+      // the shape guard exists precisely for this; calling unpackGripData blind
+      // let a stale or future envelope through into the pipeline
+      if (!isStoredGripData(s.data)) continue;
       try {
         map.set(s.id, analyzeGripSession(unpackGripData(s.data), settings));
       } catch {
@@ -183,14 +208,27 @@ export function GripCompareScreen() {
     [analyses],
   );
 
-  // The reference is the fastest selected lap unless the rider picks another.
+  // Drop selection entries whose session loaded but whose lap does not exist —
+  // a re-uploaded session with fewer laps, or a hand-edited link. Left in place
+  // they consume a slot with no way to deselect them.
   useEffect(() => {
-    if (refKey && selected.includes(refKey)) return;
-    const best = selected
-      .map((k) => ({ k, lap: lapOf(k) }))
-      .filter((x) => x.lap)
-      .sort((a, b) => a.lap!.time - b.lap!.time)[0];
-    setRefKey(best?.k ?? null);
+    setSelected((prev) => {
+      const next = prev.filter((k) => !analyses.has(k.split(':')[0]) || !!lapOf(k));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [analyses, lapOf]);
+
+  // The reference is the fastest selected lap unless the rider picks another.
+  // It must be checked against laps that actually RESOLVED, not against the raw
+  // URL text: compareLaps silently falls back to inputs[0] for an unknown refKey
+  // while the turn table keeps looking up the original, so every per-turn delta
+  // came out ±0.00 s / "Matched" while the delta chart above showed the real gap.
+  useEffect(() => {
+    const resolved = selected.map((k) => ({ k, lap: lapOf(k) })).filter((x) => x.lap);
+    // nothing has loaded yet — keep whatever the shared link asked for
+    if (resolved.length === 0) return;
+    if (refKey && resolved.some((x) => x.k === refKey)) return;
+    setRefKey([...resolved].sort((a, b) => a.lap!.time - b.lap!.time)[0].k);
   }, [selected, refKey, lapOf]);
 
   const inputs = useMemo<CompareLapInput[]>(() => {
@@ -242,7 +280,12 @@ export function GripCompareScreen() {
 
   const segments = useMemo(() => (cmp ? compareSegments(cmp) : null), [cmp]);
 
-  const envelopeSeries = useMemo<(EnvelopeSeries & { score: number; sectors: ReturnType<typeof sectorScores>; laps: number })[]>(() => {
+  const envelopeSeries = useMemo<(Omit<EnvelopeSeries, 'color'> & {
+    firstKey: string;
+    score: number;
+    sectors: ReturnType<typeof sectorScores>;
+    laps: number;
+  })[]>(() => {
     const ids = [...new Set(selected.map((k) => k.split(':')[0]))];
     const budget = ids.reduce((min, id) => Math.min(min, analyses.get(id)?.laps.length ?? 1), Infinity);
     if (!Number.isFinite(budget)) return [];
@@ -256,13 +299,20 @@ export function GripCompareScreen() {
         key: id,
         label: sessionTitle(summary),
         env: env.env,
-        color: colorOf.get(firstKey) ?? seriesColor(0),
+        firstKey,
         score: env.sessionScore,
         sectors: sectorScores(env.env),
         laps: budget,
       }];
     });
-  }, [selected, analyses, activeSessions, settings, colorOf]);
+    // deliberately NOT keyed on colorOf: the colour is looked up at render time,
+    // so merely changing the reference lap cannot refit every session's envelope
+  }, [selected, analyses, activeSessions, settings]);
+
+  const envelopeColored = useMemo(
+    () => envelopeSeries.map((s) => ({ ...s, color: colorOf.get(s.firstKey) ?? seriesColor(0) })),
+    [envelopeSeries, colorOf],
+  );
 
   const toggle = useCallback((key: string) => {
     setSelected((prev) =>
@@ -355,6 +405,26 @@ export function GripCompareScreen() {
         </div>
       )}
 
+      {missingIds.length > 0 && (
+        <div className="rounded-2xl border border-amber-900/60 bg-amber-950/25 p-3">
+          <p className="text-xs text-amber-300">
+            {missingIds.length === 1 ? 'One session in this link is not available' : `${missingIds.length} sessions in this link are not available`}
+            {' — '}it may have been deleted, or it belongs to another account. The remaining laps are compared normally.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setSessionIds((prev) => prev.filter((id) => !missingIds.includes(id)));
+              setSelected((prev) => prev.filter((k) => !missingIds.includes(k.split(':')[0])));
+              setMissingIds([]);
+            }}
+            className="mt-1.5 rounded-md border border-amber-800/60 bg-amber-900/20 px-2 py-1 text-[11px] font-semibold text-amber-200 transition-colors hover:bg-amber-900/40"
+          >
+            Remove from this comparison
+          </button>
+        </div>
+      )}
+
       <CompareLapPicker
         sessions={pickerSessions}
         selected={selected}
@@ -400,7 +470,13 @@ export function GripCompareScreen() {
         </p>
       ) : (
         <>
-          <Legend cmp={cmp} colorOf={colorOf} refKey={refKey} theoreticalBest={segments?.theoreticalBest ?? null} />
+          <Legend
+            cmp={cmp}
+            colorOf={colorOf}
+            refKey={refKey}
+            theoreticalBest={segments?.theoreticalBest ?? null}
+            referenceTotal={segments?.referenceTotal ?? null}
+          />
 
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
             <Panel
@@ -496,9 +572,9 @@ export function GripCompareScreen() {
                   : undefined
               }
             >
-              <CompareEnvelopes series={envelopeSeries} anchorG={settings.anchorG} />
+              <CompareEnvelopes series={envelopeColored} anchorG={settings.anchorG} />
               <div className="mt-3 space-y-2">
-                {envelopeSeries.map((s) => (
+                {envelopeColored.map((s) => (
                   <div key={s.key} className="rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2">
                     <div className="flex items-center justify-between gap-2">
                       <span className="flex min-w-0 items-center gap-2">
@@ -527,7 +603,9 @@ export function GripCompareScreen() {
             <Panel title="How the lap was spent" hint="metres of track">
               <div className="space-y-2.5">
                 {aligned.map((l) => {
-                  const duty = dutyMetres(cmp.s, l.grid);
+                  // only the stretch this lap actually rode: outside its section
+                  // every channel holds its last real value
+                  const duty = dutyMetres(cmp.s, l.grid, { section: l.section });
                   return (
                     <div key={l.key} className="rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5">
                       <div className="mb-1.5 flex items-center gap-2">
@@ -548,6 +626,11 @@ export function GripCompareScreen() {
                         <span>{Math.round(duty.aboveG)} m over 0.8 g</span>
                         <span>{Math.round(duty.aboveLean)} m over 40°</span>
                       </div>
+                      {l.sectionFraction < 0.98 && (
+                        <p className="mt-1 text-[10.5px] text-amber-400/70">
+                          over the {Math.round(duty.total)} m this lap shares with the reference, not a full lap
+                        </p>
+                      )}
                     </div>
                   );
                 })}
@@ -589,13 +672,23 @@ function Legend({
   colorOf,
   refKey,
   theoreticalBest,
+  referenceTotal,
 }: {
   cmp: NonNullable<ReturnType<typeof compareLaps>>;
   colorOf: Map<string, string>;
   refKey: string | null;
   theoreticalBest: number | null;
+  /** Σ of the reference's own segments — the only baseline on the same clock */
+  referenceTotal: number | null;
 }) {
   const ref = cmp.laps.find((l) => l.isReference);
+  // `lapTime` comes from the RaceBox metadata, the segment sum from the spatial
+  // axis: differencing the two reports a 0.05 s gain on real data even when the
+  // reference lap won every single segment.
+  const gain =
+    theoreticalBest != null && referenceTotal != null && Number.isFinite(referenceTotal)
+      ? theoreticalBest - referenceTotal
+      : NaN;
   return (
     <div className="flex flex-wrap items-stretch gap-2">
       {cmp.laps.map((l) => (
@@ -618,15 +711,15 @@ function Legend({
           </div>
         </div>
       ))}
-      {theoreticalBest != null && ref && cmp.laps.length > 1 && (
+      {theoreticalBest != null && Number.isFinite(theoreticalBest) && ref && cmp.laps.length > 1 && (
         <div className="flex min-w-[168px] flex-1 items-center gap-2.5 rounded-xl border border-sky-900/50 bg-sky-950/20 px-3 py-2">
           <div className="min-w-0">
             <p className="truncate text-[11px] uppercase tracking-wider text-sky-400/80">Best of these laps, joined up</p>
             <p className="font-mono text-[13px] text-sky-200 tabular-nums">
               {formatLapTime(theoreticalBest)}
-              <span className="ml-1.5 text-[11px] text-sky-400/80">
-                {formatDelta(theoreticalBest - ref.lapTime)}s
-              </span>
+              {Number.isFinite(gain) && (
+                <span className="ml-1.5 text-[11px] text-sky-400/80">{formatDelta(gain)}s vs ref</span>
+              )}
             </p>
           </div>
         </div>

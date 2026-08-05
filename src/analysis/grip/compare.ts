@@ -14,6 +14,7 @@ import {
   type ReferenceAxis,
 } from './align';
 import { cornerStats } from './corners';
+import { clusterByAxisDistance, median, minTurnSupport } from './turn-cluster';
 import type { GripAnalysis, GripLap } from './types';
 
 /**
@@ -30,13 +31,7 @@ import type { GripAnalysis, GripLap } from './types';
 export { DIST_STEP_M, distanceGrid, resampleByDistance } from './align';
 export type { GeoFrame, LapPath } from './align';
 
-/** Apexes closer than this along the axis belong to the same turn. */
-export const CORNER_CLUSTER_M = 40;
-
-// Single-linkage alone can chain: apexes 39 m apart in a long sequence would
-// collapse into one enormous "turn". A cluster wider than this is split at its
-// largest internal gap until every turn spans a plausible corner.
-const MAX_CLUSTER_EXTENT_M = 2 * CORNER_CLUSTER_M;
+export { CORNER_CLUSTER_M } from './turn-cluster';
 
 /** A lap must follow at least this much of the axis to be aligned at all. */
 const MIN_SECTION_FRACTION = 0.5;
@@ -180,13 +175,6 @@ function verdictFor(sectionFraction: number, lengthRatio: number): LapVerdict {
   return 'partial';
 }
 
-const median = (a: number[]): number => {
-  if (!a.length) return 0;
-  const s = [...a].sort((x, y) => x - y);
-  const h = s.length >> 1;
-  return s.length % 2 ? s[h] : (s[h - 1] + s[h]) / 2;
-};
-
 /**
  * Build the canonical turn list: every lap's detected apexes are placed on the
  * axis and single-linkage clustered. Detection is genuinely unstable — the same
@@ -212,19 +200,8 @@ function buildCanonicalCorners(
       hits.push({ s, sIn: at(c.l), sOut: at(c.r), dir: c.dir, key: input.key, lean: c.maxLean });
     }
   }
-  hits.sort((a, b) => a.s - b.s);
-
-  const linked: Hit[][] = [];
-  for (const h of hits) {
-    const last = linked[linked.length - 1];
-    if (last && h.s - last[last.length - 1].s <= CORNER_CLUSTER_M) last.push(h);
-    else linked.push([h]);
-  }
-  const clusters = linked.flatMap(splitWideCluster);
-
-  // A turn must be seen by a meaningful share of the laps; with two laps that
-  // means either one, so a corner only one lap found still shows up.
-  const minSupport = Math.max(1, Math.ceil(0.4 * laps.length));
+  const clusters = clusterByAxisDistance(hits);
+  const minSupport = minTurnSupport(laps.length);
   return clusters
     .map((cl) => {
       // One lap can detect two minima inside a single turn (a bumpy or double
@@ -251,17 +228,13 @@ function buildCanonicalCorners(
     .map((c, i) => ({ ...c, turn: i + 1 }));
 }
 
-function splitWideCluster<T extends { s: number }>(cluster: T[]): T[][] {
-  if (cluster.length < 2 || cluster[cluster.length - 1].s - cluster[0].s <= MAX_CLUSTER_EXTENT_M) {
-    return [cluster];
-  }
-  let cut = 1;
-  let widest = -1;
-  for (let i = 1; i < cluster.length; i++) {
-    const gap = cluster[i].s - cluster[i - 1].s;
-    if (gap > widest) { widest = gap; cut = i; }
-  }
-  return [...splitWideCluster(cluster.slice(0, cut)), ...splitWideCluster(cluster.slice(cut))];
+function clipTurnWindows<T extends { s: number; sIn: number; sOut: number }>(turns: T[]): T[] {
+  return turns.map((c, i) => {
+    const lo = i > 0 ? Math.max(c.sIn, (turns[i - 1].s + c.s) / 2) : c.sIn;
+    const hi = i + 1 < turns.length ? Math.min(c.sOut, (c.s + turns[i + 1].s) / 2) : c.sOut;
+    // never clip the apex itself out of its own window
+    return { ...c, sIn: Math.min(lo, c.s), sOut: Math.max(hi, c.s) };
+  });
 }
 
 /** Value of a grid channel at an arbitrary distance (linear interpolation). */
@@ -401,7 +374,14 @@ export function compareLaps(inputs: CompareLapInput[], refKey: string): GripComp
   const usable = prepared.filter(
     (p) => p.isReference || verdictFor((p.proj.common.sOut - p.proj.common.sIn) / axis.length, 1) !== 'incompatible',
   );
-  const canonical = buildCanonicalCorners(usable);
+  // De-overlap the turn windows. Clustering can split one physical bend into two
+  // turns whose windows overlap by hundreds of metres (measured: T8 [1925, 2251]
+  // and T9 [1989, 2272], both resolving to the same apex sample), and the turn
+  // table adds their per-turn Δtime as if the windows were disjoint — overstating
+  // "how much of the gap sits there" by 88% on the real fixture pair. Cutting at
+  // the midpoint between neighbouring apexes, exactly as compareSegments does,
+  // makes the windows a partition so the deltas are additive.
+  const canonical = clipTurnWindows(buildCanonicalCorners(usable));
 
   const common = usable.reduce<CommonSection>(
     (acc, p) => ({ sIn: Math.max(acc.sIn, p.proj.common.sIn), sOut: Math.min(acc.sOut, p.proj.common.sOut) }),

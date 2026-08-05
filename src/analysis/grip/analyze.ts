@@ -3,6 +3,7 @@ import { computeEnvelope } from './envelope';
 import { computeLoad } from './load';
 import { buildLaps } from './laps';
 import { projectTrack } from './project';
+import { assignTrackTurns } from './turns';
 import type { GripAnalysis, ParsedGripSession } from './types';
 import type { GripSettings } from './settings';
 
@@ -24,6 +25,9 @@ export function analyzeGripSession(parsed: ParsedGripSession, settings: GripSett
     meta,
     settings,
   );
+  // Corner detection is per-lap and its index is not a turn id; pairing corners
+  // across laps needs the whole session, so turns are assigned once here.
+  const turnCount = assignTrackTurns(ch, laps);
   const { px, py } = projectTrack(ch.lat, ch.lon);
-  return { meta, n, ch, ...channels, ...envelope, ...load, px, py, laps };
+  return { meta, n, ch, ...channels, ...envelope, ...load, px, py, laps, turnCount };
 }

@@ -29,6 +29,7 @@ vi.mock('@/api/repositories/vehicle-repository', () => ({
 }));
 
 import { GripSessionScreen } from '@/ui/grip/grip-session-screen';
+import { clearGripSessionCache } from '@/ui/grip/grip-session-cache';
 
 function makeFull(): GripSessionFull {
   const data = packGripData(parseRaceboxCsv(syntheticCsv()));
@@ -69,6 +70,10 @@ describe('GripSessionScreen', () => {
   beforeEach(() => {
     getSession.mockReset();
     updateSession.mockReset();
+    // the analyzer reads through the module-level session cache (so the
+    // analyzer ↔ compare round-trip does not re-download megabytes); these
+    // fixtures deliberately reuse one id, so it has to be emptied between tests
+    clearGripSessionCache();
   });
 
   it('analyzes the stored session and renders lap tabs, corners, and telemetry', async () => {

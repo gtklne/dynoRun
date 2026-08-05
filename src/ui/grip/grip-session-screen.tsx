@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { analyzeGripSession } from '@/analysis/grip/analyze';
 import { cornerStats } from '@/analysis/grip/corners';
 import { bestLap } from '@/analysis/grip/laps';
 import { computeCombined } from '@/analysis/grip/load';
+import { bestApexPerTurn } from '@/analysis/grip/turns';
 import {
   DEFAULT_GRIP_SETTINGS,
   RECOMPUTE_KEYS,
@@ -11,7 +12,7 @@ import {
   type GripSettingKey,
   type GripSettings,
 } from '@/analysis/grip/settings';
-import { unpackGripData } from '@/analysis/grip/storage';
+import { isStoredGripData, unpackGripData } from '@/analysis/grip/storage';
 import type { GripCorner, ParsedGripSession } from '@/analysis/grip/types';
 import { gripSessionRepository } from '@/api/repositories/grip-session-repository';
 import { vehicleRepository } from '@/api/repositories/vehicle-repository';
@@ -20,6 +21,7 @@ import type { Vehicle } from '@/shared/types';
 import { SegmentedControl } from '@/ui/components/segmented-control';
 import { CornerCards } from './corner-cards';
 import { formatLapTime } from './format-lap';
+import { invalidateGripSession, loadGripSession } from './grip-session-cache';
 import { GripSettingsDrawer } from './grip-settings-drawer';
 import { LapTabs } from './lap-tabs';
 import { LoadTimeline } from './load-timeline';
@@ -58,10 +60,16 @@ export function GripSessionScreen() {
     if (!sessionId) return;
     let cancelled = false;
     (async () => {
-      const full = await gripSessionRepository.get(sessionId);
+      // through the shared cache, so the analyzer ↔ compare round-trip does not
+      // re-download a multi-MB payload that is already in memory
+      const full = await loadGripSession(sessionId);
       if (cancelled) return;
       if (!full) {
         setLoadError('Session not found.');
+        return;
+      }
+      if (!isStoredGripData(full.data)) {
+        setLoadError('This session’s stored data is unreadable — it may have been written by a newer version.');
         return;
       }
       try {
@@ -82,8 +90,10 @@ export function GripSessionScreen() {
   }, []);
 
   // Heavy derivation only when a 'recompute'-class setting changes; τ re-mixes
-  // cheaply below and 'render'-class settings just flow into props.
-  const recomputeSig = RECOMPUTE_KEYS.map((k) => settings[k]).join(',');
+  // cheaply below and 'render'-class settings just flow into props. Deferred so
+  // dragging a recompute-class slider re-derives once it settles instead of on
+  // every step — the derivation includes cross-lap turn matching and costs ~30 ms.
+  const recomputeSig = useDeferredValue(RECOMPUTE_KEYS.map((k) => settings[k]).join(','));
   const analysis = useMemo(
     () => (parsed ? analyzeGripSession(parsed, settings) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -112,19 +122,16 @@ export function GripSessionScreen() {
     () => new Map(Array.from(cornerLive, ([n, s]) => [n, s.apexG])),
     [cornerLive],
   );
-  // best apex demand per corner number across ALL laps — the "you have proven
-  // you can" reference the spare flag compares against
-  const bestApexG = useMemo(() => {
-    const best = new Map<number, number>();
-    if (!metric) return best;
-    for (const l of laps) {
-      for (const c of l.corners) {
-        const apex = cornerStats(c, metric).apex;
-        if (apex > (best.get(c.n) ?? 0)) best.set(c.n, apex);
-      }
-    }
-    return best;
-  }, [laps, metric]);
+  // Best apex demand per TRACK TURN across all laps — the "you have proven you
+  // can" reference the spare flag compares against. Keying this on the per-lap
+  // detection index instead compares unrelated bends: detection finds 6 to 9
+  // corners on ten laps of the same circuit, and on the local fixture that made
+  // the flag wrong on 10 of 74 cards, by up to 30 points against a 10-point
+  // threshold. See turns.ts.
+  const bestApexG = useMemo(
+    () => (metric ? bestApexPerTurn(laps, (c) => cornerStats(c, metric).apex) : new Map<number, number>()),
+    [laps, metric],
+  );
 
   // Persist tuned settings, debounced; skip the initial load's setSettings.
   const persistArmed = useRef(false);
@@ -135,6 +142,8 @@ export function GripSessionScreen() {
       return;
     }
     const timer = setTimeout(() => {
+      // the stored copy is now stale for compare, which reads the same cache
+      invalidateGripSession(session.id);
       gripSessionRepository.update(session.id, { settings }).catch(() => {});
     }, 800);
     return () => clearTimeout(timer);
@@ -149,6 +158,7 @@ export function GripSessionScreen() {
     const next = label.trim() || null;
     if (next === session.label) return;
     setSession({ ...session, label: next });
+    invalidateGripSession(session.id);
     gripSessionRepository.update(session.id, { label: next }).catch(() => {});
   }
 
@@ -156,6 +166,7 @@ export function GripSessionScreen() {
     if (!session) return;
     const next = vehicleId || null;
     setSession({ ...session, vehicle_id: next });
+    invalidateGripSession(session.id);
     gripSessionRepository.update(session.id, { vehicle_id: next }).catch(() => {});
   }
 
@@ -213,7 +224,18 @@ export function GripSessionScreen() {
             {[session.track, session.config, session.session_date].filter(Boolean).join(' · ')}
             {session.best_lap_s != null && <> · best <span className="font-mono text-zinc-400">{formatLapTime(session.best_lap_s)}</span></>}
             {' · '}{laps.length} timed laps
-            {' · '}session score <span className="font-mono text-zinc-300">{Math.round(analysis.sessionScore)}</span>
+            {analysis.turnCount > 0 && <> · {analysis.turnCount} turns</>}
+            {' · '}session score{' '}
+            <span className="font-mono text-zinc-300">
+              {analysis.fitSamples > 0 ? Math.round(analysis.sessionScore) : '—'}
+            </span>
+            {/* The score is monotone in lap count — measured +8.3 points from 1 to
+                10 laps of the same riding — so it is not comparable between
+                sessions of different length unless that is stated. Compare
+                already equalises the lap budget; here we at least name it. */}
+            {analysis.fitSamples > 0 && (
+              <span className="text-zinc-600"> over {laps.length} lap{laps.length === 1 ? '' : 's'}</span>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -295,7 +317,11 @@ export function GripSessionScreen() {
           </Panel>
           <Panel
             title="Live telemetry"
-            hint={activeCorner ? `In corner ${activeCorner.n} (${activeCorner.dir})` : 'Straight / transition'}
+            hint={
+              activeCorner
+                ? `In ${activeCorner.turn ? `turn ${activeCorner.turn}` : 'a bend'} (${activeCorner.dir})`
+                : 'Straight / transition'
+            }
           >
             <TelemetryReadout
               analysis={analysis}
@@ -323,7 +349,7 @@ export function GripSessionScreen() {
         bestApexG={bestApexG}
         mode={mode}
         settings={settings}
-        activeCorner={activeCorner?.n ?? null}
+        activeCorner={activeCorner?.ap ?? null}
         onSelect={(c: GripCorner) => playback.seek(c.ap - lap.start)}
       />
 

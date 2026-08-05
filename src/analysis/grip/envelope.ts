@@ -3,15 +3,42 @@ import type { GripSettings } from './settings';
 
 export const ENVELOPE_BINS = 72;
 
-// The envelope is descriptive (traction-circle boundary + session score), not
-// a normaliser, so it is fit near the observed extreme. p99 rather than max
-// keeps single noise spikes from owning a bin.
+// The envelope is descriptive (traction-circle boundary + session score), not a
+// normaliser, so it is fit near the observed extreme — but it must not be fit ON
+// a noise spike, and a percentile alone cannot promise that. At 1% it discards
+// floor(n/100) samples, while most angular bins hold well under 100, so for them
+// "p99" was literally the bin maximum. Meanwhile the channel pipeline's smoothing
+// and central difference smear one bad fix across ~10 consecutive samples.
+//
+// So the rule is a minimum *count*, not a percentile: the boundary has to be
+// exceeded for DROP_MIN samples — 0.48 s at 25 Hz — before it moves. That is the
+// physical distinction being drawn. Real cornering at the limit lasts one to
+// three seconds; a reacquisition step or a lean-sensor spike lasts under half of
+// one. Measured on both real fixtures, injecting a 10-sample 2.25 g artifact:
+//   drop  5 → sessionScore +4.2/+4.8 points, gref 1.27 → 2.25 g   (a lie)
+//   drop 12 → sessionScore +0.05/+0.09,      gref unchanged
+// The price is ~2.4–3.2 points of absolute level on clean data, applied equally
+// to every session, which is the right trade for a score only read comparatively.
 const ENVELOPE_PCT = 99;
+const DROP_MIN = 12;
+
+// …but never more than a quarter of a bin. A sparse bin (a direction barely
+// visited, 2–4 samples on a single-lap fit) would otherwise be erased entirely.
+const DROP_MAX_FRACTION = 0.25;
 
 // No motorcycle exceeds ~2 g combined (MotoGP braking peaks); anything above
 // this is a GPS artifact (signal-reacquisition speed step) and must not set
 // the boundary. Display channels are untouched — only the fit ignores them.
 const FIT_MAX_G = 2.5;
+
+// The combined cap alone leaves a gap: a signal reacquisition produces a speed
+// *step*, and after smoothing and differentiation that lands ~10 samples at
+// 1.5–2.5 g — plausible enough to pass FIT_MAX_G, large enough to own a bin.
+// Longitudinally the physics is far tighter than laterally: a bike is
+// wheelie-limited on drive and stoppie-limited on the brake, so beyond this it is
+// not a tyre, it is arithmetic on a discontinuity. Lateral g is deliberately not
+// capped this hard — that is where a real rider's numbers live.
+const FIT_MAX_LONG_G = 1.4;
 
 /** Envelope radius at a g-vector direction (nearest angular bin). */
 export function envelopeRadius(env: Float32Array, theta: number): number {
@@ -31,7 +58,7 @@ export function envelopeRadius(env: Float32Array, theta: number): number {
  * riders — a bigger envelope means more of the g-g plane was actually used.
  */
 export function computeEnvelope(
-  ch: Pick<GripDerivedChannels, 'spdS' | 'comb' | 'theta'>,
+  ch: Pick<GripDerivedChannels, 'spdS' | 'comb' | 'theta' | 'alongRaw'>,
   settings: Pick<GripSettings, 'envMinSpeed'>,
   lap?: ArrayLike<number>,
 ): GripEnvelope {
@@ -45,30 +72,59 @@ export function computeEnvelope(
     }
   }
   for (let i = 0; i < N; i++) {
-    if (ch.spdS[i] > minSpeedMps && ch.comb[i] <= FIT_MAX_G && (!hasTimed || lap![i] > 0)) {
+    if (
+      ch.spdS[i] > minSpeedMps &&
+      ch.comb[i] <= FIT_MAX_G &&
+      Math.abs(ch.alongRaw[i]) <= FIT_MAX_LONG_G &&
+      (!hasTimed || lap![i] > 0)
+    ) {
       const b = ((((ch.theta[i] + Math.PI) / (2 * Math.PI)) * ENVELOPE_BINS) | 0) % ENVELOPE_BINS;
       bins[b].push(ch.comb[i]);
     }
   }
 
   const raw = new Float32Array(ENVELOPE_BINS);
+  let fitSamples = 0;
+  let emptyBins = 0;
   for (let b = 0; b < ENVELOPE_BINS; b++) {
     const arr = bins[b];
+    fitSamples += arr.length;
     if (arr.length) {
       arr.sort((x, y) => x - y);
-      raw[b] = arr[Math.min(arr.length - 1, Math.floor((ENVELOPE_PCT / 100) * arr.length))];
+      const drop = Math.min(
+        Math.max(DROP_MIN, Math.ceil((1 - ENVELOPE_PCT / 100) * arr.length)),
+        Math.floor(DROP_MAX_FRACTION * arr.length),
+      );
+      raw[b] = arr[Math.max(0, arr.length - 1 - drop)];
     } else {
       raw[b] = NaN;
+      emptyBins++;
     }
   }
+
+  // Nothing qualified — a slow session, or envMinSpeed raised above everything
+  // ridden. There is no envelope; say so with zeros rather than letting NaN
+  // reach a score in the header and a moveTo() on the traction circle.
+  if (fitSamples === 0) {
+    return { env: new Float32Array(ENVELOPE_BINS), gref: 0, sessionScore: 0, fitSamples: 0, emptyBins: ENVELOPE_BINS };
+  }
+
+  // Fill empty bins from the nearest bin that has data *of its own*. Reading
+  // back from `raw` while filling it would cascade instead: with bins 0 and 36
+  // populated, bin 1 copies the value bin 0 just received, bin 2 copies bin 1,
+  // and half the circle ends up at the wrong bin's radius.
+  const seeded = Float32Array.from(raw);
   for (let b = 0; b < ENVELOPE_BINS; b++) {
-    if (Number.isNaN(raw[b])) {
-      for (let j = 1; j < ENVELOPE_BINS; j++) {
-        const a = raw[(b - j + ENVELOPE_BINS) % ENVELOPE_BINS];
-        const c = raw[(b + j) % ENVELOPE_BINS];
-        if (!Number.isNaN(a)) { raw[b] = a; break; }
-        if (!Number.isNaN(c)) { raw[b] = c; break; }
-      }
+    if (!Number.isNaN(seeded[b])) continue;
+    for (let j = 1; j <= ENVELOPE_BINS >> 1; j++) {
+      const a = seeded[(b - j + ENVELOPE_BINS) % ENVELOPE_BINS];
+      const c = seeded[(b + j) % ENVELOPE_BINS];
+      const an = !Number.isNaN(a);
+      const cn = !Number.isNaN(c);
+      // equidistant on both sides: the smaller radius is the safer boundary
+      if (an && cn) { raw[b] = Math.min(a, c); break; }
+      if (an) { raw[b] = a; break; }
+      if (cn) { raw[b] = c; break; }
     }
   }
 
@@ -88,5 +144,5 @@ export function computeEnvelope(
   }
   const sessionScore = 100 * Math.sqrt(sumSq / ENVELOPE_BINS);
 
-  return { env, gref, sessionScore };
+  return { env, gref, sessionScore, fitSamples, emptyBins };
 }

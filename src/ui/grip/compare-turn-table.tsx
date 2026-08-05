@@ -16,11 +16,14 @@ interface Props {
 }
 
 const PAYOFF_STYLE: Record<TurnPayoff, string> = {
+  'unmeasured': 'text-zinc-600 italic',
   'level': 'text-zinc-500',
   'faster-more-g': 'text-sky-300',
   'faster-other': 'text-sky-400',
   'slower-backed-off': 'text-amber-400',
   'slower-despite-g': 'text-rose-400',
+  'level-cheaper': 'text-sky-300',
+  'level-dearer': 'text-amber-400',
 };
 
 type Order = 'loss' | 'track';
@@ -37,8 +40,10 @@ export function CompareTurnTable({ cmp, refKey, subjectKey, anchorG, cursor, onS
     const out = cmp.corners.map((c) => {
       const ref = c.stats.find((s) => s.key === refKey);
       const sub = c.stats.find((s) => s.key === subjectKey);
-      const dTime = sub && ref ? sub.deltaGain - ref.deltaGain : 0;
-      const dScore = sub && ref ? sub.apexScore - ref.apexScore : 0;
+      // NaN when either lap left the layout before this turn — kept as NaN so
+      // the verdict reads "Not on this lap" instead of "Matched"
+      const dTime = sub && ref ? sub.deltaGain - ref.deltaGain : NaN;
+      const dScore = sub && ref ? sub.apexScore - ref.apexScore : NaN;
       return {
         c,
         ref,
@@ -51,11 +56,16 @@ export function CompareTurnTable({ cmp, refKey, subjectKey, anchorG, cursor, onS
         payoff: turnPayoff(dTime, dScore),
       };
     });
-    return order === 'loss' ? [...out].sort((a, b) => b.dTime - a.dTime) : out;
+    // a NaN comparator result leaves the sort implementation-defined; park
+    // unmeasured turns at the end instead
+    return order === 'loss'
+      ? [...out].sort((a, b) => (Number.isFinite(b.dTime) ? b.dTime : -Infinity) - (Number.isFinite(a.dTime) ? a.dTime : -Infinity))
+      : out;
   }, [cmp.corners, refKey, subjectKey, order]);
 
   const activeTurn = cmp.corners.find((c) => cursor >= c.sIn && cursor <= c.sOut)?.turn ?? null;
-  const worst = rows.filter((r) => r.dTime > 0.05).sort((a, b) => b.dTime - a.dTime).slice(0, 3);
+  const worst = rows.filter((r) => Number.isFinite(r.dTime) && r.dTime > 0.05).sort((a, b) => b.dTime - a.dTime).slice(0, 3);
+  const unmeasured = rows.filter((r) => r.payoff === 'unmeasured').length;
   const sameLap = refKey === subjectKey;
 
   if (!cmp.corners.length) {
@@ -83,6 +93,9 @@ export function CompareTurnTable({ cmp, refKey, subjectKey, anchorG, cursor, onS
               </>
             ) : (
               <>No turn is losing more than 0.05 s — the gap is spread across the lap.</>
+            )}
+            {unmeasured > 0 && (
+              <> · {unmeasured} turn{unmeasured === 1 ? '' : 's'} not on the subject lap’s section of track.</>
             )}
           </p>
         </div>
@@ -135,8 +148,8 @@ export function CompareTurnTable({ cmp, refKey, subjectKey, anchorG, cursor, onS
                   {sameLap ? '—' : `${formatDelta(dTime)}s`}
                 </td>
                 <td className="px-3 py-2.5 text-right font-mono tabular-nums text-zinc-300">
-                  {Math.round(sub?.apexScore ?? 0)}
-                  {!sameLap && (
+                  {sub?.measured === false ? '—' : Math.round(sub?.apexScore ?? 0)}
+                  {!sameLap && Number.isFinite(dScore) && (
                     <span className={`ml-1.5 text-[11px] ${deltaTextClass(-dScore, 3)}`}>
                       {formatDelta(dScore, 0)}
                     </span>

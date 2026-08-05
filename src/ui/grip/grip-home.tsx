@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { parseRaceboxCsv } from '@/analysis/grip/parse-racebox';
 import { packGripData } from '@/analysis/grip/storage';
 import { gripSessionRepository } from '@/api/repositories/grip-session-repository';
+import { invalidateGripSession } from './grip-session-cache';
 import { vehicleRepository } from '@/api/repositories/vehicle-repository';
 import type { GripSessionSummary } from '@/api/repositories/types';
 import type { Vehicle } from '@/shared/types';
@@ -53,6 +54,9 @@ export function GripHome() {
     setError(null);
     try {
       await gripSessionRepository.delete(id);
+      // otherwise the analyzer and compare keep serving the cached copy of a
+      // session the server no longer has
+      invalidateGripSession(id);
       await load();
     } catch (err) {
       setError(String(err));

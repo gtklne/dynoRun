@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { analyzeGripSession } from '@/analysis/grip/analyze';
-import { compareLaps, type CompareGrid, type CompareLapInput } from '@/analysis/grip/compare';
+import { DIST_STEP_M, compareLaps, type CompareGrid, type CompareLapInput } from '@/analysis/grip/compare';
 import {
+  PAYOFF_HINT,
+  PAYOFF_LABEL,
   compareSegments,
   dutyMetres,
   equalBudgetEnvelope,
@@ -209,8 +211,24 @@ describe('turnPayoff', () => {
 
   it('calls a turn level only when both deltas are inside the noise band', () => {
     expect(turnPayoff(0.01, 1)).toBe('level');
-    expect(turnPayoff(0.01, 9)).toBe('level');
     expect(turnPayoff(0.2, 1)).toBe('slower-despite-g');
+  });
+
+  // Same time on materially different demand is the most actionable row in the
+  // table; reporting it as "Matched — same time, same demand" discarded it.
+  it('separates same-time-different-demand from a true match', () => {
+    expect(turnPayoff(0.01, 9)).toBe('level-dearer');
+    expect(turnPayoff(0.01, -9)).toBe('level-cheaper');
+    expect(PAYOFF_HINT['level-cheaper']).toMatch(/less grip/);
+  });
+
+  // compare.ts sets deltaGain to NaN for a turn outside the lap's common
+  // section; every comparison against NaN is false, so this used to fall through
+  // to 'level' and claim a turn the lap never rode was "Matched".
+  it('reports a turn the lap never rode as unmeasured, not matched', () => {
+    expect(turnPayoff(NaN, -37.2)).toBe('unmeasured');
+    expect(turnPayoff(0.4, NaN)).toBe('unmeasured');
+    expect(PAYOFF_LABEL.unmeasured).not.toMatch(/Matched/);
   });
 
   it('honours custom thresholds', () => {
@@ -229,5 +247,60 @@ describe('paceNote', () => {
     // the slower pace must show up as a negative percentage
     expect(note.pacePct).toBeLessThan(0);
     expect(note.refPace).toBeGreaterThan(note.subjectPace);
+  });
+});
+
+// ── Statistics measured over a domain the lap actually rode.
+
+describe('partial laps are not measured over track they never rode', () => {
+  /** A comparison whose second lap diverges from the reference three-quarters in. */
+  function partialComparison() {
+    const parsed = parseRaceboxCsv(circuitCsv(simulateSession([BASE_PACE, BASE_PACE], 1)));
+    const base = analyzeGripSession(parsed, DEFAULT_GRIP_SETTINGS);
+    const subLap = base.laps[1];
+    const from = subLap.start + Math.floor(0.78 * (subLap.end - subLap.start));
+    for (let i = from; i <= subLap.end; i++) parsed.ch.lat[i] += 0.0009;
+    const a = analyzeGripSession(parsed, DEFAULT_GRIP_SETTINGS);
+    const inputs: CompareLapInput[] = a.laps.map((lap) => ({
+      key: `s:${lap.num}`, label: `L${lap.num}`, sessionId: 's', analysis: a, lap, metric: a.comb,
+    }));
+    const cmp = compareLaps(inputs, inputs[0].key)!;
+    return { cmp, partial: cmp.laps.find((l) => l.verdict === 'partial')! };
+  }
+
+  // Outside its common section every grid channel holds its last real value, so
+  // integrating the whole axis charged a partial lap ~12% of its duty — measured
+  // 292 m of "drive" — to track it was never on, under a caption insisting the
+  // metres can be trusted precisely because they are metres.
+  it('confines dutyMetres to the shared section', () => {
+    const { cmp, partial } = partialComparison();
+    expect(partial).toBeTruthy();
+    const whole = dutyMetres(cmp.s, partial.grid);
+    const shared = dutyMetres(cmp.s, partial.grid, { section: partial.section });
+
+    expect(shared.total).toBeLessThan(whole.total);
+    // the section length, to within the grid step it is integrated on: only
+    // intervals lying wholly inside the section are counted
+    const sectionLength = partial.section.sOut - partial.section.sIn;
+    expect(Math.abs(shared.total - sectionLength)).toBeLessThanOrEqual(2 * DIST_STEP_M);
+    // brake + coast + drive must still tile the measured length exactly
+    expect(shared.brake + shared.coast + shared.drive).toBeCloseTo(shared.total, 6);
+    // and no category may be inflated by the unridden stretch
+    expect(shared.drive).toBeLessThanOrEqual(whole.drive);
+    expect(shared.brake).toBeLessThanOrEqual(whole.brake);
+  });
+
+  it('exposes the reference total so a theoretical best is not compared to another clock', () => {
+    const { cmp } = partialComparison();
+    const seg = compareSegments(cmp);
+    const ref = cmp.laps.find((l) => l.isReference)!;
+    // the two clocks: the metadata lap time and the spatial axis
+    expect(Number.isFinite(seg.referenceTotal)).toBe(true);
+    expect(seg.referenceTotal).toBe(seg.totals.find((t) => t.key === ref.key)!.time);
+    // when the reference wins every segment, the joined-up best IS the reference
+    // and the gain against it must be exactly zero, not a rounding artefact of a
+    // different clock
+    const refWonAll = seg.segments.every((sg) => sg.bestKey === ref.key);
+    if (refWonAll) expect(seg.theoreticalBest - seg.referenceTotal).toBeCloseTo(0, 9);
   });
 });

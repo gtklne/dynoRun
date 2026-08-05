@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { CompareGrid, GripComparison } from '@/analysis/grip/compare';
 import {
   distanceFrame,
@@ -45,26 +46,40 @@ interface Props {
   height?: number;
 }
 
+// Half a metre of slack, matching compareSegments: a lap with no trailing pad
+// ends at exactly the axis length to within Float32 rounding.
+const SECTION_EPS = 0.5;
+
 /**
  * Every selected lap's chosen channel on the shared distance axis — the
  * evidence behind the delta chart. Because the x axis is distance and not time,
  * two traces crossing means one rider was genuinely faster *at that point on
  * the track*, which a time axis can never show.
+ *
+ * A lap is drawn only across the stretch of axis it actually rode. Outside its
+ * common section `resampleByDistance` holds the last real value, so drawing the
+ * whole axis renders a flat line that is indistinguishable from measurement —
+ * on the local fixture pair that is 12% of the axis, at a held 215 km/h.
  */
 export function CompareTraceChart({ cmp, channel, colorOf, keys, cursor, onSeek, height = 170 }: Props) {
-  const series = cmp.laps.filter((l) => keys.includes(l.key));
+  // memoised so the draw deps are stable across unrelated parent renders
+  const series = useMemo(() => cmp.laps.filter((l) => keys.includes(l.key)), [cmp, keys]);
   const spec = SPEC[channel];
 
   const ref = useCanvasDraw(({ ctx, w, h }) => {
     ctx.clearRect(0, 0, w, h);
     const f = distanceFrame(w, h, cmp.refLength);
+    const measured = (l: (typeof series)[number], k: number) =>
+      cmp.s[k] >= l.section.sIn - SECTION_EPS && cmp.s[k] <= l.section.sOut + SECTION_EPS;
 
     let lo = spec.signed ? 0 : Infinity;
     let hi = spec.signed ? 0 : -Infinity;
     for (const l of series) {
       const arr = l.grid[channel as keyof CompareGrid] as Float32Array;
-      for (const raw of arr) {
-        const v = spec.scale(raw);
+      const n = Math.min(arr.length, cmp.s.length);
+      for (let k = 0; k < n; k++) {
+        if (!measured(l, k)) continue;
+        const v = spec.scale(arr[k]);
         if (Number.isNaN(v)) continue;
         if (v < lo) lo = v;
         if (v > hi) hi = v;
@@ -104,10 +119,14 @@ export function CompareTraceChart({ cmp, channel, colorOf, keys, cursor, onSeek,
       ctx.strokeStyle = colorOf.get(l.key) ?? '#e4e4e7';
       ctx.lineWidth = l.isReference ? 2.2 : 1.6;
       ctx.beginPath();
+      let open = false;
       for (let k = 0; k < n; k++) {
+        const v = spec.scale(arr[k]);
+        if (!measured(l, k) || Number.isNaN(v)) { open = false; continue; }
         const x = f.X(cmp.s[k]);
-        const y = Y(spec.scale(arr[k]));
-        k ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+        const y = Y(v);
+        if (open) ctx.lineTo(x, y);
+        else { ctx.moveTo(x, y); open = true; }
       }
       ctx.stroke();
     }
@@ -117,9 +136,11 @@ export function CompareTraceChart({ cmp, channel, colorOf, keys, cursor, onSeek,
     const k = nearestIndex(cmp.s, cursor);
     for (const l of series) {
       const arr = l.grid[channel as keyof CompareGrid] as Float32Array;
+      const v = spec.scale(arr[k]);
+      if (!measured(l, k) || Number.isNaN(v)) continue;
       ctx.fillStyle = colorOf.get(l.key) ?? '#e4e4e7';
       ctx.beginPath();
-      ctx.arc(f.X(cursor), Y(spec.scale(arr[k])), 3, 0, 7);
+      ctx.arc(f.X(cursor), Y(v), 3, 0, 7);
       ctx.fill();
     }
   }, [cmp, series, channel, colorOf, cursor, height]);

@@ -40,6 +40,13 @@ export function unpackGripData(data: StoredGripData): ParsedGripSession {
 
 const CHANNEL_KEYS: (keyof GripChannels)[] = ['t', 'lat', 'lon', 'spd', 'lean', 'lap', 'head'];
 
+/**
+ * Guard the stored envelope before it reaches the pipeline. Element types matter,
+ * not just array-ness: a channel holding nulls or strings produces an all-NaN
+ * analysis — a blank traction circle and a NaN score — with no error path.
+ * Sampled rather than exhaustive, because this runs on the render path for a
+ * 65k-sample session; a corrupt channel is corrupt in more than one place.
+ */
 export function isStoredGripData(v: unknown): v is StoredGripData {
   if (!v || typeof v !== 'object') return false;
   const d = v as Record<string, unknown>;
@@ -47,6 +54,14 @@ export function isStoredGripData(v: unknown): v is StoredGripData {
   const ch = d.ch as Record<string, unknown> | undefined;
   if (!ch || typeof ch !== 'object') return false;
   const t = ch.t;
-  if (!Array.isArray(t)) return false;
-  return CHANNEL_KEYS.every((k) => Array.isArray(ch[k]) && (ch[k] as unknown[]).length === t.length);
+  if (!Array.isArray(t) || t.length === 0) return false;
+  const stride = Math.max(1, Math.floor(t.length / 200));
+  return CHANNEL_KEYS.every((k) => {
+    const col = ch[k];
+    if (!Array.isArray(col) || col.length !== t.length) return false;
+    for (let i = 0; i < col.length; i += stride) {
+      if (typeof col[i] !== 'number' || !Number.isFinite(col[i])) return false;
+    }
+    return typeof col[col.length - 1] === 'number' && Number.isFinite(col[col.length - 1]);
+  });
 }

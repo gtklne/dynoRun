@@ -15,17 +15,39 @@ interface GripDataEnvelope {
   ch: Record<(typeof CHANNEL_KEYS)[number], number[]>;
 }
 
-// Structural check of the stored envelope (mirror of the client-side guard in
-// src/analysis/grip/storage.ts — the server can't import client code).
+// Keep in step with GRIP_DATA_VERSION in src/analysis/grip/types.ts — the server
+// cannot import client code, so this literal is the one place the two must agree.
+// Older envelopes are accepted (the client decides whether it can read them);
+// a *newer* one means this deployment is behind and must not store it.
+const MAX_DATA_VERSION = 1;
+
+// One 25 Hz hour is 90k samples per channel; well past any real track session.
+const MAX_SAMPLES = 500_000;
+
+/**
+ * Structural check of the stored envelope (mirror of the client-side guard in
+ * src/analysis/grip/storage.ts).
+ *
+ * Element types are checked, not just array-ness: a channel of nulls or strings
+ * used to pass, and it is stored as multi-MB jsonb forever behind healthy-looking
+ * summary columns while every derived channel comes out NaN — a blank traction
+ * circle and a NaN score, with no error path anywhere. 65k numeric checks are
+ * microseconds; a permanently corrupt row is not recoverable.
+ */
 function isGripDataEnvelope(v: unknown): v is GripDataEnvelope {
   if (!v || typeof v !== 'object') return false;
   const d = v as Record<string, unknown>;
-  if (d.version !== 1 || !d.meta || typeof d.meta !== 'object') return false;
+  if (typeof d.version !== 'number' || d.version < 1 || d.version > MAX_DATA_VERSION) return false;
+  if (!d.meta || typeof d.meta !== 'object') return false;
   const ch = d.ch as Record<string, unknown> | undefined;
   if (!ch || typeof ch !== 'object') return false;
   const t = ch.t;
-  if (!Array.isArray(t) || t.length === 0) return false;
-  return CHANNEL_KEYS.every((k) => Array.isArray(ch[k]) && (ch[k] as unknown[]).length === t.length);
+  if (!Array.isArray(t) || t.length === 0 || t.length > MAX_SAMPLES) return false;
+  return CHANNEL_KEYS.every((k) => {
+    const col = ch[k];
+    if (!Array.isArray(col) || col.length !== t.length) return false;
+    return col.every((x) => typeof x === 'number' && Number.isFinite(x));
+  });
 }
 
 const summaryColumns = {
