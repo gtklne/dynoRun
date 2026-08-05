@@ -11,6 +11,10 @@ function computeRollout(rpm: number, speedKmh: number): number {
   return (speedKmh / 3.6) / (rpm / 60);
 }
 
+function isFinitePositive(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
 route.get('/vehicles/:vehicleId/calibrations', async (c) => {
   const userId = c.get('userId');
   const rows = await db.select().from(calibrations)
@@ -29,13 +33,29 @@ route.post('/vehicles/:vehicleId/calibrations', async (c) => {
   if (!vehicle) return c.json({ error: 'Not found' }, 404);
   const body = await c.req.json<{
     gear_label: string; rpm: number; speed_kmh: number; notes?: string;
-  }>();
+  }>().catch(() => null);
+  if (!body) return c.json({ error: 'Invalid JSON body' }, 400);
+
+  const gearLabel = typeof body.gear_label === 'string' ? body.gear_label.trim() : '';
+  if (!gearLabel || gearLabel.length > 80) {
+    return c.json({ error: 'gear_label must be between 1 and 80 characters' }, 400);
+  }
+  if (!isFinitePositive(body.rpm) || body.rpm > 60_000) {
+    return c.json({ error: 'rpm must be a positive finite number up to 60000' }, 400);
+  }
+  if (!isFinitePositive(body.speed_kmh) || body.speed_kmh > 1_000) {
+    return c.json({ error: 'speed_kmh must be a positive finite number up to 1000' }, 400);
+  }
+  if (body.notes !== undefined && typeof body.notes !== 'string') {
+    return c.json({ error: 'notes must be a string' }, 400);
+  }
+
   const now = new Date().toISOString();
   const [row] = await db.insert(calibrations).values({
     id: crypto.randomUUID(),
     userId,
     vehicle_id: c.req.param('vehicleId'),
-    gear_label: body.gear_label,
+    gear_label: gearLabel,
     rpm: body.rpm,
     speed_kmh: body.speed_kmh,
     rollout_m_per_rev: computeRollout(body.rpm, body.speed_kmh),

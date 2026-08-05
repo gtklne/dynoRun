@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { authClient } from '@/auth/auth-client';
 import { BrandLogo } from '@/ui/components/brand-logo';
 import { TurnstileWidget, type TurnstileWidgetHandle } from '@/ui/auth/turnstile-widget';
@@ -48,7 +48,19 @@ function BrandPanel() {
   );
 }
 
+function safeCallbackPath(value: unknown): string | null {
+  if (typeof value !== 'string' || !value.startsWith('/')) return null;
+  try {
+    const url = new URL(value, window.location.origin);
+    if (url.origin !== window.location.origin) return null;
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return null;
+  }
+}
+
 export function LoginScreen() {
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -56,23 +68,39 @@ export function LoginScreen() {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const turnstileRef = useRef<TurnstileWidgetHandle>(null);
 
+  // RequireAuth supplies this state for deep links. Keep the callback same-origin
+  // even if this screen is reached with manually supplied router state or after
+  // an expired session has redirected the browser to /login?next=….
+  const statePath = (location.state as { from?: unknown } | null)?.from;
+  const requestedPath = typeof statePath === 'string'
+    ? statePath
+    : new URLSearchParams(location.search).get('next');
+  const callbackURL = safeCallbackPath(requestedPath) ?? '/home';
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const res = await authClient.signIn.magicLink({
-      email,
-      // Post-verify landing = the authed system home (not the public landing at /).
-      callbackURL: '/home',
-      fetchOptions: { headers: { 'x-captcha-response': captchaToken! } },
-    });
-    setLoading(false);
-    if (res.error) {
-      setError(res.error.message ?? 'Something went wrong');
+    try {
+      const res = await authClient.signIn.magicLink({
+        email,
+        // Preserve a protected deep link while keeping direct login on Home.
+        callbackURL,
+        fetchOptions: { headers: { 'x-captcha-response': captchaToken! } },
+      });
+      if (res.error) {
+        setError(res.error.message ?? 'Something went wrong');
+        setCaptchaToken(null);
+        turnstileRef.current?.reset();
+      } else {
+        setSent(true);
+      }
+    } catch {
+      setError('Could not send the sign-in link. Check your connection and try again.');
       setCaptchaToken(null);
       turnstileRef.current?.reset();
-    } else {
-      setSent(true);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -104,12 +132,17 @@ export function LoginScreen() {
         <form onSubmit={handleSubmit} className="w-full space-y-6">
           <BrandHeader />
           <div className="space-y-4">
+            <label htmlFor="email" className="sr-only">Email address</label>
             <input
+              id="email"
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
+              autoComplete="email"
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? 'login-error' : undefined}
               className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-amber-500 focus:outline-none transition-colors"
             />
             <TurnstileWidget
@@ -119,7 +152,7 @@ export function LoginScreen() {
               onExpire={() => setCaptchaToken(null)}
               onError={() => setCaptchaToken(null)}
             />
-            {error && <p className="text-red-400 text-sm">{error}</p>}
+            {error && <p id="login-error" role="alert" className="text-red-400 text-sm">{error}</p>}
             <button
               type="submit"
               disabled={loading || !captchaToken}

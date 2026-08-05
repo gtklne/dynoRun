@@ -22,15 +22,18 @@ export interface ApiFetchOptions extends RequestInit {
 
 export async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise<T> {
   const { publicEndpoint, ...rest } = init ?? {};
+  const headers = new Headers(rest.headers);
+  // Avoid an unnecessary CORS preflight on read-only requests. JSON is the
+  // default for this API's write payloads, but a GET has no content to type.
+  if (rest.body !== undefined && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
   let res: Response;
   try {
     res = await fetch(`${BASE}${path}`, {
       ...rest,
       credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...rest.headers,
-      },
+      headers,
     });
   } catch (err) {
     apiErrors$.next(err);
@@ -40,13 +43,24 @@ export async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise
     if (publicEndpoint) {
       throw new ApiError(401, 'Unauthorized');
     }
-    // Imperative nav (not basename-aware). App is served at root, so → /login.
-    window.location.href = '/login';
+    // Session expiry can happen on a deep screen. Preserve it through the
+    // magic-link flow instead of always returning the person to Home.
+    const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    window.location.href = `/login?next=${encodeURIComponent(currentPath)}`;
     throw new ApiError(401, 'Unauthorized');
   }
   if (!res.ok) {
     const text = await res.text();
-    const err = new ApiError(res.status, text || `HTTP ${res.status}`);
+    let message = text || `HTTP ${res.status}`;
+    try {
+      const payload: unknown = JSON.parse(text);
+      if (payload && typeof payload === 'object' && 'error' in payload && typeof payload.error === 'string') {
+        message = payload.error;
+      }
+    } catch {
+      // Plain-text error responses are valid too.
+    }
+    const err = new ApiError(res.status, message);
     if (!publicEndpoint) apiErrors$.next(err);
     throw err;
   }

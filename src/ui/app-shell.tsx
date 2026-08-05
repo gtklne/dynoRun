@@ -152,6 +152,10 @@ export function AppShell() {
           <GarageIcon />
           <span className="text-[10px] font-medium">Garage</span>
         </NavLink>
+        <NavLink to="/runs" className={navLinkClass}>
+          <RunsIcon />
+          <span className="text-[10px] font-medium">Runs</span>
+        </NavLink>
         <NavLink to="/grip" className={navLinkClass}>
           <GripIcon />
           <span className="text-[10px] font-medium">Grip</span>

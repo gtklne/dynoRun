@@ -86,4 +86,48 @@ describe('LoginScreen', () => {
     expect(button).toBeDisabled();
     cleanup();
   });
+
+  it('keeps a protected deep link as the post-sign-in destination', async () => {
+    const turnstile = mockTurnstile();
+    signInMagicLink.mockResolvedValue({ error: null });
+    render(
+      <MemoryRouter initialEntries={[{ pathname: '/login', state: { from: '/runs/run-1/review' } }]}>
+        <LoginScreen />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByLabelText(/email address/i), {
+      target: { value: 'user@example.com' },
+    });
+    await turnstile.solve('test-token');
+    fireEvent.click(screen.getByRole('button', { name: /send magic link/i }));
+
+    await waitFor(() => {
+      expect(signInMagicLink).toHaveBeenCalledWith(expect.objectContaining({
+        callbackURL: '/runs/run-1/review',
+      }));
+    });
+    cleanup();
+  });
+
+  it('rejects an external post-sign-in destination', async () => {
+    const turnstile = mockTurnstile();
+    signInMagicLink.mockResolvedValue({ error: null });
+    render(
+      <MemoryRouter initialEntries={['/login?next=%2F%2Fevil.example']}>
+        <LoginScreen />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByLabelText(/email address/i), {
+      target: { value: 'user@example.com' },
+    });
+    await turnstile.solve('test-token');
+    fireEvent.click(screen.getByRole('button', { name: /send magic link/i }));
+
+    await waitFor(() => {
+      expect(signInMagicLink).toHaveBeenCalledWith(expect.objectContaining({ callbackURL: '/home' }));
+    });
+    cleanup();
+  });
 });

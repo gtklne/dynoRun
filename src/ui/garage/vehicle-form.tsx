@@ -133,7 +133,7 @@ export function VehicleForm({
     <form onSubmit={submit} className="space-y-4">
       <div className={fieldClass}>
         <label htmlFor="vf-name" className={labelClass}>Name</label>
-        <input id="vf-name" className={inputClass} value={name} placeholder="e.g. Golf R" onChange={(e) => setName(e.target.value)} />
+        <input id="vf-name" required maxLength={120} className={inputClass} value={name} placeholder="e.g. Golf R" onChange={(e) => setName(e.target.value)} />
       </div>
 
       <div className={fieldClass}>
@@ -146,7 +146,7 @@ export function VehicleForm({
 
       <div className={fieldClass}>
         <label htmlFor="vf-mass" className={labelClass}>Mass (kg)</label>
-        <input id="vf-mass" className={inputClass} value={mass} inputMode="decimal" placeholder="Total: vehicle + driver + fuel" onChange={(e) => setMass(e.target.value)} />
+        <input id="vf-mass" type="number" min="1" step="0.1" required className={inputClass} value={mass} inputMode="decimal" placeholder="Total: vehicle + driver + fuel" onChange={(e) => setMass(e.target.value)} />
       </div>
 
       <div className={fieldClass}>

@@ -45,7 +45,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 text-center">
           <h1 className="text-xl font-bold text-zinc-100">Something went wrong</h1>
           <p className="mt-2 text-sm text-zinc-400">
-            Try refreshing — your runs are safe in the cloud.
+            Try refreshing. If the problem continues, copy the details below and send them to support.
           </p>
           <div className="mt-5 flex flex-col gap-2">
             <button

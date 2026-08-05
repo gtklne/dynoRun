@@ -22,6 +22,28 @@ html, body, #root {
   background-color: #09090b; /* zinc-950 */
 }
 
+html {
+  color-scheme: dark;
+}
+
+/* Keep keyboard navigation visible even on controls that only define hover
+   styles. Individual controls can still provide a more specific focus state. */
+:focus-visible {
+  outline: 2px solid #fbbf24; /* amber-400 */
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* Safe area padding for bottom nav */
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0px);

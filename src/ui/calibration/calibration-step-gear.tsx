@@ -62,6 +62,7 @@ export function CalibrationStepGear({ onSubmit }: { onSubmit: (g: GearInput) => 
                   key={preset}
                   type="button"
                   onClick={() => selectPreset(preset)}
+                  aria-pressed={active}
                   className={`${chipBase} ${active ? chipActive : chipInactive}`}
                 >
                   {preset}
@@ -71,19 +72,25 @@ export function CalibrationStepGear({ onSubmit }: { onSubmit: (g: GearInput) => 
             <button
               type="button"
               onClick={selectCustom}
+              aria-pressed={mode === 'custom'}
               className={`${chipBase} ${mode === 'custom' ? chipActive : chipInactive}`}
             >
               Custom
             </button>
           </div>
           {mode === 'custom' && (
-            <input
-              id="cal-gear"
-              className={inputClass}
-              value={gearLabel}
-              placeholder="e.g. 1st, Top"
-              onChange={(e) => setGearLabel(e.target.value)}
-            />
+            <>
+              <label htmlFor="cal-gear" className="sr-only">Custom gear label</label>
+              <input
+                id="cal-gear"
+                required
+                maxLength={80}
+                className={inputClass}
+                value={gearLabel}
+                placeholder="e.g. 1st, Top"
+                onChange={(e) => setGearLabel(e.target.value)}
+              />
+            </>
           )}
         </div>
 
@@ -91,6 +98,10 @@ export function CalibrationStepGear({ onSubmit }: { onSubmit: (g: GearInput) => 
           <label htmlFor="cal-rpm" className={labelClass}>Target RPM</label>
           <input
             id="cal-rpm"
+            type="number"
+            min="1"
+            step="1"
+            required
             className={inputClass}
             value={rpm}
             inputMode="decimal"
