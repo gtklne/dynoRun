@@ -125,19 +125,24 @@ export function CompareTurnTable({ cmp, refKey, subjectKey, anchorG, cursor, onS
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ c, ref, sub, dTime, dScore, dSpeed, dLean, dLoad, payoff }) => (
+            {rows.map(({ c, ref, sub, dTime, dScore, dSpeed, dLean, dLoad, payoff }) => {
+              // A turn outside the subject's common section has values — they are
+              // just measured on different tarmac. Printing them next to a "—" for
+              // time invites exactly the comparison the mask exists to prevent.
+              const off = payoff === 'unmeasured';
+              return (
               <tr
                 key={c.turn}
                 onClick={() => onSelectTurn(c.s)}
                 className={`cursor-pointer border-b border-zinc-800/60 text-[13px] transition-colors last:border-0 hover:bg-zinc-800/40 ${
                   activeTurn === c.turn ? 'bg-[#12161c]' : ''
-                }`}
+                } ${off ? 'opacity-50' : ''}`}
               >
                 <td className="px-3 py-2.5">
                   <span className="flex items-center gap-2">
                     <span
                       className="flex h-[22px] w-[22px] items-center justify-center rounded-md font-mono text-[11px] font-bold text-zinc-950"
-                      style={{ background: scoreColor((sub?.apexScore ?? 0) / 100, anchorG) }}
+                      style={{ background: off ? '#52525b' : scoreColor((sub?.apexScore ?? 0) / 100, anchorG) }}
                     >
                       {c.turn}
                     </span>
@@ -145,37 +150,38 @@ export function CompareTurnTable({ cmp, refKey, subjectKey, anchorG, cursor, onS
                   </span>
                 </td>
                 <td className={`px-3 py-2.5 text-right font-mono tabular-nums ${deltaTextClass(dTime)}`}>
-                  {sameLap ? '—' : `${formatDelta(dTime)}s`}
+                  {sameLap || off ? '—' : `${formatDelta(dTime)}s`}
                 </td>
                 <td className="px-3 py-2.5 text-right font-mono tabular-nums text-zinc-300">
-                  {sub?.measured === false ? '—' : Math.round(sub?.apexScore ?? 0)}
-                  {!sameLap && Number.isFinite(dScore) && (
+                  {off ? '—' : Math.round(sub?.apexScore ?? 0)}
+                  {!sameLap && !off && Number.isFinite(dScore) && (
                     <span className={`ml-1.5 text-[11px] ${deltaTextClass(-dScore, 3)}`}>
                       {formatDelta(dScore, 0)}
                     </span>
                   )}
                 </td>
                 <td className="px-3 py-2.5 text-right font-mono tabular-nums text-zinc-300">
-                  {Math.round((sub?.minSpeed ?? 0) * 3.6)}
-                  {!sameLap && (
+                  {off ? '—' : Math.round((sub?.minSpeed ?? 0) * 3.6)}
+                  {!sameLap && !off && (
                     <span className={`ml-1.5 text-[11px] ${deltaTextClass(-dSpeed, 1)}`}>
                       {formatDelta(dSpeed, 0)}
                     </span>
                   )}
                 </td>
                 <td className="px-3 py-2.5 text-right font-mono tabular-nums text-zinc-400">
-                  {Math.round(sub?.maxLean ?? 0)}°
-                  {!sameLap && <span className="ml-1.5 text-[11px] text-zinc-500">{formatDelta(dLean, 0)}</span>}
+                  {off ? '—' : `${Math.round(sub?.maxLean ?? 0)}°`}
+                  {!sameLap && !off && <span className="ml-1.5 text-[11px] text-zinc-500">{formatDelta(dLean, 0)}</span>}
                 </td>
                 <td className="px-3 py-2.5 text-right font-mono tabular-nums text-zinc-400">
-                  {(sub?.peakLoad ?? 0).toFixed(1)}
-                  {!sameLap && <span className="ml-1.5 text-[11px] text-zinc-500">{formatDelta(dLoad, 1)}</span>}
+                  {off ? '—' : (sub?.peakLoad ?? 0).toFixed(1)}
+                  {!sameLap && !off && <span className="ml-1.5 text-[11px] text-zinc-500">{formatDelta(dLoad, 1)}</span>}
                 </td>
                 <td className={`px-3 py-2.5 text-[12px] ${PAYOFF_STYLE[payoff]}`} title={PAYOFF_HINT[payoff]}>
                   {sameLap ? `ref ${Math.round(ref?.apexScore ?? 0)} pts` : PAYOFF_LABEL[payoff]}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

@@ -289,7 +289,10 @@ export function GripSessionScreen() {
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+      {/* items-start: the track map's canvas has a fixed aspect ratio, so a
+          stretching panel left a third of the column as dead space next to the
+          taller traction-circle + telemetry stack */}
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
         <Panel
           title={<>Track map — {metricModeName(mode).toLowerCase()}</>}
           hint={
