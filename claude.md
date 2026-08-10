@@ -210,10 +210,12 @@ API (Hono, all `/api/*` require session cookie):
   location = / {
       add_header Vary Cookie;
       add_header Cache-Control "no-cache";
-      try_files $wasgoht_root =404;
+      try_files $wasgoht_root /index.html;   # NOT =404 — see below
   }
   ```
-  CI only rsyncs `dist/`, so **this block survives deploys but is never re-applied by them** — it lives only on the server (backup: `/root/dynorun.nginx.bak`). If `/` ever starts serving the SPA to everyone, this block is what went missing. Always `nginx -t` before `systemctl reload nginx`.
+  The fallback is `/index.html`, not `=404`: `landing.html` is a build artefact, so a build whose prerender step was skipped or renamed would otherwise **404 the homepage** rather than quietly degrade to the client-rendered SPA. CI only rsyncs `dist/`, so **this block survives deploys but is never re-applied by them** — it lives only on the server (backup of the pre-landing config: `/root/dynorun.nginx.bak.pre-landing`). If `/` ever starts serving the SPA to anonymous visitors, this block is what went missing. Always `nginx -t` before `systemctl reload nginx`.
+
+  Verified live after applying: anonymous `GET /` → 68 kB, 0 `<script>`, `Vary: Cookie`, 15.5 kB gzipped on the wire; the same request carrying `better-auth.session_token` → the 1.6 kB SPA shell; every other route and `/api/` unchanged.
 - API service: `dynorun-api` systemd unit, Node.js Hono server at `/opt/dynorun-api/`, reads `/etc/dynorun.env`
 - Database: PostgreSQL 16 in Docker (`docker exec postgres psql -U dynorun -d dynorun`), data at `/var/lib/pg-data`
 - Deploy user: `deploy` (`/home/deploy`), used to rsync built frontend into `/var/www/dynorun`
