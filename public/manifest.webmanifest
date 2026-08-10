@@ -1,7 +1,7 @@
 {
   "name": "DynoRun",
   "short_name": "DynoRun",
-  "description": "GPS-based virtual dyno. Your phone is a dyno.",
+  "description": "GPS power curves, RaceBox grip analysis, and run comparison for drivers.",
   "theme_color": "#09090b",
   "background_color": "#09090b",
   "display": "standalone",

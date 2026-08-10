@@ -16,11 +16,12 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { LandingScreen } from '@/ui/home/landing-screen';
 
-export const LANDING_TITLE = 'wasgoht: motorsport telemetry';
+export const LANDING_TITLE = 'wasgoht | GPS dyno and grip analysis for drivers.';
 export const LANDING_URL = 'https://wasgoht.ch/';
+export const LANDING_SOCIAL_IMAGE = 'https://wasgoht.ch/media/wasgoht-social-card.png';
 
 const DESCRIPTION =
-  'wasgoht: motorsport telemetry tools. A GPS virtual dyno and a track-session grip analyzer, in one place.';
+  'Measure GPS-derived wheel power, compare runs, and analyze RaceBox grip and corners in one focused browser toolkit for drivers.';
 
 /**
  * Renders the complete landing document. Pure so it can be unit-tested without
@@ -40,17 +41,25 @@ export function renderLandingDocument({ css }: { css: string }): string {
     <meta name="theme-color" content="#09090b" />
     <meta name="description" content="${DESCRIPTION}" />
     <link rel="canonical" href="${LANDING_URL}" />
+    <link rel="preload" as="image" href="/media/wasgoht-track-hero-768.avif" type="image/avif" media="(max-width: 767px)" />
+    <link rel="preload" as="image" href="/media/wasgoht-track-hero-1536.avif" type="image/avif" media="(min-width: 768px)" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/favicon.svg" />
     <meta property="og:site_name" content="wasgoht" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="wasgoht: motorsport telemetry tools" />
-    <meta property="og:description" content="A GPS virtual dyno and a track-session grip analyzer, in one place." />
+    <meta property="og:title" content="${LANDING_TITLE}" />
+    <meta property="og:description" content="GPS power curves, RaceBox grip analysis, and run comparison for drivers who tune through evidence." />
     <meta property="og:url" content="${LANDING_URL}" />
-    <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="wasgoht: motorsport telemetry tools" />
-    <meta name="twitter:description" content="A GPS virtual dyno and a track-session grip analyzer, in one place." />
+    <meta property="og:image" content="${LANDING_SOCIAL_IMAGE}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="wasgoht GPS dyno and Grip analysis with an unbranded track car" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${LANDING_TITLE}" />
+    <meta name="twitter:description" content="GPS power curves, RaceBox grip analysis, and run comparison for drivers who tune through evidence." />
+    <meta name="twitter:image" content="${LANDING_SOCIAL_IMAGE}" />
+    <meta name="twitter:image:alt" content="wasgoht GPS dyno and Grip analysis with an unbranded track car" />
     <title>${LANDING_TITLE}</title>
     <style>${css}</style>
   </head>
