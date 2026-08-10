@@ -143,12 +143,28 @@ export function LandingScreen() {
         </section>
 
         {/* footer */}
-        <footer className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-zinc-900 py-6 text-xs text-zinc-600">
-          <span>Built by Johannes Nothstein.</span>
-          <span className="flex gap-4">
-            <Link to="/privacy" className="hover:text-zinc-400">Privacy Policy</Link>
-            <Link to="/imprint" className="hover:text-zinc-400">Imprint</Link>
-          </span>
+        <footer className="mt-auto border-t border-zinc-900 py-6 text-xs text-zinc-600">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span>Built by Johannes Nothstein.</span>
+            <span className="flex gap-4">
+              <Link to="/privacy" className="hover:text-zinc-400">Privacy Policy</Link>
+              <Link to="/imprint" className="hover:text-zinc-400">Imprint</Link>
+            </span>
+          </div>
+          {/* Followable outbound link — robots.txt only allows crawling of "/", so this is the
+              one page where the link carries weight. Never add rel="nofollow" here. */}
+          <div className="mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-1 border-t border-zinc-900 pt-4">
+            <span className="font-medium text-zinc-500">Our friends:</span>
+            <a
+              href="https://partynado.com"
+              target="_blank"
+              rel="noopener"
+              className="font-semibold text-zinc-300 transition-colors hover:text-white"
+            >
+              Partynado
+            </a>
+            <span>— find your party in Switzerland &amp; Germany.</span>
+          </div>
         </footer>
       </div>
     </div>
