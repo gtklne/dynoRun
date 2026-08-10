@@ -41,6 +41,8 @@ src/
   auth/          better-auth React client + AuthProvider context
   shared/        Types, units (km/h ↔ m/s, RPM ↔ ω), observable Subject, haversine, UUID, ISO time
   ui/            Screens (garage, calibration wizard, run, recordings, compare, grip, settings) + chart components
+  prerender/     landing-document.tsx: renders LandingScreen to a script-free HTML document
+scripts/         prerender-landing.mjs: post-build step writing dist/landing.html
 server/src/
   schema.ts      Drizzle schema — source of truth for Postgres (vehicles, calibrations, runs, samples, recordings, derived_curves, grip_sessions)
   index.ts       Hono app, CORS, mounts /api/* routes + better-auth /api/auth/**
@@ -104,7 +106,9 @@ Frontend (`src/App.tsx`, react-router-dom 6, all behind `RequireAuth` except `/l
 | Path | Screen |
 |---|---|
 | `/login` | Magic-link sign-in (Resend) |
-| `/` | Garage (vehicle list) |
+| `/` | `RootRoute`: signed in → `/home`, native → `/login`, else the public landing page (prerendered in prod, see below) |
+| `/home` | System home (tool launcher) |
+| `/garage` | Garage (vehicle list) |
 | `/vehicles/:id` | Detail + calibrations + run history |
 | `/vehicles/:vehicleId/calibrations/new` | 3-step wizard: gear → measure → confirm |
 | `/vehicles/:vehicleId/calibrations/:calibrationId/run` | Live run (warmup + record + auto-stop) |
@@ -118,6 +122,13 @@ Frontend (`src/App.tsx`, react-router-dom 6, all behind `RequireAuth` except `/l
 | `/replay` | Upload JSON fixture, run pipeline offline |
 | `/settings` | Load replay recording, view permissions |
 | `/admin` | Admin panel (admins only): user/content KPIs, growth & activity charts, users table, recent runs, leaderboard, system health |
+
+**The landing page is prerendered and ships zero JS.** `npm run build` runs `scripts/prerender-landing.mjs` after `vite build`: it renders `LandingScreen` via `src/prerender/landing-document.tsx` and writes `dist/landing.html` — a standalone document with **no `<script>` tag at all** and the entry stylesheet inlined into `<style>`. In prod nginx serves that file for exactly `/` (see *Deployment layout*), so the one page crawlers and first-time visitors get needs no JS, no hydration, and no sub-resource beyond the favicon and manifest. Build-time, not request-time: the page has no dynamic data, so an SSR round-trip through the API would only add a dependency and a latency floor. Consequences worth knowing:
+
+- **`LandingScreen` must stay hook-free and `<Link>`-free.** It is rendered by both the prerender and the SPA (dev, and prod visitors with a stale session cookie), and `renderToStaticMarkup` runs no effects while a react-router `<Link>` needs a Router that a script-free page will never boot. Plain `<a>` works in both. The page title lives in the two `<head>`s, not in a `useEffect`.
+- **The CSS is inlined because nginx here only gzips `text/html`** (`gzip_types` is left at its default). Inlined, the 60 kB stylesheet reaches the browser as ~11 kB and blocks nothing; as `/assets/index-*.css` the same bytes would be served uncompressed.
+- **`build.manifest: true` in `vite.config.ts` exists for this** — the script reads the entry's hashed stylesheet out of `dist/.vite/manifest.json`.
+- The script **fails the build** if the output contains `<script` or the body renders under 2 kB. A silently blank or silently scripted landing page would deploy happily and look fine to anyone testing with JS on.
 
 API (Hono, all `/api/*` require session cookie):
 
@@ -186,8 +197,23 @@ API (Hono, all `/api/*` require session cookie):
 
 ### Deployment layout
 
-- Web root: `/var/www/dynorun` (owned by `deploy:deploy`) — static SPA build (`index.html` + `assets/`)
+- Web root: `/var/www/dynorun` (owned by `deploy:deploy`) — static SPA build (`index.html` + `assets/`) plus the prerendered `landing.html`
 - Web server: nginx (`/etc/nginx/sites-enabled/dynorun`), HTTPS on port 443, SPA fallback to `/index.html`, `/api/` proxied to `:3000`
+- **`location = /` is cookie-switched, and it is not in the repo.** nginx serves the zero-JS `landing.html` at `/` to anonymous visitors, but must keep serving the SPA shell to signed-in ones or `RootRoute`'s redirect to `/home` never runs. A `map` on `$http_cookie` picks the file, which is why it is a `map` and not an `if`, and why the location sets `Vary: Cookie` (otherwise any cache in front could hand a signed-in user the landing page, or the reverse):
+  ```nginx
+  # http context, top of /etc/nginx/sites-enabled/dynorun
+  map $http_cookie $wasgoht_root {
+      default                        /landing.html;
+      "~*better-auth\.session_token=" /index.html;   # matches the __Secure- prefixed name too
+  }
+  # inside the apex server block, before `location /`
+  location = / {
+      add_header Vary Cookie;
+      add_header Cache-Control "no-cache";
+      try_files $wasgoht_root =404;
+  }
+  ```
+  CI only rsyncs `dist/`, so **this block survives deploys but is never re-applied by them** — it lives only on the server (backup: `/root/dynorun.nginx.bak`). If `/` ever starts serving the SPA to everyone, this block is what went missing. Always `nginx -t` before `systemctl reload nginx`.
 - API service: `dynorun-api` systemd unit, Node.js Hono server at `/opt/dynorun-api/`, reads `/etc/dynorun.env`
 - Database: PostgreSQL 16 in Docker (`docker exec postgres psql -U dynorun -d dynorun`), data at `/var/lib/pg-data`
 - Deploy user: `deploy` (`/home/deploy`), used to rsync built frontend into `/var/www/dynorun`
