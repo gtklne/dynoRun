@@ -1,5 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { type ReactNode } from 'react';
 import { BrandLogo } from '@/ui/components/brand-logo';
 import { SuiteMark, Wordmark } from '@/ui/components/brand-wordmark';
 import { GRIP_BLUE } from '@/ui/grip/colors';
@@ -46,13 +45,16 @@ function ToolCard({
   );
 }
 
+/**
+ * The public landing page. Prerendered to a script-free dist/landing.html at
+ * build time (src/prerender/landing-document.tsx), and still rendered by the SPA
+ * for anonymous visitors who reach "/" client-side (dev, or a stale session
+ * cookie in prod). Both paths must produce the same markup, so this component
+ * stays free of hooks and of react-router <Link> — every link is a plain <a>,
+ * which is also the only kind that works on a page that ships no JS. The title
+ * lives in the two documents' <head>, not in an effect, for the same reason.
+ */
 export function LandingScreen() {
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'wasgoht — motorsport telemetry';
-    return () => { document.title = prev; };
-  }, []);
-
   return (
     <div className="relative min-h-screen overflow-hidden bg-zinc-950 text-zinc-100">
       {/* ambient accent glows (amber = DynoRun, blue = Grip) */}
@@ -73,20 +75,16 @@ export function LandingScreen() {
             <SuiteMark size={26} />
             <Wordmark brand="suite" className="text-lg font-bold tracking-tight" />
           </span>
-          <Link
-            to="/login"
+          <a
+            href="/login"
             className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-zinc-950 transition-colors hover:bg-amber-400 active:bg-amber-600"
           >
             Sign in
-          </Link>
+          </a>
         </header>
 
         {/* hero */}
         <section className="flex flex-col items-start gap-6 pt-14 pb-16 lg:pt-24">
-          <span className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/60 px-3 py-1 text-xs font-medium text-zinc-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            Motorsport telemetry suite
-          </span>
           <h1 className="max-w-3xl text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
             Your phone is the
             <span className="text-amber-400"> dyno</span>.
@@ -99,18 +97,18 @@ export function LandingScreen() {
             track-session grip analyzer. One login, both tools, all in your browser.
           </p>
           <div className="flex flex-wrap items-center gap-3 pt-1">
-            <Link
-              to="/login"
+            <a
+              href="/login"
               className="rounded-xl bg-amber-500 px-5 py-3 text-sm font-semibold text-zinc-950 transition-colors hover:bg-amber-400 active:bg-amber-600"
             >
               Sign in to get started
-            </Link>
-            <Link
-              to="/demo"
+            </a>
+            <a
+              href="/demo"
               className="rounded-xl border border-zinc-700 px-5 py-3 text-sm font-semibold text-zinc-200 transition-colors hover:border-zinc-500 hover:text-white"
             >
               See an example run
-            </Link>
+            </a>
           </div>
         </section>
 
@@ -123,9 +121,9 @@ export function LandingScreen() {
             blurb="Drive one gear and the app derives your wheel-power and torque curves from GPS acceleration — no rolling road required."
             points={['Power & torque from F = ma', 'Per-vehicle garage & run history', 'Compare runs and share results']}
             footer={
-              <Link to="/login" className="text-sm font-semibold text-amber-400 hover:text-amber-300">
+              <a href="/login" className="text-sm font-semibold text-amber-400 hover:text-amber-300">
                 Open DynoRun →
-              </Link>
+              </a>
             }
           />
           <ToolCard
@@ -135,9 +133,9 @@ export function LandingScreen() {
             blurb="Load a RaceBox track session and see how much of your traction circle you actually used, corner by corner — entirely in the browser."
             points={['Traction-circle & grip analysis', 'Per-corner utilization breakdown', 'Sessions saved to your account']}
             footer={
-              <Link to="/grip" className="text-sm font-semibold hover:opacity-80" style={{ color: GRIP_BLUE }}>
+              <a href="/grip" className="text-sm font-semibold hover:opacity-80" style={{ color: GRIP_BLUE }}>
                 Open Grip →
-              </Link>
+              </a>
             }
           />
         </section>
@@ -145,10 +143,9 @@ export function LandingScreen() {
         {/* footer */}
         <footer className="mt-auto border-t border-zinc-900 py-6 text-xs text-zinc-600">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <span>Built by Johannes Nothstein.</span>
             <span className="flex gap-4">
-              <Link to="/privacy" className="hover:text-zinc-400">Privacy Policy</Link>
-              <Link to="/imprint" className="hover:text-zinc-400">Imprint</Link>
+              <a href="/privacy" className="hover:text-zinc-400">Privacy Policy</a>
+              <a href="/imprint" className="hover:text-zinc-400">Imprint</a>
             </span>
           </div>
           {/* Followable outbound link — robots.txt only allows crawling of "/", so this is the

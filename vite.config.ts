@@ -8,6 +8,9 @@ export default defineConfig({
   // Capacitor webview also serves from root — so base is '/' everywhere.
   base: '/',
   plugins: [react(), tailwindcss()],
+  // scripts/prerender-landing.mjs reads the entry's hashed stylesheet from the
+  // manifest so it can inline it into dist/landing.html.
+  build: { manifest: true },
   resolve: {
     alias: { '@': path.resolve(__dirname, 'src') },
   },
