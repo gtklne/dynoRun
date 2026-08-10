@@ -1,3 +1,5 @@
 User-agent: *
-Disallow: /imprint
 Disallow: /privacy
+Disallow: /imprint
+
+Sitemap: https://wasgoht.ch/sitemap.xml
