@@ -2,7 +2,7 @@ interface SegmentedControlProps<T extends string> {
   options: ReadonlyArray<{ value: T; label: string }>;
   value: T;
   onChange: (value: T) => void;
-  /** When true, use a more compact size — for embedding in card headers. */
+  /** When true, use a more compact size, for embedding in card headers. */
   compact?: boolean;
   ariaLabel?: string;
 }

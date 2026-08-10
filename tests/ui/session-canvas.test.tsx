@@ -1,5 +1,5 @@
-// The session analyzer's three canvases — track map, traction circle, load
-// timeline — had never executed a single draw statement anywhere: jsdom reports a
+// The session analyzer's three canvases (track map, traction circle, load
+// timeline) had never executed a single draw statement anywhere: jsdom reports a
 // zero-size bounding box, so useCanvasDraw's fitCanvas bails and every draw is
 // skipped. Forcing a size makes the real draw code run, and counting the calls
 // makes a skipped draw a failure rather than a silent pass.

@@ -32,7 +32,7 @@ export interface SessionControllerOptions {
  * Hands-free session: record the whole ride without touching the phone, then
  * detect the acceleration pulls afterwards and turn the selected ones into
  * runs. Unlike RunController there are no DB writes until the rider is back
- * and explicitly saves — a session that never gets saved costs nothing.
+ * and explicitly saves: a session that never gets saved costs nothing.
  */
 export class SessionController {
   private state: SessionState = initialSessionState();
@@ -76,7 +76,7 @@ export class SessionController {
     this.sensorRunning = true;
   }
 
-  /** Begin buffering the whole ride. Purely local — no run row is created. */
+  /** Begin buffering the whole ride. Purely local, no run row is created. */
   start(): void {
     if (this.state.kind !== 'ready') throw new Error('start() requires ready state');
     this.samples = [];
@@ -104,7 +104,7 @@ export class SessionController {
     this.finishing = true;
     this.unsub?.();
     this.unsub = null;
-    try { await this.opts.sensor.stop(); } catch { /* keep going — analysis is local */ }
+    try { await this.opts.sensor.stop(); } catch { /* keep going: analysis is local */ }
     this.sensorRunning = false;
     if (this.recorder) {
       const rec = this.recorder.finish();
@@ -168,7 +168,7 @@ export class SessionController {
           calibration_id,
           gear_label,
           conditions: {},
-          notes: chosen.length > 1 ? `${notes} — pull ${i + 1}` : notes,
+          notes: chosen.length > 1 ? `${notes}: pull ${i + 1}` : notes,
         });
         runId = run.id;
         const rows: Sample[] = sp.samples.map((s) => ({

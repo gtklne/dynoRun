@@ -22,7 +22,7 @@ import type { GripAnalysis, GripLap } from './types';
  * cumulative time-delta channel, distance-aligned channel overlays, and turn
  * windows that are identical in space for every lap.
  *
- * All laps must be analyzed with ONE shared GripSettings snapshot — speedSmooth
+ * All laps must be analyzed with ONE shared GripSettings snapshot, speedSmooth
  * changes the g channels and envMinSpeed and the corner* keys change detection,
  * so laps derived under different settings are not the same measurement. See
  * resolveCompareSettings in compare-stats.ts.
@@ -43,7 +43,7 @@ export interface CompareLapInput {
   /** stable identity, `${sessionId}:${lap.num}` */
   key: string;
   label: string;
-  /** the session this lap belongs to — datum correction is cross-session only */
+  /** the session this lap belongs to: datum correction is cross-session only */
   sessionId: string;
   /** analysis produced with the comparison's shared settings snapshot */
   analysis: GripAnalysis;
@@ -58,7 +58,7 @@ export interface CompareGrid {
   t: Float32Array;
   /**
    * Cumulative time delta vs the reference, seconds (+ = slower). NaN outside
-   * the lap's common section — masked rather than clamped, because a clamped
+   * the lap's common section: masked rather than clamped, because a clamped
    * value there is not imprecise, it is catastrophically wrong.
    */
   dt: Float32Array;
@@ -98,7 +98,7 @@ export interface CompareLapResult {
   maxGapM: number;
   /** monotone-clamp count; nonzero means the projection had to be forced */
   clamps: number;
-  /** ∫v·dt ÷ geometric length — ≈1 on sound GPS */
+  /** ∫v·dt ÷ geometric length: ≈1 on sound GPS */
   odoRatio: number;
   /** metres of the axis this lap actually followed */
   section: CommonSection;
@@ -110,13 +110,13 @@ export interface CompareLapResult {
   isReference: boolean;
   grid: CompareGrid;
   /**
-   * Cumulative delta at the axis end, seconds — NaN unless the lap followed the
+   * Cumulative delta at the axis end, seconds, NaN unless the lap followed the
    * whole layout, because a lap-time delta across a partial section is a lie.
    */
   finishDelta: number;
   /** cumulative delta across the common section, always defined */
   sectionDelta: number;
-  /** distance along the axis per subject sample — for exact corner windows */
+  /** distance along the axis per subject sample, for exact corner windows */
   u: Float32Array;
   path: LapPath;
 }
@@ -165,7 +165,7 @@ export interface GripComparison {
   axis: ReferenceAxis;
   laps: CompareLapResult[];
   corners: ComparedCorner[];
-  /** stretch of the axis EVERY aligned lap followed — the honest x-range */
+  /** stretch of the axis EVERY aligned lap followed, the honest x-range */
   common: CommonSection;
 }
 
@@ -177,8 +177,8 @@ function verdictFor(sectionFraction: number, lengthRatio: number): LapVerdict {
 
 /**
  * Build the canonical turn list: every lap's detected apexes are placed on the
- * axis and single-linkage clustered. Detection is genuinely unstable — the same
- * physical lap yields 6 to 9 corners depending on the lap — so a turn is defined
+ * axis and single-linkage clustered. Detection is genuinely unstable (the same
+ * physical lap yields 6 to 9 corners depending on the lap), so a turn is defined
  * by *where it is* and each lap is then measured over one identical spatial
  * window. GripCorner.n is a per-lap detection index and must never pair corners.
  */
@@ -258,7 +258,7 @@ export function compareLaps(inputs: CompareLapInput[], refKey: string): GripComp
   const grid = distanceGrid(axis.length);
   // The zero of every lap's clock is the moment it crosses the axis zero, found
   // by interpolation. Using each lap's own first sample instead leaves a
-  // per-lap bias of up to one sample period — measured as 39 ms of error
+  // per-lap bias of up to one sample period: measured as 39 ms of error
   // against a timing system, versus 1.4 ms with the spatial anchor.
   const refT0 = valueAtU(axis.u, refPath.te, 0);
   const refT = resampleByDistance(axis.u, refPath.te, grid);
@@ -377,7 +377,7 @@ export function compareLaps(inputs: CompareLapInput[], refKey: string): GripComp
   // De-overlap the turn windows. Clustering can split one physical bend into two
   // turns whose windows overlap by hundreds of metres (measured: T8 [1925, 2251]
   // and T9 [1989, 2272], both resolving to the same apex sample), and the turn
-  // table adds their per-turn Δtime as if the windows were disjoint — overstating
+  // table adds their per-turn Δtime as if the windows were disjoint, overstating
   // "how much of the gap sits there" by 88% on the real fixture pair. Cutting at
   // the midpoint between neighbouring apexes, exactly as compareSegments does,
   // makes the windows a partition so the deltas are additive.

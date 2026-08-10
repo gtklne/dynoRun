@@ -4,40 +4,40 @@ import type { GripSettings } from './settings';
 export const ENVELOPE_BINS = 72;
 
 // The envelope is descriptive (traction-circle boundary + session score), not a
-// normaliser, so it is fit near the observed extreme — but it must not be fit ON
+// normaliser, so it is fit near the observed extreme, but it must not be fit ON
 // a noise spike, and a percentile alone cannot promise that. At 1% it discards
 // floor(n/100) samples, while most angular bins hold well under 100, so for them
 // "p99" was literally the bin maximum. Meanwhile the channel pipeline's smoothing
 // and central difference smear one bad fix across ~10 consecutive samples.
 //
 // So the rule is a minimum *count*, not a percentile: the boundary has to be
-// exceeded for DROP_MIN samples — 0.48 s at 25 Hz — before it moves. That is the
+// exceeded for DROP_MIN samples (0.48 s at 25 Hz) before it moves. That is the
 // physical distinction being drawn. Real cornering at the limit lasts one to
 // three seconds; a reacquisition step or a lean-sensor spike lasts under half of
 // one. Measured on both real fixtures, injecting a 10-sample 2.25 g artifact:
 //   drop  5 → sessionScore +4.2/+4.8 points, gref 1.27 → 2.25 g   (a lie)
 //   drop 12 → sessionScore +0.05/+0.09,      gref unchanged
-// The price is ~2.4–3.2 points of absolute level on clean data, applied equally
+// The price is ~2.4-3.2 points of absolute level on clean data, applied equally
 // to every session, which is the right trade for a score only read comparatively.
 const ENVELOPE_PCT = 99;
 const DROP_MIN = 12;
 
 // …but never more than a quarter of a bin. A sparse bin (a direction barely
-// visited, 2–4 samples on a single-lap fit) would otherwise be erased entirely.
+// visited, 2-4 samples on a single-lap fit) would otherwise be erased entirely.
 const DROP_MAX_FRACTION = 0.25;
 
 // No motorcycle exceeds ~2 g combined (MotoGP braking peaks); anything above
 // this is a GPS artifact (signal-reacquisition speed step) and must not set
-// the boundary. Display channels are untouched — only the fit ignores them.
+// the boundary. Display channels are untouched: only the fit ignores them.
 const FIT_MAX_G = 2.5;
 
 // The combined cap alone leaves a gap: a signal reacquisition produces a speed
 // *step*, and after smoothing and differentiation that lands ~10 samples at
-// 1.5–2.5 g — plausible enough to pass FIT_MAX_G, large enough to own a bin.
+// 1.5-2.5 g: plausible enough to pass FIT_MAX_G, large enough to own a bin.
 // Longitudinally the physics is far tighter than laterally: a bike is
 // wheelie-limited on drive and stoppie-limited on the brake, so beyond this it is
 // not a tyre, it is arithmetic on a discontinuity. Lateral g is deliberately not
-// capped this hard — that is where a real rider's numbers live.
+// capped this hard: that is where a real rider's numbers live.
 const FIT_MAX_LONG_G = 1.4;
 
 /** Envelope radius at a g-vector direction (nearest angular bin). */
@@ -55,7 +55,7 @@ export function envelopeRadius(env: Float32Array, theta: number): number {
  *
  * The session score is 100 × the RMS envelope radius: an absolute number
  * (100 ≈ working a full 1 g circle) comparable across sessions, bikes and
- * riders — a bigger envelope means more of the g-g plane was actually used.
+ * riders: a bigger envelope means more of the g-g plane was actually used.
  */
 export function computeEnvelope(
   ch: Pick<GripDerivedChannels, 'spdS' | 'comb' | 'theta' | 'alongRaw'>,
@@ -102,7 +102,7 @@ export function computeEnvelope(
     }
   }
 
-  // Nothing qualified — a slow session, or envMinSpeed raised above everything
+  // Nothing qualified: a slow session, or envMinSpeed raised above everything
   // ridden. There is no envelope; say so with zeros rather than letting NaN
   // reach a score in the header and a moveTo() on the traction circle.
   if (fitSamples === 0) {

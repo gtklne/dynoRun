@@ -1,6 +1,6 @@
 // Ground-truth check against the two real RaceBox sessions. The CSVs are
 // gitignored (see tests/fixtures/racebox/README.md), so these cases skip in CI
-// and run locally — they are the only place the alignment is measured against
+// and run locally: they are the only place the alignment is measured against
 // lap times a timing system produced rather than ones we simulated.
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
@@ -40,7 +40,7 @@ describe.skipIf(!have)('compare on real RaceBox sessions', () => {
       // RaceBox's own lap time vs the delta we integrate along the shared axis.
       // Measured: mean 0.8 ms, max 1.4 ms over these ten laps. Anchoring each
       // lap's clock at its own first sample instead of at the axis zero costs
-      // 39 ms — a constant per-lap bias, four units of the 0.01 s we print.
+      // 39 ms: a constant per-lap bias, four units of the 0.01 s we print.
       expect(Math.abs(l.finishDelta - (l.lapTime - best.time))).toBeLessThan(0.01);
     }
   });
@@ -68,7 +68,7 @@ describe.skipIf(!have)('compare on real RaceBox sessions', () => {
 
   it('compares only the section two layouts share, and withholds a lap-time delta', () => {
     // both sessions report track "Anneau Du Rhin", configuration "Short", and
-    // their start/finish fixes are within 2 m — but the laps are 2739 m and
+    // their start/finish fixes are within 2 m, but the laps are 2739 m and
     // 3411 m: B runs a ~690 m extension and rejoins before the line. Name
     // equality is not layout equality, and the honest answer is not a refusal
     // but the 88% of the lap that genuinely is the same track.
@@ -85,7 +85,7 @@ describe.skipIf(!have)('compare on real RaceBox sessions', () => {
       const cmp = compareLaps(inputs, ref)!;
       const other = cmp.laps.find((l) => !l.isReference)!;
       expect(other.verdict).toBe('partial');
-      // no lap-time delta across a partial section — that number would be a lie
+      // no lap-time delta across a partial section. That number would be a lie
       expect(Number.isNaN(other.finishDelta)).toBe(true);
       expect(Number.isFinite(other.sectionDelta)).toBe(true);
       expect(other.sectionFraction).toBeGreaterThan(0.5);

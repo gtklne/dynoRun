@@ -16,7 +16,7 @@ function toDayString(ts: number): string {
 /**
  * Expand sparse per-day counts into a dense series covering the last `days`
  * days up to `today` (inclusive), inserting 0 for missing days. Charts need
- * the gaps made explicit — otherwise quiet days silently disappear and the
+ * the gaps made explicit: otherwise quiet days silently disappear and the
  * x-axis lies about the cadence.
  */
 export function fillDailySeries(sparse: DayCount[], days: number, today: string): DayCount[] {

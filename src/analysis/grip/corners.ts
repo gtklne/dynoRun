@@ -5,7 +5,7 @@ interface CornerInputs {
   t: number[];
   spdS: Float32Array;
   leanS: Float32Array;
-  /** combined g demand per sample — the stored per-corner stats are grip-only */
+  /** combined g demand per sample: the stored per-corner stats are grip-only */
   comb: Float32Array;
   loadRate: Float32Array;
 }
@@ -62,7 +62,7 @@ export function detectCorners(
     let r = ap;
     while (r < b && sp[r + 1] >= sp[r] - 0.05 && t[r] - t[ap] < 4) r++;
     // Adjacent corners expand toward the same speed maximum between them, so
-    // their windows overlap — measured on real data as up to 4% of a lap sitting
+    // their windows overlap: measured on real data as up to 4% of a lap sitting
     // inside two windows at once, inflating the loser's "peak through corner" by
     // 13 points with the neighbour's apex. Split at the midpoint between apexes:
     // every sample then belongs to exactly one corner, which also makes "which
@@ -85,7 +85,7 @@ export function detectCorners(
 
     const { apex, peak } = windowStats(comb, vals, l, r, ap);
     corners.push({
-      // turn is filled in by assignTrackTurns() once every lap is built — it
+      // turn is filled in by assignTrackTurns() once every lap is built. It
       // cannot be known from one lap alone
       n: k + 1, turn: 0, l, r, ap, dir, minSpeed, maxLean, apexG: apex, peakG: peak, peakLoad,
       tStart: t[l], tApex: t[ap], tEnd: t[r],

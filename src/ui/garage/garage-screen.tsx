@@ -52,7 +52,7 @@ function VehicleCard({ vehicle, stats }: { vehicle: Vehicle; stats: VehicleStats
 
 function OnboardingCard() {
   const steps = [
-    'Add your vehicle (mass matters — physics is F=ma)',
+    'Add your vehicle (mass matters, physics is F=ma)',
     'Calibrate a gear (drive at known RPM to capture your speed/RPM ratio)',
     'Drive and record (the app derives your power curve from GPS acceleration)',
   ];

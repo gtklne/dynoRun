@@ -50,7 +50,7 @@ const run = (ch: ReturnType<typeof trace>, over: Partial<typeof S> = {}) =>
 
 describe('detectCorners', () => {
   it('merges two minima closer together than mergeGap, keeping the deeper one', () => {
-    // two distinct minima 0.6 s apart — well inside the 1.2 s default gap, and
+    // two distinct minima 0.6 s apart: well inside the 1.2 s default gap, and
     // narrow enough that a real speed maximum sits between them
     const ch = trace({
       seconds: 20,

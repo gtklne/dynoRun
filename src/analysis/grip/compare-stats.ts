@@ -22,7 +22,7 @@ export interface ResolvedCompareSettings {
  * corner* keys change detection, so laps derived under different settings are
  * not the same measurement.
  *
- * Where every session already agrees on a key, that shared value is kept — the
+ * Where every session already agrees on a key, that shared value is kept, the
  * rider's tuning survives. Where they disagree, the default wins rather than
  * one session's value, so the result does not depend on which lap happens to be
  * the reference or in what order sessions were added.
@@ -45,7 +45,7 @@ export function resolveCompareSettings(inputs: unknown[]): ResolvedCompareSettin
 
 /**
  * Derived read-outs on top of a GripComparison. Everything here is an absolute
- * score or a physical unit — seconds, metres, km/h, degrees, g — never a
+ * score or a physical unit (seconds, metres, km/h, degrees, g), never a
  * fraction of a limit.
  */
 
@@ -59,7 +59,7 @@ export function resolveCompareSettings(inputs: unknown[]): ResolvedCompareSettin
  * number of laps removes that bias.
  *
  * Every contiguous k-lap window is fitted and the *median-scoring* window is
- * returned whole — never an average of windows, because the boundary is
+ * returned whole, never an average of windows, because the boundary is
  * max-preserving and averaging rings would produce a shape that was never fit
  * to any data. Implemented by masking the lap channel, so envelope.ts is
  * untouched.
@@ -150,7 +150,7 @@ export interface CompareSegment {
 export interface SegmentBreakdown {
   segments: CompareSegment[];
   /**
-   * Σ of each segment's best time — the lap the rider has already ridden, in
+   * Σ of each segment's best time: the lap the rider has already ridden, in
    * pieces, on different laps. Never a prediction: every part of it happened.
    */
   theoreticalBest: number;
@@ -159,7 +159,7 @@ export interface SegmentBreakdown {
   /** per-lap total, Σ its segment times (equals its measured lap duration) */
   totals: SegmentTime[];
   /**
-   * Σ of the reference lap's own segments — the only figure `theoreticalBest`
+   * Σ of the reference lap's own segments: the only figure `theoreticalBest`
    * may be subtracted from. `CompareLapResult.lapTime` comes from the RaceBox
    * metadata and is measured on a different clock than the spatial axis: on real
    * data the two differ by 52 ms, so differencing them invents a 0.05 s gain
@@ -260,9 +260,9 @@ export interface DutyMetres {
 }
 
 export interface DutyOptions {
-  /** g — |long demand| below this counts as coasting */
+  /** g: |long demand| below this counts as coasting */
   coastBand?: number;
-  /** g — combined demand that counts as "hard" */
+  /** g: combined demand that counts as "hard" */
   gThreshold?: number;
   /** deg */
   leanThreshold?: number;
@@ -283,7 +283,7 @@ export interface DutyOptions {
  * needs +resistanceG(v) of drive. On the raw channel a steady 200 km/h would
  * read as coasting while the rear tire carries 0.3 g of drive.
  *
- * Metres, never percentages — a percentage of a lap hides that one lap is
+ * Metres, never percentages: a percentage of a lap hides that one lap is
  * longer than the other.
  */
 export function dutyMetres(s: Float32Array, grid: CompareGrid, opts: DutyOptions = {}): DutyMetres {
@@ -309,7 +309,7 @@ export function dutyMetres(s: Float32Array, grid: CompareGrid, opts: DutyOptions
 }
 
 export type TurnPayoff =
-  /** the lap did not ride this turn — nothing to compare, not a match */
+  /** the lap did not ride this turn, nothing to compare, not a match */
   | 'unmeasured'
   | 'level'
   | 'faster-more-g'
@@ -321,9 +321,9 @@ export type TurnPayoff =
   | 'level-dearer';
 
 export interface PayoffThresholds {
-  /** seconds — smaller time differences are noise */
+  /** seconds: smaller time differences are noise */
   time?: number;
-  /** score points — smaller demand differences are noise */
+  /** score points: smaller demand differences are noise */
   score?: number;
 }
 
@@ -342,13 +342,13 @@ export function turnPayoff(deltaTime: number, deltaScore: number, t: PayoffThres
   // compare.ts sets deltaGain to NaN for a turn outside the lap's common section.
   // Every comparison below is false for NaN, so this used to fall through to
   // 'level' and report a turn the lap physically never rode as
-  // "Matched — same time, same demand".
+  // "Matched: same time, same demand".
   if (!Number.isFinite(deltaTime) || !Number.isFinite(deltaScore)) return 'unmeasured';
   if (deltaTime < -dt) return deltaScore > ds ? 'faster-more-g' : 'faster-other';
   if (deltaTime > dt) return deltaScore < -ds ? 'slower-backed-off' : 'slower-despite-g';
   // The time matched. That is not the same as nothing happening: spending
   // materially more or less grip for the identical time is the most actionable
-  // reading in the table, and calling it "Matched — same time, same demand"
+  // reading in the table, and calling it "Matched, same time, same demand"
   // threw it away.
   if (deltaScore > ds) return 'level-dearer';
   if (deltaScore < -ds) return 'level-cheaper';
@@ -358,26 +358,26 @@ export function turnPayoff(deltaTime: number, deltaScore: number, t: PayoffThres
 export const PAYOFF_LABEL: Record<TurnPayoff, string> = {
   'unmeasured': 'Not on this lap',
   'level': 'Matched',
-  'faster-more-g': 'Faster — more grip used',
-  'faster-other': 'Faster — line or drive',
-  'slower-backed-off': 'Slower — backed off',
-  'slower-despite-g': 'Slower — grip was there',
-  'level-cheaper': 'Same time — cheaper',
-  'level-dearer': 'Same time — dearer',
+  'faster-more-g': 'Faster: more grip used',
+  'faster-other': 'Faster: line or drive',
+  'slower-backed-off': 'Slower: backed off',
+  'slower-despite-g': 'Slower: grip was there',
+  'level-cheaper': 'Same time: cheaper',
+  'level-dearer': 'Same time: dearer',
 };
 
 export const PAYOFF_HINT: Record<TurnPayoff, string> = {
   'unmeasured': 'This lap left the reference layout before this turn, so there is nothing to compare.',
   'level': 'Same time, same demand.',
   'faster-more-g': 'You leaned on the tyre harder here and it paid.',
-  'faster-other': 'Same demand, less time — a better line or an earlier drive.',
+  'faster-other': 'Same demand, less time: a better line or an earlier drive.',
   'slower-backed-off': 'Less demand and slower: the lap you already rode proves there is more here.',
-  'slower-despite-g': 'The g was there but the time was not — suspect the line, the apex or the exit drive.',
-  'level-cheaper': 'Same time for less grip — the line was doing the work, not the tyre. This is the version to repeat.',
-  'level-dearer': 'Same time but more grip spent — you paid tyre for nothing here.',
+  'slower-despite-g': 'The g was there but the time was not. Suspect the line, the apex or the exit drive.',
+  'level-cheaper': 'Same time for less grip: the line was doing the work, not the tyre. This is the version to repeat.',
+  'level-dearer': 'Same time but more grip spent: you paid tyre for nothing here.',
 };
 
-/** Mean pace over a lap, m/s — path length ÷ measured duration. */
+/** Mean pace over a lap, m/s: path length ÷ measured duration. */
 export function lapPace(lap: CompareLapResult): number {
   const dur = lap.grid.t[lap.grid.t.length - 1];
   return dur > 0 ? lap.pathLength / dur : 0;

@@ -12,7 +12,7 @@ coverage
 vite.config.js
 vite.config.d.ts
 
-# Real RaceBox sessions — multi-MB, kept locally only (see tests/fixtures/racebox/README.md)
+# Real RaceBox sessions: multi-MB, kept locally only (see tests/fixtures/racebox/README.md)
 tests/fixtures/racebox/*.csv
 
 # Capacitor build artifacts (the native projects themselves stay in git)

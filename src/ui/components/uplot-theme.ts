@@ -25,7 +25,7 @@ export function responsiveChartHeight(baseHeight: number): number {
 
 /**
  * Keep a uPlot instance sized to its container. uPlot captures width once at
- * construction; without this it never reflows when the container changes —
+ * construction; without this it never reflows when the container changes,
  * which is exactly what happens with the desktop multi-column layouts, a
  * window resize, or crossing the mobile↔desktop breakpoint. Re-derives height
  * from {@link responsiveChartHeight} on each change so the breakpoint tiers
@@ -88,7 +88,7 @@ export function themedAxis(opts: ThemedAxisOptions = {}): uPlot.Axis {
  *  the data (raw is null). */
 export function legendValue(unit: string, decimals = 1) {
   return (_self: uPlot, raw: number | null): string =>
-    raw == null || !Number.isFinite(raw) ? '—' : `${raw.toFixed(decimals)} ${unit}`;
+    raw == null || !Number.isFinite(raw) ? 'n/a' : `${raw.toFixed(decimals)} ${unit}`;
 }
 
 export function themedCursor(extras: uPlot.Cursor = {}): uPlot.Cursor {

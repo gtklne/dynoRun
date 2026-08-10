@@ -38,7 +38,7 @@ describe('geoFrame', () => {
 
   it('shrinks longitude scale toward the poles', () => {
     // at the equator kx is the prime-vertical radius (a) and ky the meridian
-    // radius (a(1−e²)) — the two are not interchangeable
+    // radius (a(1−e²)): the two are not interchangeable
     expect(geoFrame(0, 0).kx).toBeCloseTo(111319.5, 0);
     expect(geoFrame(0, 0).ky).toBeCloseTo(110574.4, 0);
     expect(geoFrame(60, 0).kx).toBeLessThan(geoFrame(30, 0).kx);
@@ -263,8 +263,8 @@ describe('estimateDatumOffset', () => {
     expect(fit.dx).toBeLessThan(0);
     expect(fit.dy).toBeGreaterThan(0);
     // and what it is for: the lap sits closer to the reference line afterwards.
-    // Only the component perpendicular to the line is observable — sliding a
-    // lap along its own path changes nothing — so exact recovery is not the bar.
+    // Only the component perpendicular to the line is observable (sliding a
+    // lap along its own path changes nothing), so exact recovery is not the bar.
     const before = mean(projectOntoReference(sub, ref, axis).off);
     const after = mean(projectOntoReference(sub, ref, axis, fit).off);
     expect(after).toBeLessThan(before * 0.6);
@@ -272,7 +272,7 @@ describe('estimateDatumOffset', () => {
 
   it('refuses a shift too large to be a datum offset', () => {
     // a straight reference makes the whole offset observable, so the fit really
-    // does estimate 20 m — which is not a datum offset, it is a different track
+    // does estimate 20 m, which is not a datum offset, it is a different track
     const line: [number, number][] = [];
     for (let y = 0; y <= 400; y += 2) line.push([0, y]);
     const ref = pathFromPoints(line);

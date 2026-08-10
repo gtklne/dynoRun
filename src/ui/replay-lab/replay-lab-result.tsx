@@ -26,7 +26,7 @@ export function ReplayResultPanel(props: ReplayResultPanelProps) {
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
         <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Calibration hold</p>
         <p className="text-zinc-400 text-sm">
-          This is a steady-state calibration recording — there's no power curve to derive.
+          This is a steady-state calibration recording, so there's no power curve to derive.
         </p>
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3">
@@ -40,7 +40,7 @@ export function ReplayResultPanel(props: ReplayResultPanelProps) {
             <p className="text-zinc-500 text-[10px] uppercase tracking-wider mb-1">Implied rollout</p>
             <p className="tabular-nums">
               <span className="text-2xl font-bold text-amber-400">
-                {impliedRollout != null ? impliedRollout.toFixed(4) : '—'}
+                {impliedRollout != null ? impliedRollout.toFixed(4) : 'n/a'}
               </span>
               <span className="text-xs text-zinc-400 ml-1">m/rev</span>
             </p>

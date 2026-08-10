@@ -7,8 +7,8 @@ Replace the local sql.js storage with a server-side PostgreSQL database and a Ho
 ## Sub-projects
 
 This feature is split into two sequential specs:
-1. **This spec** — Backend API (Hono + PostgreSQL + better-auth + Resend)
-2. `2026-05-24-frontend-integration-design.md` — Frontend rewrite (API client + login UI)
+1. **This spec**: Backend API (Hono + PostgreSQL + better-auth + Resend)
+2. `2026-05-24-frontend-integration-design.md`, Frontend rewrite (API client + login UI)
 
 ---
 
@@ -31,7 +31,7 @@ This feature is split into two sequential specs:
 
 - PostgreSQL runs in Docker with a bind-mounted volume at `/var/lib/pg-data` for persistence.
 - The Hono API runs as a systemd service (`dynorun-api.service`), started on boot, restarted on failure.
-- nginx gains a `/api/` proxy block — all other traffic continues to serve the SPA.
+- nginx gains a `/api/` proxy block: all other traffic continues to serve the SPA.
 
 ### Environment file
 
@@ -105,15 +105,15 @@ derived_curves (run_id FK PRIMARY KEY, rpm_min, rpm_max,
                 points JSONB, pipeline_version, computed_at)
 ```
 
-`synced_at` columns are dropped — they were for local→server sync which is no longer needed.
+`synced_at` columns are dropped: they were for local→server sync which is no longer needed.
 
 ---
 
 ## Authentication (better-auth + Resend)
 
 ### Library choices
-- **better-auth** — handles magic link token generation, email dispatch, JWT session creation
-- **Resend** — transactional email (100 emails/day free, simple API)
+- **better-auth** (handles magic link token generation, email dispatch, JWT session creation
+- **Resend**) transactional email (100 emails/day free, simple API)
 
 ### Magic link flow
 
@@ -132,7 +132,7 @@ derived_curves (run_id FK PRIMARY KEY, rpm_min, rpm_max,
    → Deletes session row, clears cookie
 ```
 
-Sessions are stored in an HttpOnly cookie — no localStorage, no manual JWT handling on the frontend.
+Sessions are stored in an HttpOnly cookie, no localStorage, no manual JWT handling on the frontend.
 
 ### better-auth config (`server/src/auth.ts`)
 
@@ -207,7 +207,7 @@ DERIVED CURVES:
   PUT    /api/runs/:id/curve        upsert derived curve
 ```
 
-All list endpoints only return rows where `user_id = session.userId` — no cross-user data leakage.
+All list endpoints only return rows where `user_id = session.userId`, no cross-user data leakage.
 
 ---
 

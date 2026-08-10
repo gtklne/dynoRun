@@ -22,9 +22,9 @@ const SERIES_AMBER = '#fbbf24';
 const SERIES_SKY = '#38bdf8';
 
 function timeAgo(iso: string | null | undefined): string {
-  if (!iso) return '—';
+  if (!iso) return 'n/a';
   const ts = Date.parse(iso);
-  if (!isFinite(ts)) return '—';
+  if (!isFinite(ts)) return 'n/a';
   const s = Math.max(0, (Date.now() - ts) / 1000);
   if (s < 60) return 'just now';
   if (s < 3600) return `${Math.floor(s / 60)} min ago`;
@@ -37,9 +37,9 @@ function timeAgo(iso: string | null | undefined): string {
 }
 
 function formatDate(iso: string | null | undefined): string {
-  if (!iso) return '—';
+  if (!iso) return 'n/a';
   const ts = Date.parse(iso);
-  return isFinite(ts) ? new Date(ts).toLocaleDateString() : '—';
+  return isFinite(ts) ? new Date(ts).toLocaleDateString() : 'n/a';
 }
 
 function SectionHeader({ children }: { children: string }) {
@@ -169,14 +169,14 @@ export function AdminScreen() {
 
       <div className="space-y-8 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-6">
         <section className="space-y-2">
-          <SectionHeader>Signups — last 90 days</SectionHeader>
+          <SectionHeader>Signups: last 90 days</SectionHeader>
           <Card>
             <DailySeriesChart series={signupSeries} testId="admin-signups-chart" />
           </Card>
         </section>
 
         <section className="space-y-2">
-          <SectionHeader>Activity — last 60 days</SectionHeader>
+          <SectionHeader>Activity: last 60 days</SectionHeader>
           <Card>
             <DailySeriesChart series={activitySeries} testId="admin-activity-chart" />
           </Card>
@@ -197,7 +197,7 @@ export function AdminScreen() {
           />
           <StatTile
             label="Curve versions"
-            value={health.curve_versions.map((v) => `v${v.version}: ${v.count}`).join(', ') || '—'}
+            value={health.curve_versions.map((v) => `v${v.version}: ${v.count}`).join(', ') || 'n/a'}
             subtitle="pipeline versions in use"
           />
         </div>

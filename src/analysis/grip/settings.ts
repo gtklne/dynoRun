@@ -8,21 +8,21 @@ export interface GripSettings {
   K: number;
   /** transient weighting for Dynamic load, seconds */
   tau: number;
-  /** g — tyre-class grip level that anchors the colour ramp (red = anchor) */
+  /** g: tyre-class grip level that anchors the colour ramp (red = anchor) */
   anchorG: number;
-  /** km/h — samples slower than this are excluded from the envelope fit */
+  /** km/h: samples slower than this are excluded from the envelope fit */
   envMinSpeed: number;
-  /** deg — minimum apex lean for a corner */
+  /** deg: minimum apex lean for a corner */
   cornerLean: number;
-  /** km/h — minimum speed drop into an apex */
+  /** km/h: minimum speed drop into an apex */
   cornerDrop: number;
-  /** s — speed minima closer than this merge into one corner */
+  /** s: speed minima closer than this merge into one corner */
   mergeGap: number;
-  /** points — corners this far below your session best get the "spare" flag */
+  /** points: corners this far below your session best get the "spare" flag */
   spareScore: number;
-  /** g/s — load-transfer rate that reads as full-scale */
+  /** g/s: load-transfer rate that reads as full-scale */
   rateFS: number;
-  /** samples — smoothing window for GPS speed (25 samples = 1 s) */
+  /** samples: smoothing window for GPS speed (25 samples = 1 s) */
   speedSmooth: number;
 }
 
@@ -56,9 +56,9 @@ export const GRIP_SETTINGS_SCHEMA: GripSettingGroup[] = [
   ] },
   { group: 'Scores & colours', items: [
     { key: 'anchorG', label: 'Colour anchor (tyre class)', def: 1.10, min: 0.70, max: 1.50, step: 0.05, unit: 'g', dp: 2, apply: 'render',
-      help: 'The g demand that reads as full red — set it to what your tyres can roughly deliver: rain ≈ 0.80, sport road ≈ 1.00, race road ≈ 1.10, slicks ≈ 1.30. Scores themselves never change with this; only the colours do.' },
+      help: 'The g demand that reads as full red. Set it to what your tyres can roughly deliver: rain ≈ 0.80, sport road ≈ 1.00, race road ≈ 1.10, slicks ≈ 1.30. Scores themselves never change with this; only the colours do.' },
     { key: 'spareScore', label: '“Spare” flag threshold', def: 10, min: 3, max: 30, step: 1, unit: 'pts', dp: 0, apply: 'render',
-      help: 'A corner scoring at least this many points below your best at the same corner (other laps) gets the green “spare” flag — you have proven you can go harder there.' },
+      help: 'A corner scoring at least this many points below your best at the same corner (other laps) gets the green “spare” flag, because you have proven you can go harder there.' },
   ] },
   { group: 'Traction envelope', items: [
     { key: 'envMinSpeed', label: 'Min speed for envelope', def: 18, min: 5, max: 60, step: 1, unit: 'km/h', dp: 0, apply: 'recompute',

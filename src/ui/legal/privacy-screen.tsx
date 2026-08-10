@@ -1,4 +1,4 @@
-// Placeholder legal copy — review with the site operator before treating as
+// Placeholder legal copy: review with the site operator before treating as
 // final legal text. Not a substitute for legal advice.
 import { Link } from 'react-router-dom';
 import { LegalPageLayout } from './legal-page-layout';
@@ -15,7 +15,7 @@ export function PrivacyScreen() {
 
       <h2>Who is responsible</h2>
       <p>
-        Johannes Nothstein, Bahnhofplatz 2, 4133 Pratteln, Switzerland —{' '}
+        Johannes Nothstein, Bahnhofplatz 2, 4133 Pratteln, Switzerland,{' '}
         <a href="mailto:privacy@wasgoht.ch">privacy@wasgoht.ch</a>. See also the{' '}
         <Link to="/imprint">Imprint</Link>.
       </p>
@@ -32,7 +32,7 @@ export function PrivacyScreen() {
       <h2>Why we process it</h2>
       <p>
         All of the above is processed solely to provide the DynoRun service to
-        you — computing and storing your runs, calibrations, and vehicles, and
+        you: computing and storing your runs, calibrations, and vehicles, and
         keeping you signed in. Our legal basis is performance of the
         service you use (contract / legitimate use necessary to provide it). We do
         not use your data for advertising, profiling, or automated
@@ -44,7 +44,7 @@ export function PrivacyScreen() {
       <p>
         DynoRun sets exactly one cookie: a session cookie used to keep you signed
         in (httpOnly, secure, sent only to this site). It is strictly necessary for
-        the app to function, so no consent banner is required for it — there is no
+        the app to function, so no consent banner is required for it. There is no
         analytics, advertising, or tracking cookie of any kind. A small number of
         preferences (e.g. display units) are stored in your browser's local
         storage, not as cookies, and never leave your device.
@@ -52,15 +52,15 @@ export function PrivacyScreen() {
 
       <h2>Third parties we use</h2>
       <ul className="list-disc pl-5 space-y-1">
-        <li><strong className="text-zinc-300">Resend</strong> — delivers the sign-in email containing your magic link. Receives your email address and a one-time sign-in URL.</li>
-        <li><strong className="text-zinc-300">Hetzner Online GmbH</strong> — hosts the application and database in Germany.</li>
+        <li><strong className="text-zinc-300">Resend</strong>, delivers the sign-in email containing your magic link. Receives your email address and a one-time sign-in URL.</li>
+        <li><strong className="text-zinc-300">Hetzner Online GmbH</strong>, hosts the application and database in Germany.</li>
       </ul>
 
       <h2>How long we keep it</h2>
       <p>
         Your data is kept for as long as your account exists. You can delete
         individual vehicles, calibrations, runs, or recordings at any time, or
-        delete your entire account, from <Link to="/settings">Settings</Link> — this
+        delete your entire account, from <Link to="/settings">Settings</Link>. This
         immediately and permanently removes the underlying data.
       </p>
 
@@ -72,7 +72,7 @@ export function PrivacyScreen() {
         <Link to="/settings">Settings</Link> ("Download my data" and "Delete my
         account"). For anything else, contact{' '}
         <a href="mailto:privacy@wasgoht.ch">privacy@wasgoht.ch</a>. You also have
-        the right to lodge a complaint with a supervisory authority — in
+        the right to lodge a complaint with a supervisory authority, in
         Switzerland, the Federal Data Protection and Information Commissioner
         (FDPIC/EDÖB); in the EU, your local data protection authority.
       </p>
@@ -82,7 +82,7 @@ export function PrivacyScreen() {
         As a small-scale, non-commercial project with no systematic or large-scale
         monitoring of individuals, we believe the "occasional processing"
         exemption from appointing an EU representative (GDPR Art. 27(2)) likely
-        applies — this is our own assessment, not a formal legal determination.
+        applies. This is our own assessment, not a formal legal determination.
       </p>
 
       <h2>Children</h2>

@@ -1,4 +1,4 @@
-// Placeholder legal copy — review with the site operator before treating as
+// Placeholder legal copy: review with the site operator before treating as
 // final legal text. Not a substitute for legal advice.
 import { Link } from 'react-router-dom';
 import { LegalPageLayout } from './legal-page-layout';
@@ -28,7 +28,7 @@ export function ImprintScreen() {
       <p>
         As a private, non-commercial site, DynoRun is not subject to the Swiss Act
         Against Unfair Competition's obligatory-imprint requirement for commercial
-        offerings — this notice is provided voluntarily for transparency. The
+        offerings. This notice is provided voluntarily for transparency. The
         operator makes reasonable efforts to keep content accurate and up to date
         but assumes no liability for its completeness, correctness, or timeliness.
       </p>

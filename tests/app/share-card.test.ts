@@ -20,8 +20,8 @@ function makeAccel(): AccelTimes {
     start_speed_kmh: 0,
     peak_speed_kmh: 182,
     intervals: [
-      { label: '0–100 km/h', from_kmh: 0, to_kmh: 100, elapsed_s: 5.2, distance_m: 90 },
-      { label: '60–100 km/h', from_kmh: 60, to_kmh: 100, elapsed_s: 2.4, distance_m: 60 },
+      { label: '0-100 km/h', from_kmh: 0, to_kmh: 100, elapsed_s: 5.2, distance_m: 90 },
+      { label: '60-100 km/h', from_kmh: 60, to_kmh: 100, elapsed_s: 2.4, distance_m: 60 },
     ],
     quarter_mile: { elapsed_s: 13.4, trap_speed_kmh: 168 },
   };
@@ -67,7 +67,7 @@ describe('renderShareCard', () => {
       start_speed_kmh: 0,
       peak_speed_kmh: 110,
       intervals: [
-        { label: '0–100 km/h', from_kmh: 0, to_kmh: 100, elapsed_s: 6.1, distance_m: 80 },
+        { label: '0-100 km/h', from_kmh: 0, to_kmh: 100, elapsed_s: 6.1, distance_m: 80 },
       ],
       quarter_mile: null,
     };

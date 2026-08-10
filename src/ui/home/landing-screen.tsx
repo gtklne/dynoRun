@@ -50,7 +50,7 @@ function ToolCard({
  * build time (src/prerender/landing-document.tsx), and still rendered by the SPA
  * for anonymous visitors who reach "/" client-side (dev, or a stale session
  * cookie in prod). Both paths must produce the same markup, so this component
- * stays free of hooks and of react-router <Link> — every link is a plain <a>,
+ * stays free of hooks and of react-router <Link>. Every link is a plain <a>,
  * which is also the only kind that works on a page that ships no JS. The title
  * lives in the two documents' <head>, not in an effect, for the same reason.
  */
@@ -93,7 +93,7 @@ export function LandingScreen() {
             <span style={{ color: GRIP_BLUE }}> edge</span>.
           </h1>
           <p className="max-w-xl text-base leading-7 text-zinc-400">
-            wasgoht is a small suite of motorsport telemetry tools — a GPS virtual dyno and a
+            wasgoht is a small suite of motorsport telemetry tools: a GPS virtual dyno and a
             track-session grip analyzer. One login, both tools, all in your browser.
           </p>
           <div className="flex flex-wrap items-center gap-3 pt-1">
@@ -118,7 +118,7 @@ export function LandingScreen() {
             accent="#f59e0b"
             icon={<BrandLogo size={26} />}
             name="DynoRun"
-            blurb="Drive one gear and the app derives your wheel-power and torque curves from GPS acceleration — no rolling road required."
+            blurb="Drive one gear and the app derives your wheel-power and torque curves from GPS acceleration, with no rolling road required."
             points={['Power & torque from F = ma', 'Per-vehicle garage & run history', 'Compare runs and share results']}
             footer={
               <a href="/login" className="text-sm font-semibold text-amber-400 hover:text-amber-300">
@@ -130,7 +130,7 @@ export function LandingScreen() {
             accent={GRIP_BLUE}
             icon={<GripGlyph size={26} />}
             name="Grip Utilization"
-            blurb="Load a RaceBox track session and see how much of your traction circle you actually used, corner by corner — entirely in the browser."
+            blurb="Load a RaceBox track session and see how much of your traction circle you actually used, corner by corner, entirely in the browser."
             points={['Traction-circle & grip analysis', 'Per-corner utilization breakdown', 'Sessions saved to your account']}
             footer={
               <a href="/grip" className="text-sm font-semibold hover:opacity-80" style={{ color: GRIP_BLUE }}>
@@ -148,7 +148,7 @@ export function LandingScreen() {
               <a href="/imprint" className="hover:text-zinc-400">Imprint</a>
             </span>
           </div>
-          {/* Followable outbound link — robots.txt only allows crawling of "/", so this is the
+          {/* Followable outbound link, robots.txt only allows crawling of "/", so this is the
               one page where the link carries weight. Never add rel="nofollow" here. */}
           <div className="mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-1 border-t border-zinc-900 pt-4">
             <span className="font-medium text-zinc-500">Our friends:</span>
@@ -160,7 +160,7 @@ export function LandingScreen() {
             >
               Partynado
             </a>
-            <span>— find your party in Switzerland &amp; Germany.</span>
+            <span>Find your party in Switzerland &amp; Germany.</span>
           </div>
         </footer>
       </div>

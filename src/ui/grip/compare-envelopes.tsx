@@ -21,7 +21,7 @@ interface Props {
  * where the session was left behind. A single score cannot separate those.
  *
  * Every envelope drawn here must have been fitted on the same number of timed
- * laps (see equalBudgetEnvelope) — the fit is max-preserving, so more laps can
+ * laps (see equalBudgetEnvelope): the fit is max-preserving, so more laps can
  * only grow the boundary.
  */
 export function CompareEnvelopes({ series, anchorG }: Props) {

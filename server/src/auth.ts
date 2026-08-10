@@ -13,7 +13,7 @@ export const auth = betterAuth({
   trustedOrigins: [process.env.APP_URL!],
   user: {
     additionalFields: {
-      // input: false — role can never be set through any auth API call;
+      // input: false,role can never be set through any auth API call;
       // it is granted only by a manual UPDATE on the user table.
       role: { type: 'string', defaultValue: 'user', input: false },
     },

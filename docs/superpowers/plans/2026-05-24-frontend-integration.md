@@ -212,7 +212,7 @@ And update the constructor parameter type to `ICalibrationRepository`.
 npm run typecheck
 ```
 
-Expected: no new errors. (There will still be import errors in files that import from storage — those are fixed in later tasks.)
+Expected: no new errors. (There will still be import errors in files that import from storage, those are fixed in later tasks.)
 
 - [ ] **Step 6: Commit**
 
@@ -675,7 +675,7 @@ With:
 ```ts
 // NEW
 import { vehicleRepository } from '@/api/repositories/vehicle-repository';
-// use vehicleRepository directly — no useMemo needed, it's a singleton object
+// use vehicleRepository directly, no useMemo needed, it's a singleton object
 ```
 
 Same pattern for all other repositories. Each `new XxxRepository(db)` becomes the singleton import from `@/api/repositories/`.
@@ -786,7 +786,7 @@ Expected: clean build, no errors. If you get missing-module errors, trace them b
 npm test
 ```
 
-Expected: all tests pass. (Tests are for the analysis pipeline — they don't touch storage, so they should be unaffected.)
+Expected: all tests pass. (Tests are for the analysis pipeline, they don't touch storage, so they should be unaffected.)
 
 - [ ] **Step 6: Commit**
 
@@ -817,8 +817,8 @@ Enter your email, receive the link, click it. Expected: redirected to `/` (garag
 
 - [ ] **Step 4: Create a vehicle and run**
 
-Create a vehicle → add a calibration → start a run (use mock sensor). Save the run. Reload the page. Expected: vehicle and run still there — data now persists in PostgreSQL.
+Create a vehicle → add a calibration → start a run (use mock sensor). Save the run. Reload the page. Expected: vehicle and run still there, data now persists in PostgreSQL.
 
 - [ ] **Step 5: Open on phone**
 
-Navigate to `http://138.199.154.225/` on your phone. Sign in with your email. Expected: same data visible — shared across devices.
+Navigate to `http://138.199.154.225/` on your phone. Sign in with your email. Expected: same data visible, shared across devices.

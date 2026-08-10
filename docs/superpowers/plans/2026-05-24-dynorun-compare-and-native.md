@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship the remaining prototype features — multi-run comparison, settings + JSON export — and add Capacitor native packaging for iOS and Android so the web app can be installed and run as a native app on a device.
+**Goal:** Ship the remaining prototype features (multi-run comparison, settings + JSON export), and add Capacitor native packaging for iOS and Android so the web app can be installed and run as a native app on a device.
 
 **Architecture:** Same monorepo, no rewrite. Three additive efforts: (1) a generalized power-curve chart that overlays multiple runs and a Compare screen built on top; (2) a JSON exporter that round-trips the full database; (3) a Capacitor wrapper with platform-detecting `Database` and `SpeedSource` factories so the same React app uses sql.js + browser geolocation on web and `@capacitor-community/sqlite` + `@capacitor/geolocation` on iOS and Android.
 
@@ -18,7 +18,7 @@ Native build prerequisites (out of scope of this plan to install, but listed for
 - iOS: macOS, Xcode 15+, CocoaPods, a free Apple Developer account for sideloading.
 - Android: Android Studio with Android SDK Platform 34, Java 17.
 
-This plan **does not run** `npx cap run ios` or `gradle assembleDebug` — that requires actual SDKs and is a manual step the user performs. The plan does verify that the web bundle still builds clean, the Capacitor sync (`npx cap sync`) succeeds when SDKs are present (or is correctly skipped/documented when not), and the TypeScript code compiles.
+This plan **does not run** `npx cap run ios` or `gradle assembleDebug`. That requires actual SDKs and is a manual step the user performs. The plan does verify that the web bundle still builds clean, the Capacitor sync (`npx cap sync`) succeeds when SDKs are present (or is correctly skipped/documented when not), and the TypeScript code compiles.
 
 ## File structure produced by this plan
 
@@ -56,7 +56,7 @@ tests/
 
 ---
 
-## Phase A — Compare feature
+## Phase A: Compare feature
 
 ### Task 1: Generalize PowerCurveChart for overlay
 
@@ -424,7 +424,7 @@ git -c user.email=gutelkaune+claude@gmail.com -c user.name="DynoRun" commit -m "
 
 ---
 
-## Phase B — Settings + JSON export
+## Phase B: Settings + JSON export
 
 ### Task 3: JSON export module
 
@@ -719,7 +719,7 @@ git -c user.email=gutelkaune+claude@gmail.com -c user.name="DynoRun" commit -m "
 
 ---
 
-## Phase C — Capacitor integration
+## Phase C: Capacitor integration
 
 ### Task 5: Install Capacitor and add platforms
 
@@ -753,7 +753,7 @@ npx cap add ios     # may fail if Xcode/CocoaPods missing; see notes
 npx cap add android # may fail if Android SDK missing; see notes
 ```
 
-If `cap add ios` fails with "CocoaPods is not installed" or similar: install CocoaPods (`brew install cocoapods` on macOS) and re-run. If you don't have Xcode, skip `cap add ios` for now and report this in your final report — the iOS platform can be added later from a Mac with Xcode.
+If `cap add ios` fails with "CocoaPods is not installed" or similar: install CocoaPods (`brew install cocoapods` on macOS) and re-run. If you don't have Xcode, skip `cap add ios` for now and report this in your final report. The iOS platform can be added later from a Mac with Xcode.
 
 If `cap add android` fails with "ANDROID_SDK_ROOT not set" or "Android SDK not found": skip for now and report. Plan 3 still completes the web build and Capacitor configuration; the native directories can be added later.
 
@@ -1045,11 +1045,11 @@ export function useSpeedSourceFactory(): SpeedSourceFactory {
 }
 ```
 
-(The default factory delegates to `createSpeedSource()`, which dispatches to the native or web implementation at runtime. The test seam is preserved — tests still pass a function returning `MockSpeedSource`. Existing tests pass synchronous factories returning a `SpeedSource`; the new union type accepts that.)
+(The default factory delegates to `createSpeedSource()`, which dispatches to the native or web implementation at runtime. The test seam is preserved: tests still pass a function returning `MockSpeedSource`. Existing tests pass synchronous factories returning a `SpeedSource`; the new union type accepts that.)
 
 - [ ] **Step 8: Update the two call sites to `await` the factory**
 
-`src/ui/run/live-run-screen.tsx` — find:
+`src/ui/run/live-run-screen.tsx`: find:
 
 ```tsx
 const sensor = speedSourceFactory();
@@ -1061,7 +1061,7 @@ Replace with:
 const sensor = await speedSourceFactory();
 ```
 
-`src/ui/calibration/calibration-step-measure.tsx` — find:
+`src/ui/calibration/calibration-step-measure.tsx`, find:
 
 ```tsx
 const sensor = speedSourceFactory();
@@ -1077,7 +1077,7 @@ Both call sites are already inside `async` bodies, so `await` is valid.
 
 - [ ] **Step 9: Run tests**
 
-Run: `npm test` → all pass. The existing tests inject `() => new MockSpeedSource(...)` — that returns a `SpeedSource` synchronously which is fine for the `SpeedSource | Promise<SpeedSource>` union.
+Run: `npm test` → all pass. The existing tests inject `() => new MockSpeedSource(...)`. That returns a `SpeedSource` synchronously which is fine for the `SpeedSource | Promise<SpeedSource>` union.
 
 - [ ] **Step 10: Verify**
 
@@ -1093,7 +1093,7 @@ git -c user.email=gutelkaune+claude@gmail.com -c user.name="DynoRun" commit -m "
 
 ---
 
-## Phase D — Native configuration
+## Phase D: Native configuration
 
 ### Task 8: iOS Info.plist + Capacitor sync
 
@@ -1171,7 +1171,7 @@ The `@capacitor-community/sqlite` plugin requires platform-specific install step
 - [ ] **Step 1: Create `docs/native-build-setup.md`** with:
 
 ````markdown
-# DynoRun — Native build setup
+# DynoRun: Native build setup
 
 This document captures the platform-specific install steps for Plan 3's Capacitor build.
 
@@ -1221,7 +1221,7 @@ npm run cap:run:android
 
 ## Permissions to grant on first launch
 
-- **Location:** "Always" or "While Using" — required for the run.
+- **Location:** "Always" or "While Using": required for the run.
 - **iOS only:** wake-lock not supported; the screen will sleep unless you adjust Settings → Display & Brightness → Auto-Lock → Never during a run.
 
 ## Rebuilding after web-app changes
@@ -1241,13 +1241,13 @@ git -c user.email=gutelkaune+claude@gmail.com -c user.name="DynoRun" commit -m "
 
 ---
 
-## Phase E — Final verification
+## Phase E: Final verification
 
 ### Task 11: Manual native smoke (out-of-scope automation)
 
 This task is a **manual** verification. Document what the user should do.
 
-The agent executing this plan does NOT need to perform the native build — it would require Xcode/Android Studio which may not be present in the environment. Instead:
+The agent executing this plan does NOT need to perform the native build. It would require Xcode/Android Studio which may not be present in the environment. Instead:
 
 - [ ] **Step 1: Verify the web build is clean**
 

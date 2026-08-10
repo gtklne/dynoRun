@@ -45,7 +45,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-// Cosmetic guard only — the server 404s /api/admin/* for non-admins regardless.
+// Cosmetic guard only: the server 404s /api/admin/* for non-admins regardless.
 function RequireAdmin({ children }: { children: ReactNode }) {
   const { isAdmin } = useAuth();
   if (!isAdmin) return <Navigate to="/home" replace />;

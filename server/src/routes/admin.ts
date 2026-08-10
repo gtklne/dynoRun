@@ -6,7 +6,7 @@ const route = new Hono<{ Variables: AdminVariables }>();
 route.use('/admin/*', requireAdmin);
 
 // App tables store created_at as ISO-8601 TEXT (UTC, trailing Z), while the
-// better-auth tables use real TIMESTAMP columns — hence the ::timestamptz
+// better-auth tables use real TIMESTAMP columns, hence the ::timestamptz
 // casts on app tables only.
 
 route.get('/admin/overview', async (c) => {

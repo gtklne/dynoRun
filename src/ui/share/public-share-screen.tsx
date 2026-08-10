@@ -37,7 +37,7 @@ function buildShareMeta(data: PublicShareData, unit: PowerUnit): { title: string
   }, null);
   const baseTitle = run.title ?? `${vehicle.name} · ${run.gear_label}`;
   const title = peak
-    ? `${baseTitle} — ${formatPower(peak.wheel_power_kw, unit)}`
+    ? `${baseTitle}: ${formatPower(peak.wheel_power_kw, unit)}`
     : baseTitle;
   const description = peak
     ? `Peak ${formatPower(peak.wheel_power_kw, unit)} @ ${peak.rpm.toFixed(0)} RPM · ${vehicle.name} · DynoRun`
@@ -177,37 +177,37 @@ export function PublicShareScreen() {
 
           <ConditionsChips conditions={run.conditions} size="md" />
 
-          {/* Peak stats — 2x2 grid */}
+          {/* Peak stats: 2x2 grid */}
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
               <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Peak power</p>
               <p className="tabular-nums">
                 <span className="text-3xl font-bold text-amber-400">
-                  {peak ? formatPower(peak.wheel_power_kw, units.unit, { unitSuffix: false }) : '—'}
+                  {peak ? formatPower(peak.wheel_power_kw, units.unit, { unitSuffix: false }) : 'n/a'}
                 </span>
                 <span className="text-sm text-zinc-400 ml-1">{units.unit}</span>
               </p>
               <p className="text-zinc-600 text-xs mt-1">
-                {peak ? formatPower(peak.wheel_power_kw, opp) : '—'}
+                {peak ? formatPower(peak.wheel_power_kw, opp) : 'n/a'}
               </p>
             </div>
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
               <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Peak torque</p>
               <p className="tabular-nums">
                 <span className="text-3xl font-bold text-zinc-100">
-                  {peakTorque ? peakTorque.wheel_torque_nm.toFixed(0) : '—'}
+                  {peakTorque ? peakTorque.wheel_torque_nm.toFixed(0) : 'n/a'}
                 </span>
                 <span className="text-sm text-zinc-400 ml-1">Nm</span>
               </p>
               <p className="text-zinc-600 text-xs mt-1">
-                {peakTorque ? `@ ${peakTorque.rpm.toFixed(0)} RPM` : '—'}
+                {peakTorque ? `@ ${peakTorque.rpm.toFixed(0)} RPM` : 'n/a'}
               </p>
             </div>
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 col-span-2">
               <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Peak power RPM</p>
               <p className="tabular-nums">
                 <span className="text-3xl font-bold text-zinc-100">
-                  {peak ? peak.rpm.toFixed(0) : '—'}
+                  {peak ? peak.rpm.toFixed(0) : 'n/a'}
                 </span>
                 <span className="text-sm text-zinc-400 ml-1">RPM</span>
               </p>

@@ -78,7 +78,7 @@ export function SessionScreen() {
           setState(s);
           if (s.kind === 'reviewing') {
             void wakeLockRef.current.release();
-            // Pre-select the strongest pull — usually the run the rider made.
+            // Pre-select the strongest pull: usually the run the rider made.
             const best = s.pulls.reduce<{ i: number; kw: number } | null>((acc, p, i) => {
               if (!p.analysis) return acc;
               const kw = peakPowerKw(p);
@@ -159,7 +159,7 @@ export function SessionScreen() {
     const ctrl = ctrlRef.current;
     if (!ctrl) return;
     // Best-effort: a denied wake lock (permission policy, battery saver) must
-    // not block the session — the rider just has to keep the screen on.
+    // not block the session: the rider just has to keep the screen on.
     try { await wakeLockRef.current.acquire(); } catch (err) { console.warn('Wake lock unavailable:', err); }
     startedWallRef.current = Date.now();
     pulseStart();
@@ -222,7 +222,7 @@ export function SessionScreen() {
             <p className="text-xs font-semibold text-amber-400 uppercase tracking-widest">How it works</p>
             <ol className="text-zinc-400 text-sm space-y-1.5 list-decimal list-inside">
               <li>Start the session here while stopped, then put the phone away.</li>
-              <li>Ride normally — shift up into <span className="text-zinc-200 font-medium">{gearLabel}</span>, settle briefly, then make your full pull.</li>
+              <li>Ride normally: shift up into <span className="text-zinc-200 font-medium">{gearLabel}</span>, settle briefly, then make your full pull.</li>
               <li>Ride back, stop, and hold the finish button. Your pulls are detected automatically.</li>
             </ol>
             <p className="text-zinc-600 text-xs pt-1">
@@ -287,12 +287,12 @@ export function SessionScreen() {
               </div>
             </div>
             <p className="text-zinc-500 text-sm mt-4">
-              Put the phone away and ride. Everything is recorded — your pulls are picked out afterwards.
+              Put the phone away and ride. Everything is recorded, and your pulls are picked out afterwards.
             </p>
           </div>
           <HoldToFinishButton onFinish={finishSession} label="Hold to finish session" />
           <p className="text-zinc-600 text-xs text-center">
-            Hold for 1.5 s — stray pocket touches won't stop the session.
+            Hold for 1.5 s, so stray pocket touches won't stop the session.
           </p>
         </>
       )}
@@ -309,7 +309,7 @@ export function SessionScreen() {
           <p className="text-zinc-100 font-semibold">No pulls detected</p>
           <p className="text-zinc-400 text-sm leading-relaxed">
             The session didn't contain a clear acceleration run (at least ~15 km/h of sustained
-            speed gain). The raw recording was still saved — you can inspect it in the Replay Lab.
+            speed gain). The raw recording was still saved, so you can inspect it in the Replay Lab.
           </p>
           <div className="flex gap-2">
             <Link
@@ -332,7 +332,7 @@ export function SessionScreen() {
         <>
           <p className="text-zinc-400 text-sm">
             {pulls.length === 1 ? 'One pull detected.' : `${pulls.length} pulls detected.`} Select
-            the ones to keep as runs — the rest are discarded (the raw session recording stays available for replay).
+            the ones to keep as runs. The rest are discarded (the raw session recording stays available for replay).
           </p>
 
           <div className="space-y-2">
@@ -368,7 +368,7 @@ export function SessionScreen() {
                       </span>
                     )}
                     <span className="ml-auto tabular-nums text-amber-400 font-bold text-sm">
-                      {analyzable ? format(kw) : '—'}
+                      {analyzable ? format(kw) : 'n/a'}
                     </span>
                   </div>
                   <PullSparkline samples={p.samples} />
@@ -379,7 +379,7 @@ export function SessionScreen() {
                     <span>{(p.pull.duration_ms / 1000).toFixed(1)} s</span>
                     {analyzable ? (
                       <span>
-                        {p.analysis!.rpm_min.toFixed(0)}–{p.analysis!.rpm_max.toFixed(0)} RPM
+                        {p.analysis!.rpm_min.toFixed(0)}-{p.analysis!.rpm_max.toFixed(0)} RPM
                       </span>
                     ) : (
                       <span className="text-red-400">couldn't analyze</span>

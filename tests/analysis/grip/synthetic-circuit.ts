@@ -1,6 +1,6 @@
 // A closed synthetic circuit with a quasi-steady-state lap simulation, used as
 // ground truth for lap comparison. The generator in synthetic.ts integrates
-// heading forward, so each of its laps lands somewhere new in space — fine for
+// heading forward, so each of its laps lands somewhere new in space, fine for
 // corner detection, useless for spatial alignment. Here the centreline is a
 // closed polar curve r(θ) = R0 + A1·cos(2θ) + A2·cos(3θ), so every lap
 // retraces the exact same geometry and only the speed profile changes.
@@ -187,7 +187,7 @@ export function simulateSession(paces: LapPace[], stepM = 1): CircuitSession {
       let y = p.y + (q.y - p.y) * f;
       const kk = p.k + (q.k - p.k) * f;
       if (pace.lineOffset) {
-        // shift perpendicular to the tangent — a different racing line on the
+        // shift perpendicular to the tangent: a different racing line on the
         // same track, which is what projection has to tolerate
         const hx = q.x - p.x;
         const hy = q.y - p.y;

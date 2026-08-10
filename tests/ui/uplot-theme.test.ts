@@ -20,12 +20,12 @@ describe('legendValue', () => {
   });
 
   it('renders an em dash when the cursor is off the data', () => {
-    expect(legendValue('kW')(u, null)).toBe('—');
+    expect(legendValue('kW')(u, null)).toBe('n/a');
   });
 
   it('renders an em dash for non-finite values', () => {
-    expect(legendValue('kW')(u, NaN)).toBe('—');
-    expect(legendValue('kW')(u, Infinity)).toBe('—');
+    expect(legendValue('kW')(u, NaN)).toBe('n/a');
+    expect(legendValue('kW')(u, Infinity)).toBe('n/a');
   });
 });
 

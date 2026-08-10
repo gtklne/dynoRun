@@ -24,11 +24,11 @@ export interface ReplayPlayerOptions {
   fixes: RawGpsFix[];
   durationMs: number;
   rate?: number;
-  /** Forward-playback emit — drives the live chart and readouts. */
+  /** Forward-playback emit: drives the live chart and readouts. */
   onSample: (s: ReplaySpeedSample) => void;
   /** A jump (seek/restart): the screen should reset chart + rings, then show the snapshot. */
   onSeeked: (t_ms: number, snapshot: ReplaySpeedSample | null) => void;
-  /** Once per frame (and on transport changes) — drives the scrubber. */
+  /** Once per frame (and on transport changes), drives the scrubber. */
   onProgress: (p: ReplayProgress) => void;
   /** Fires once when the clock reaches the end. */
   onEnded: () => void;
@@ -46,7 +46,7 @@ function clampRate(rate: number): number {
 
 /**
  * Real-time recording playback driven by a single requestAnimationFrame virtual
- * clock — `virtualTimeMs += dt * rate`, draining fixes from a cursor as the clock
+ * clock, `virtualTimeMs += dt * rate`, draining fixes from a cursor as the clock
  * passes their `t_ms`. A single clock (vs per-fix setTimeout) makes variable speed
  * and seek O(1) instead of cancel-and-reschedule-N-timers.
  */

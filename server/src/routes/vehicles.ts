@@ -129,7 +129,7 @@ route.delete('/vehicles/:vehicleId', async (c) => {
     .where(and(eq(vehicles.id, vehicleId), eq(vehicles.userId, userId)));
   if (!existing) return c.json({ error: 'Not found' }, 404);
 
-  // No DB-level FK cascades — delete dependents (runs + their samples/curves,
+  // No DB-level FK cascades: delete dependents (runs + their samples/curves,
   // calibrations, recordings) in one transaction before the vehicle itself.
   await db.transaction(async (tx) => {
     const vehicleRuns = await tx.select({ id: runs.id }).from(runs)

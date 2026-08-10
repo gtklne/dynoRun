@@ -1,6 +1,6 @@
 // jsdom gives every element a zero-size bounding box, so useCanvasDraw's
 // fitCanvas bails and NONE of the canvas draw code runs in a normal component
-// test. That hides real errors — a bad index, a NaN reaching a gradient stop.
+// test. That hides real errors: a bad index, a NaN reaching a gradient stop.
 // Forcing a size makes every draw path execute against the stub 2d context.
 import { describe, expect, it, beforeAll, afterAll, vi } from 'vitest';
 import { cleanup, render } from '@testing-library/react';
@@ -23,7 +23,7 @@ let origGetContext: HTMLCanvasElement['getContext'];
 
 // Counting the draw calls is the point: with only "console.error stayed empty"
 // as an assertion this file passed verbatim when useCanvasDraw was mutated to
-// never invoke its draw callback at all — 66 files / 392 tests still green while
+// never invoke its draw callback at all: 66 files / 392 tests still green while
 // no grip chart painted a single pixel. Every case now has to prove it drew.
 const calls: Record<string, number> = {};
 const resetCalls = () => { for (const k of Object.keys(calls)) delete calls[k]; };

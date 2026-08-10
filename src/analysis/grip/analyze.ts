@@ -11,7 +11,7 @@ import type { GripSettings } from './settings';
  * The full derivation from a parsed session: g channels → traction envelope →
  * transient load → laps & corners → projected track. Pure; re-run whenever a
  * 'recompute'-class setting changes. The τ-dependent Dynamic-load channel is
- * NOT included — it's cheap and lives in computeCombined() so the UI can
+ * NOT included: it's cheap and lives in computeCombined() so the UI can
  * re-mix it without re-deriving everything.
  */
 export function analyzeGripSession(parsed: ParsedGripSession, settings: GripSettings): GripAnalysis {

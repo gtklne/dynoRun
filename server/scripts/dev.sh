@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Dev entrypoint for the API server. Ensures the SSH tunnel to prod Postgres
 # (localhost:5433 → dynorun-prod:5432) is up before starting tsx, because
-# DATABASE_URL points at :5433. Without it, every DB query — including the
-# better-auth magic-link verification write — fails with a silent 500.
+# DATABASE_URL points at :5433. Without it, every DB query (including the
+# better-auth magic-link verification write) fails with a silent 500.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -18,7 +18,7 @@ else
     sleep 0.5
   done
   if ! nc -z localhost 5433 2>/dev/null; then
-    echo "✗ Tunnel failed to open on :5433 — check 'ssh dynorun-prod'" >&2
+    echo "✗ Tunnel failed to open on :5433,check 'ssh dynorun-prod'" >&2
     exit 1
   fi
   echo "→ Tunnel up (pid $TUNNEL_PID)"

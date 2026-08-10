@@ -290,7 +290,7 @@ function DeltaSummary({ labelA, labelB, stats, unit }: DeltaSummaryProps) {
             <p className="text-emerald-400 font-semibold tabular-nums">
               {stats.maxGain && stats.maxGain.delta_power_kw > 0
                 ? `${fmt(stats.maxGain.delta_power_kw)} @ ${Math.round(stats.maxGain.rpm)} RPM`
-                : '—'}
+                : 'n/a'}
             </p>
           </div>
           <div>
@@ -298,7 +298,7 @@ function DeltaSummary({ labelA, labelB, stats, unit }: DeltaSummaryProps) {
             <p className="text-rose-400 font-semibold tabular-nums">
               {stats.maxLoss && stats.maxLoss.delta_power_kw < 0
                 ? `${fmt(stats.maxLoss.delta_power_kw)} @ ${Math.round(stats.maxLoss.rpm)} RPM`
-                : '—'}
+                : 'n/a'}
             </p>
           </div>
           <div>

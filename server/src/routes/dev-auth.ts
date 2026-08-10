@@ -4,7 +4,7 @@ import { auth } from '../auth.js';
 
 /**
  * Dev-only login bypass. Mints a real better-auth session for an email and sets
- * the session cookie directly — skipping the magic-link email + Turnstile
+ * the session cookie directly: skipping the magic-link email + Turnstile
  * captcha that make local sign-in painful (no inbox to click on dev).
  *
  * This route is mounted in index.ts ONLY when DEV_LOGIN === 'true', which is set

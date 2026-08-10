@@ -2,7 +2,7 @@ import type { RawSpeedSample, GradeSource } from './types';
 
 // Shared geometry: net altitude change + path distance over the pull, with the
 // validity guards applied. Returns null when grade cannot be trusted (too few
-// altitude fixes, stationary/degenerate capture, or |Δalt| exceeding the path —
+// altitude fixes, stationary/degenerate capture, or |Δalt| exceeding the path,
 // physically impossible, so bad GPS altitude). Single source of truth so
 // computeGradeRad and computeGradeSource can never drift.
 function gradeGeometry(samples: RawSpeedSample[]): { deltaAlt: number; distance_m: number } | null {
@@ -29,8 +29,8 @@ function gradeGeometry(samples: RawSpeedSample[]): { deltaAlt: number; distance_
 
 // Average road grade over a pull, as an angle in radians.
 //
-// We use net altitude change ÷ path distance — an INTEGRAL, not a per-sample
-// derivative — because GPS altitude is noisy (±10–30 m) and differentiating it
+// We use net altitude change ÷ path distance (an INTEGRAL, not a per-sample
+// derivative), because GPS altitude is noisy (±10-30 m) and differentiating it
 // per sample would yield garbage. Over the length of a pull the endpoint delta
 // is robust. Path distance comes from integrating speed (trapezoid), which is
 // the same signal the rest of the pipeline trusts.

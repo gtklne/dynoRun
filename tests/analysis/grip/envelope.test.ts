@@ -27,7 +27,7 @@ describe('computeEnvelope', () => {
     const theta = new Float32Array(n);
     for (let i = 0; i < n; i++) {
       theta[i] = -Math.PI + (2 * Math.PI * i) / n;
-      // slow samples pretend to pull 2 g — they must not inflate the envelope
+      // slow samples pretend to pull 2 g: they must not inflate the envelope
       const slow = i % 2 === 0;
       spdS[i] = slow ? 1 : 30;
       comb[i] = slow ? 2.0 : 0.8;

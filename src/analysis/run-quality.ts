@@ -40,7 +40,7 @@ const MIN_RELIABLE_DURATION_S = 3;
 // Below ~2 Hz we lose enough resolution that accel times become unreliable.
 const MIN_RELIABLE_FIX_RATE_HZ = 2;
 
-// Speed RMSE between raw and smoothed signals — beyond this we're chasing noise.
+// Speed RMSE between raw and smoothed signals, beyond this we're chasing noise.
 const NOISY_SPEED_RMSE_MPS = 0.6;
 
 export function computeRunQuality(input: RunQualityInput): RunQuality {

@@ -98,7 +98,7 @@ describe('compare colours', () => {
     expect(formatDelta(1.234)).toBe('+1.23');
     expect(formatDelta(-0.5)).toBe('−0.50');
     expect(formatDelta(0)).toBe('±0.00');
-    expect(formatDelta(NaN)).toBe('—');
+    expect(formatDelta(NaN)).toBe('n/a');
     expect(deltaTextClass(0.01)).toBe('text-zinc-400');
     expect(deltaTextClass(1)).toBe('text-rose-400');
     expect(deltaTextClass(-1)).toBe('text-sky-400');

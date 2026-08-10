@@ -211,8 +211,8 @@ describe('SessionController', () => {
 
     const runIds = await ctrl.saveSelected([0, 1]);
     expect(runIds).toHaveLength(2);
-    expect(repos.runs[0].notes).toBe('Hands-free session — pull 1');
-    expect(repos.runs[1].notes).toBe('Hands-free session — pull 2');
+    expect(repos.runs[0].notes).toBe('Hands-free session: pull 1');
+    expect(repos.runs[1].notes).toBe('Hands-free session: pull 2');
   });
 
   it('returns to reviewing when nothing could be saved', async () => {

@@ -53,7 +53,7 @@ function unitDecimals(unit: PowerUnit): number {
 }
 
 function formatPeakPower(kw: number | null, unit: PowerUnit): string {
-  if (kw == null || !isFinite(kw)) return '—';
+  if (kw == null || !isFinite(kw)) return 'n/a';
   return convertPower(kw, unit).toFixed(unitDecimals(unit));
 }
 
@@ -123,7 +123,7 @@ function drawCurve(ctx: CanvasRenderingContext2D, points: RpmPoint[], box: { x: 
 }
 
 function drawWordmark(ctx: CanvasRenderingContext2D, x: number, y: number) {
-  // Stylized gauge mark + "DYNORUN" — matches BrandLogo aesthetic loosely.
+  // Stylized gauge mark + "DYNORUN": matches BrandLogo aesthetic loosely.
   ctx.save();
   ctx.strokeStyle = ACCENT;
   ctx.lineWidth = 3;
@@ -187,7 +187,7 @@ export async function renderShareCard(input: ShareCardInput): Promise<Blob> {
   const canvas = getOffscreenCanvas();
   const ctx = canvas.getContext('2d');
   if (!ctx) {
-    // Headless / jsdom — return a tiny placeholder blob so the caller doesn't crash.
+    // Headless / jsdom: return a tiny placeholder blob so the caller doesn't crash.
     return new Blob([new Uint8Array([0])], { type: 'image/png' });
   }
 
@@ -234,7 +234,7 @@ export async function renderShareCard(input: ShareCardInput): Promise<Blob> {
   ctx.font = '500 22px system-ui, -apple-system, sans-serif';
   ctx.fillText(`Gear ${input.gearLabel}`, PAD_X, 178);
 
-  // Hero stat — peak power
+  // Hero stat: peak power
   const heroY = 240;
   ctx.fillStyle = TEXT_SUBTLE;
   ctx.font = '600 16px system-ui, -apple-system, sans-serif';
@@ -273,7 +273,7 @@ export async function renderShareCard(input: ShareCardInput): Promise<Blob> {
   }
   const zeroToHundred = findInterval(input.accelTimes, 0, 100);
   if (zeroToHundred) {
-    cells.push({ label: '0–100', value: zeroToHundred.elapsed_s.toFixed(1), unit: 's' });
+    cells.push({ label: '0-100', value: zeroToHundred.elapsed_s.toFixed(1), unit: 's' });
   }
   if (input.accelTimes?.quarter_mile) {
     cells.push({ label: '¼ MILE', value: input.accelTimes.quarter_mile.elapsed_s.toFixed(1), unit: 's' });
@@ -321,7 +321,7 @@ export async function renderShareCard(input: ShareCardInput): Promise<Blob> {
     ctx.fillText(conditionsLine, secX, secY + 156);
   }
 
-  // Chart area — bottom strip.
+  // Chart area: bottom strip.
   const chartBox = { x: PAD_X, y: 460, w: WIDTH - PAD_X * 2, h: 110 };
   ctx.fillStyle = PANEL;
   ctx.strokeStyle = PANEL_BORDER;

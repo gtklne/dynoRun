@@ -15,7 +15,7 @@ import {
 
 interface Props {
   delta: CurveDeltaPoint[];
-  /** Default 'power' — switch to 'torque' to plot delta_torque_nm in Nm. */
+  /** Default 'power': switch to 'torque' to plot delta_torque_nm in Nm. */
   metric?: 'power' | 'torque';
   /** Power unit. Only honored when metric === 'power'. */
   unit?: PowerUnit;

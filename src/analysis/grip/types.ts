@@ -1,4 +1,4 @@
-// Grip Utilization — types for the track-session analysis pipeline.
+// Grip Utilization: types for the track-session analysis pipeline.
 // Base channels are plain number[] so a session round-trips through jsonb
 // storage unchanged; derived channels are Float32Array for compactness.
 
@@ -13,7 +13,7 @@ export interface GripChannels {
   lon: number[];
   /** m/s */
   spd: number[];
-  /** degrees, signed — left negative, right positive */
+  /** degrees, signed: left negative, right positive */
   lean: number[];
   /** lap number per sample; 0 = out/in/pit */
   lap: number[];
@@ -51,7 +51,7 @@ export interface GripDerivedChannels {
   leanS: Float32Array;
   /** longitudinal tire-demand g: dv/dt + aero drag + rolling resistance */
   along: Float32Array;
-  /** kinematic longitudinal g (dv/dt only) — weight transfer is driven by
+  /** kinematic longitudinal g (dv/dt only): weight transfer is driven by
    *  total deceleration, drag included, so it uses this, not `along` */
   alongRaw: Float32Array;
   /** lateral g (tan of lean), signed */
@@ -65,11 +65,11 @@ export interface GripDerivedChannels {
 export interface GripEnvelope {
   /** fitted personal envelope radius per angular bin, g (ENVELOPE_BINS entries) */
   env: Float32Array;
-  /** peak envelope radius across all bins, g — hardest sustained direction */
+  /** peak envelope radius across all bins, g: hardest sustained direction */
   gref: number;
   /** session score: 100 × RMS envelope radius (100 ≈ a full 1 g circle) */
   sessionScore: number;
-  /** samples the fit used — 0 means there is no envelope, not a 0 g one */
+  /** samples the fit used: 0 means there is no envelope, not a 0 g one */
   fitSamples: number;
   /** angular bins no sample of their own reached, so their radius is filled in */
   emptyBins: number;
@@ -80,17 +80,17 @@ export interface GripLoadChannels {
   jLong: Float32Array;
   /** side/side load-transfer rate (flick), g/s */
   jLat: Float32Array;
-  /** |dG/dt| — how fast the whole load state is moving, g/s */
+  /** |dG/dt|: how fast the whole load state is moving, g/s */
   loadRate: Float32Array;
 }
 
 export interface GripCorner {
-  /** per-lap detection index, 1-based — NOT a track turn id, use `turn` */
+  /** per-lap detection index, 1-based, NOT a track turn id. Use `turn` */
   n: number;
   /**
    * Track turn id, stable across every lap of the session (see turns.ts).
    * 0 when this detection could not be matched to a turn the session's other
-   * laps agree on — a one-off minimum, not a bend.
+   * laps agree on: a one-off minimum, not a bend.
    */
   turn: number;
   /** global sample indices: window start / apex / end */
@@ -112,7 +112,7 @@ export interface GripCorner {
   tEnd: number;
 }
 
-/** A timed lap — a contiguous global sample range [start, end]. */
+/** A timed lap: a contiguous global sample range [start, end]. */
 export interface GripLap {
   num: number;
   start: number;

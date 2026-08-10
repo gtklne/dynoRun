@@ -100,7 +100,7 @@ export function ConditionsModal({ open, initial, onClose, onSave }: ConditionsMo
     };
   }, [open]);
 
-  // Escape closes (with the dirty-confirm guard) — matches HelpDrawer.
+  // Escape closes (with the dirty-confirm guard), matches HelpDrawer.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {

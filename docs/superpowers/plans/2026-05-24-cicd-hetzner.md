@@ -23,7 +23,7 @@
 ### Task 1: Generate SSH deploy key pair
 
 **Files:**
-- Create: `~/.ssh/dynorun_deploy` (local only — never commit)
+- Create: `~/.ssh/dynorun_deploy` (local only, never commit)
 
 - [ ] **Step 1: Generate the key**
 
@@ -85,7 +85,7 @@ IPv4: <ip-address>
 hcloud server describe dynorun-prod --output json | python3 -c "import sys,json; print(json.load(sys.stdin)['public_net']['ipv4']['ip'])"
 ```
 
-Save this IP — you'll need it in Tasks 4 and 5.
+Save this IP: you'll need it in Tasks 4 and 5.
 
 - [ ] **Step 3: Wait for server to be reachable**
 

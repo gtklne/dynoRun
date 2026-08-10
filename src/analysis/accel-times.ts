@@ -35,10 +35,10 @@ const STANDARD_INTERVALS: ReadonlyArray<{
   from_kmh: number;
   to_kmh: number;
 }> = [
-  { label: '0–100 km/h', from_kmh: 0, to_kmh: 100 },
-  { label: '60–100 km/h', from_kmh: 60, to_kmh: 100 },
-  { label: '80–120 km/h', from_kmh: 80, to_kmh: 120 },
-  { label: '100–200 km/h', from_kmh: 100, to_kmh: 200 },
+  { label: '0-100 km/h', from_kmh: 0, to_kmh: 100 },
+  { label: '60-100 km/h', from_kmh: 60, to_kmh: 100 },
+  { label: '80-120 km/h', from_kmh: 80, to_kmh: 120 },
+  { label: '100-200 km/h', from_kmh: 100, to_kmh: 200 },
 ];
 
 function interpolateTimeAtSpeed(

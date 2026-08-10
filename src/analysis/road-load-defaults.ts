@@ -5,7 +5,7 @@ import type { VehicleKind } from '@/shared/types';
 // distinction is ~2%, far below the uncertainty in CdA, and a per-run density
 // correction would only matter across very different days/altitudes (which
 // cancels for same-vehicle comparisons and confounds with the engine's own
-// air-charge response, which we deliberately do NOT model — we measure the
+// air-charge response, which we deliberately do NOT model, we measure the
 // power actually delivered on the day).
 export const AIR_DENSITY_KG_M3 = 1.225;
 export const GRAVITY_M_S2 = 9.81;

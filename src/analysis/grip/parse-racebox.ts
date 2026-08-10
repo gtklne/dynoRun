@@ -68,7 +68,7 @@ export function parseRaceboxCsv(text: string): ParsedGripSession {
   const lap: number[] = [];
   const head: number[] = [];
   let t0: number | null = null;
-  // A row without a GPS fix must not become the coordinate 0,0 — that is a real
+  // A row without a GPS fix must not become the coordinate 0,0. That is a real
   // place in the Gulf of Guinea, ~5300 km from any circuit, and one such sample
   // stretched the compare axis from 2.7 km to 10 700 km (a 5.4M-element grid per
   // channel per lap) and collapsed the track map to a single dot. Holding the
@@ -90,7 +90,7 @@ export function parseRaceboxCsv(text: string): ParsedGripSession {
     if (Number.isNaN(ms)) continue;
     if (t0 === null) t0 = ms;
     // Every derivative divides by t[i+3] − t[i−3] and guards that with `dt > 0`,
-    // so a repeated or out-of-order timestamp does not degrade the reading — it
+    // so a repeated or out-of-order timestamp does not degrade the reading, it
     // fabricates an exactly 0 g / 0 g/s plateau. A strictly increasing clock is
     // an invariant, not a nicety.
     const te = (ms - t0) / 1000;
@@ -122,7 +122,7 @@ export function parseRaceboxCsv(text: string): ParsedGripSession {
     for (let i = 0; i < firstFix; i++) { lat[i] = lat[firstFix]; lon[i] = lon[firstFix]; }
   }
   if (firstFix < 0) {
-    throw new Error('No GPS fix anywhere in this session — every position is empty.');
+    throw new Error('No GPS fix anywhere in this session. Every position is empty.');
   }
 
   return { meta, n: t.length, ch: { t, lat, lon, spd, lean, lap, head }, noFix, dropped };

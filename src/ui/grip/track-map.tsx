@@ -76,7 +76,7 @@ export function TrackMap({ analysis, lap, cursor, metric, cornerApexG, anchorG, 
         c.fillStyle = '#0a0a0a';
         c.textAlign = 'center';
         c.textBaseline = 'middle';
-        // the track's turn number, not the per-lap detection index — the badge
+        // the track's turn number, not the per-lap detection index. The badge
         // has to mean the same bend when the rider switches lap tabs
         c.fillText(corner.turn ? String(corner.turn) : '·', lx, ly + 0.5);
       }

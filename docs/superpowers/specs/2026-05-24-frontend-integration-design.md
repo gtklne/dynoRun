@@ -16,7 +16,7 @@ This spec depends on `2026-05-24-backend-api-design.md` being deployed first.
 - All business logic: `run/`, `analysis/`, `sensors/`, `shared/`
 - All UI screens and components
 - React Router routes (except adding `/login`)
-- Repository *interfaces* — same method signatures
+- Repository *interfaces*: same method signatures
 
 ### Removed
 - `src/storage/database.ts`, `database-web.ts`, `database-capacitor.ts`, `database-factory.ts`
@@ -76,7 +76,7 @@ interface AuthContext {
 
 ### Session storage
 
-better-auth uses an HttpOnly cookie — the frontend never touches the token directly. `credentials: "include"` is set on all fetch calls so the browser sends the cookie automatically.
+better-auth uses an HttpOnly cookie: the frontend never touches the token directly. `credentials: "include"` is set on all fetch calls so the browser sends the cookie automatically.
 
 ---
 
@@ -102,15 +102,15 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 }
 ```
 
-No retry logic, no caching — keep it simple.
+No retry logic, no caching: keep it simple.
 
 ---
 
 ## API repositories
 
-Each repository in `src/api/repositories/` implements the same method signatures as the existing `src/storage/repositories/` files. The run controller, calibration controller, and all screens inject repositories via React context — so swapping the implementation is the only change needed.
+Each repository in `src/api/repositories/` implements the same method signatures as the existing `src/storage/repositories/` files. The run controller, calibration controller, and all screens inject repositories via React context, so swapping the implementation is the only change needed.
 
-Example — `run-repository.ts`:
+Example, `run-repository.ts`:
 
 ```ts
 import { apiFetch } from "../client";
@@ -143,8 +143,8 @@ All five repositories follow this same shape.
 Route: `/login`
 
 Two states:
-1. **Email form** — single email input + "Send magic link" button
-2. **Sent** — "Check your email" message with the address shown
+1. **Email form**: single email input + "Send magic link" button
+2. **Sent**: "Check your email" message with the address shown
 
 ```
 ┌─────────────────────────────┐
@@ -175,7 +175,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
 }
 ```
 
-`/login` is the only public route. After magic link verification, better-auth redirects to `/` and the cookie is set — `RequireAuth` passes through.
+`/login` is the only public route. After magic link verification, better-auth redirects to `/` and the cookie is set, `RequireAuth` passes through.
 
 ---
 
@@ -188,7 +188,7 @@ One new env var for the frontend, only needed in local dev:
 VITE_API_URL=http://localhost:3000
 ```
 
-In production the variable is empty — the frontend is served from the same nginx origin as the API (`/api/` proxy), so same-origin fetch works without a base URL. No `.env.production` file needed.
+In production the variable is empty: the frontend is served from the same nginx origin as the API (`/api/` proxy), so same-origin fetch works without a base URL. No `.env.production` file needed.
 
 ---
 
@@ -201,5 +201,5 @@ No migration of existing local data. The web version stored data in-memory (lost
 ## Build changes
 
 - Remove `sql.js` from `package.json` dependencies
-- `vite.config.ts` had no sql.js-specific config — no changes needed
+- `vite.config.ts` had no sql.js-specific config, no changes needed
 - The `database-capacitor.ts` path is removed; Capacitor native support is out of scope for now (the app is being used primarily via the web server)

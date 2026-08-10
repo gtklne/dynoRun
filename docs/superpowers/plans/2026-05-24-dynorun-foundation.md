@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the headless foundation of DynoRun — project scaffolding, storage, sensor abstraction, the full analysis pipeline (raw GPS samples → wheel-power curve), and a minimal Garage UI plus a fixture-replay demo that proves end-to-end correctness without needing a real car.
+**Goal:** Build the headless foundation of DynoRun: project scaffolding, storage, sensor abstraction, the full analysis pipeline (raw GPS samples → wheel-power curve), and a minimal Garage UI plus a fixture-replay demo that proves end-to-end correctness without needing a real car.
 
 **Architecture:** TypeScript monorepo as a single Vite + React app, designed to be wrapped by Capacitor in Phase 3. Strict one-way module dependencies (UI → run/analysis → sensors + storage). Pure functions in the analysis pipeline. Repository pattern over a `Database` interface with sql.js (web) and Capacitor SQLite (native) implementations sharing identical SQL. Sensor sources implement a uniform `SensorSource<T>` interface so OBD-II can be added later without touching the analysis pipeline.
 
-**Tech Stack:** Vite, React 18, TypeScript 5 (strict), Vitest, React Testing Library, sql.js (web), `@capacitor-community/sqlite` (native), uPlot, React Router v6. No state-management library, no RxJS — hand-rolled `Subject<T>` for sensor streams.
+**Tech Stack:** Vite, React 18, TypeScript 5 (strict), Vitest, React Testing Library, sql.js (web), `@capacitor-community/sqlite` (native), uPlot, React Router v6. No state-management library, no RxJS: hand-rolled `Subject<T>` for sensor streams.
 
 ---
 
@@ -91,7 +91,7 @@ tests/
 
 ---
 
-## Phase A — Project scaffolding
+## Phase A: Project scaffolding
 
 ### Task 1: Initialize Vite + React + TypeScript project
 
@@ -251,7 +251,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 
 ```tsx
 export default function App() {
-  return <div>DynoRun — boot OK</div>;
+  return <div>DynoRun: boot OK</div>;
 }
 ```
 
@@ -332,7 +332,7 @@ git commit -m "test: configure vitest with jsdom"
 
 ---
 
-## Phase B — Shared foundation
+## Phase B: Shared foundation
 
 ### Task 3: Shared `units.ts`, `uuid.ts`, `iso-time.ts`
 
@@ -605,7 +605,7 @@ git commit -m "feat(shared): domain types"
 
 ---
 
-## Phase C — Storage layer
+## Phase C: Storage layer
 
 ### Task 6: `Database` interface + sql.js implementation
 
@@ -1668,7 +1668,7 @@ git commit -m "feat(storage): DerivedCurveRepository"
 
 ---
 
-## Phase D — Sensor abstraction
+## Phase D: Sensor abstraction
 
 ### Task 12: Sensor types
 
@@ -2032,7 +2032,7 @@ git commit -m "feat(sensors): GpsSpeedSource (browser geolocation)"
 
 ---
 
-## Phase E — Analysis pipeline
+## Phase E: Analysis pipeline
 
 ### Task 17: Analysis types
 
@@ -2775,7 +2775,7 @@ git commit -m "test(e2e): fixture → pipeline → persisted derived curve"
 
 ---
 
-## Phase F — Minimal Garage UI
+## Phase F: Minimal Garage UI
 
 ### Task 26: App shell with router and DB bootstrap
 
@@ -2862,9 +2862,9 @@ export default function App() {
 }
 ```
 
-(`GarageScreen`, `VehicleDetail`, and `FixtureReplayScreen` are added in subsequent tasks. Until then this file will fail to typecheck — that's expected; the next tasks fix it.)
+(`GarageScreen`, `VehicleDetail`, and `FixtureReplayScreen` are added in subsequent tasks. Until then this file will fail to typecheck, that's expected; the next tasks fix it.)
 
-- [ ] **Step 4: Commit (no typecheck yet — next tasks add the missing screens)**
+- [ ] **Step 4: Commit (no typecheck yet, next tasks add the missing screens)**
 
 ```bash
 git add -A
@@ -3041,7 +3041,7 @@ export function GarageScreen() {
       <ul>
         {vehicles.map((v) => (
           <li key={v.id}>
-            <Link to={`/vehicles/${v.id}`}>{v.name}</Link> — {v.kind}, {v.mass_kg} kg
+            <Link to={`/vehicles/${v.id}`}>{v.name}</Link>, {v.kind}, {v.mass_kg} kg
           </li>
         ))}
       </ul>
@@ -3119,7 +3119,7 @@ export function VehicleDetail() {
       <h2>Calibrations ({cals.length})</h2>
       <ul>{cals.map((c) => <li key={c.id}>{c.gear_label}: {c.rpm} RPM @ {c.speed_kmh} km/h (rollout {c.rollout_m_per_rev.toFixed(4)} m/rev)</li>)}</ul>
       <h2>Runs ({runs.length})</h2>
-      <ul>{runs.map((r) => <li key={r.id}>{r.started_at} — {r.gear_label} — {r.status}</li>)}</ul>
+      <ul>{runs.map((r) => <li key={r.id}>{r.started_at}-{r.gear_label}-{r.status}</li>)}</ul>
       <p><em>Calibration wizard and live runs ship in Plan 2.</em></p>
     </section>
   );
@@ -3140,7 +3140,7 @@ git commit -m "feat(ui): read-only VehicleDetail"
 
 ---
 
-## Phase G — Fixture replay demo
+## Phase G: Fixture replay demo
 
 ### Task 29: Static `<PowerCurveChart>`
 
@@ -3248,7 +3248,7 @@ export function FixtureReplayScreen() {
       {error && <pre style={{ color: 'crimson' }}>{error}</pre>}
       {result && (
         <>
-          <h2>Power curve ({result.rpm_min.toFixed(0)} – {result.rpm_max.toFixed(0)} RPM)</h2>
+          <h2>Power curve ({result.rpm_min.toFixed(0)}-{result.rpm_max.toFixed(0)} RPM)</h2>
           <PowerCurveChart points={result.points} />
           <p>{result.points.length} binned points · pipeline v{result.pipeline_version}</p>
         </>
@@ -3316,7 +3316,7 @@ A working web app where:
 - The full database schema is migrated on first run.
 - You can create, edit, and view vehicles.
 - The analysis pipeline (resample → smooth → differentiate → power/torque → bin) is unit-tested and end-to-end-tested against a synthetic run.
-- The Replay demo screen takes a JSON fixture and renders the derived power curve in a real uPlot chart — the physics layer is visibly correct before any live-driving UX exists.
+- The Replay demo screen takes a JSON fixture and renders the derived power curve in a real uPlot chart. The physics layer is visibly correct before any live-driving UX exists.
 - Sensor abstraction interfaces are in place, with `MockSpeedSource`, `DerivedRpmSource`, and a stubbed `GpsSpeedSource`.
 
 **What comes next (Plan 2):** Calibration wizard with live GPS stability detection; live run view with streaming uPlot chart; auto-stop detection; the run controller state machine; permissions and wake lock; run review screen with notes and save/discard.

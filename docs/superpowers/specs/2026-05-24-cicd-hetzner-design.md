@@ -2,7 +2,7 @@
 
 ## Goal
 
-Auto-deploy dynoRun (React/Vite SPA) to a cheap Hetzner server on every push to `main`. Access the running app from a phone via `http://<server-ip>` — no domain required.
+Auto-deploy dynoRun (React/Vite SPA) to a cheap Hetzner server on every push to `main`. Access the running app from a phone via `http://<server-ip>`, no domain required.
 
 ## Infrastructure
 
@@ -36,4 +36,4 @@ GitHub Actions secrets:
 
 ## Access
 
-`http://<server-ip>` — open in mobile browser, no domain or HTTPS needed.
+`http://<server-ip>`: open in mobile browser, no domain or HTTPS needed.

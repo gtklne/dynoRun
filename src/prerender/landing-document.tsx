@@ -5,22 +5,22 @@
 // only route crawlers may fetch (robots.txt disallows /imprint and /privacy, and
 // every other route sits behind RequireAuth), and it is the only page an
 // anonymous first-time visitor ever sees. It also has no dynamic data at all, so
-// there is nothing a request-time render could add — a file on disk is strictly
+// there is nothing a request-time render could add. A file on disk is strictly
 // better than an SSR round-trip through the API.
 //
 // The CSS is inlined rather than linked because nginx here only gzips text/html
 // (gzip_types is left at its default), so 60 kB of inlined CSS goes over the wire
-// at ~11 kB while the same bytes as /assets/index-*.css would go uncompressed —
+// at ~11 kB while the same bytes as /assets/index-*.css would go uncompressed,
 // and the page ends up with no render-blocking sub-resource either way.
 
 import { renderToStaticMarkup } from 'react-dom/server';
 import { LandingScreen } from '@/ui/home/landing-screen';
 
-export const LANDING_TITLE = 'wasgoht — motorsport telemetry';
+export const LANDING_TITLE = 'wasgoht: motorsport telemetry';
 export const LANDING_URL = 'https://wasgoht.ch/';
 
 const DESCRIPTION =
-  'wasgoht — motorsport telemetry tools. A GPS virtual dyno and a track-session grip analyzer, in one place.';
+  'wasgoht: motorsport telemetry tools. A GPS virtual dyno and a track-session grip analyzer, in one place.';
 
 /**
  * Renders the complete landing document. Pure so it can be unit-tested without
@@ -45,11 +45,11 @@ export function renderLandingDocument({ css }: { css: string }): string {
     <link rel="apple-touch-icon" href="/favicon.svg" />
     <meta property="og:site_name" content="wasgoht" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="wasgoht — motorsport telemetry tools" />
+    <meta property="og:title" content="wasgoht: motorsport telemetry tools" />
     <meta property="og:description" content="A GPS virtual dyno and a track-session grip analyzer, in one place." />
     <meta property="og:url" content="${LANDING_URL}" />
     <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="wasgoht — motorsport telemetry tools" />
+    <meta name="twitter:title" content="wasgoht: motorsport telemetry tools" />
     <meta name="twitter:description" content="A GPS virtual dyno and a track-session grip analyzer, in one place." />
     <title>${LANDING_TITLE}</title>
     <style>${css}</style>

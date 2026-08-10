@@ -1,7 +1,7 @@
 /**
  * Best-effort voice feedback for hands-free use: the rider hears state changes
  * without looking at the phone. No-ops when SpeechSynthesis is unavailable
- * (older WebViews) — haptics remain the fallback cue.
+ * (older WebViews): haptics remain the fallback cue.
  */
 export function speak(text: string): void {
   try {

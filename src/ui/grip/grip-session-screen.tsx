@@ -69,7 +69,7 @@ export function GripSessionScreen() {
         return;
       }
       if (!isStoredGripData(full.data)) {
-        setLoadError('This session’s stored data is unreadable — it may have been written by a newer version.');
+        setLoadError('This session’s stored data is unreadable. It may have been written by a newer version.');
         return;
       }
       try {
@@ -92,7 +92,7 @@ export function GripSessionScreen() {
   // Heavy derivation only when a 'recompute'-class setting changes; τ re-mixes
   // cheaply below and 'render'-class settings just flow into props. Deferred so
   // dragging a recompute-class slider re-derives once it settles instead of on
-  // every step — the derivation includes cross-lap turn matching and costs ~30 ms.
+  // every step: the derivation includes cross-lap turn matching and costs ~30 ms.
   const recomputeSig = useDeferredValue(RECOMPUTE_KEYS.map((k) => settings[k]).join(','));
   const analysis = useMemo(
     () => (parsed ? analyzeGripSession(parsed, settings) : null),
@@ -122,7 +122,7 @@ export function GripSessionScreen() {
     () => new Map(Array.from(cornerLive, ([n, s]) => [n, s.apexG])),
     [cornerLive],
   );
-  // Best apex demand per TRACK TURN across all laps — the "you have proven you
+  // Best apex demand per TRACK TURN across all laps. The "you have proven you
   // can" reference the spare flag compares against. Keying this on the per-lap
   // detection index instead compares unrelated bends: detection finds 6 to 9
   // corners on ten laps of the same circuit, and on the local fixture that made
@@ -170,7 +170,7 @@ export function GripSessionScreen() {
     gripSessionRepository.update(session.id, { vehicle_id: next }).catch(() => {});
   }
 
-  // Space = play/pause, ←/→ = scrub (±1 s with shift), Esc = close drawer —
+  // Space = play/pause, ←/→ = scrub (±1 s with shift), Esc = close drawer,
   // but never while typing in an input.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -227,10 +227,10 @@ export function GripSessionScreen() {
             {analysis.turnCount > 0 && <> · {analysis.turnCount} turns</>}
             {' · '}session score{' '}
             <span className="font-mono text-zinc-300">
-              {analysis.fitSamples > 0 ? Math.round(analysis.sessionScore) : '—'}
+              {analysis.fitSamples > 0 ? Math.round(analysis.sessionScore) : 'n/a'}
             </span>
-            {/* The score is monotone in lap count — measured +8.3 points from 1 to
-                10 laps of the same riding — so it is not comparable between
+            {/* The score is monotone in lap count (measured +8.3 points from 1 to
+                10 laps of the same riding), so it is not comparable between
                 sessions of different length unless that is stated. Compare
                 already equalises the lap budget; here we at least name it. */}
             {analysis.fitSamples > 0 && (
@@ -294,7 +294,7 @@ export function GripSessionScreen() {
           taller traction-circle + telemetry stack */}
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
         <Panel
-          title={<>Track map — {metricModeName(mode).toLowerCase()}</>}
+          title={<>Track map: {metricModeName(mode).toLowerCase()}</>}
           hint={
             <span className="flex items-center gap-2 text-[11px] text-zinc-500">
               0

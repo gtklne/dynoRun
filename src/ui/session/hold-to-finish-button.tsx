@@ -4,7 +4,7 @@ const HOLD_MS = 1500;
 
 /**
  * Press-and-hold trigger for ending a hands-free session. A plain tap must
- * NOT finish it — with the phone in a pocket or tank bag, stray touches are
+ * NOT finish it, with the phone in a pocket or tank bag, stray touches are
  * expected; only a deliberate sustained press counts.
  */
 export function HoldToFinishButton({ onFinish, label = 'Hold to finish' }: { onFinish: () => void; label?: string }) {

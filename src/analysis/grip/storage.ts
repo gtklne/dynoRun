@@ -2,7 +2,7 @@ import { GRIP_DATA_VERSION, type GripChannels, type ParsedGripSession } from './
 
 /**
  * The jsonb envelope stored in grip_sessions.data. Only the parsed base
- * channels are persisted — every derived channel is recomputed client-side on
+ * channels are persisted: every derived channel is recomputed client-side on
  * load, so tuning settings later never invalidates stored sessions.
  */
 export interface StoredGripData {
@@ -43,7 +43,7 @@ const CHANNEL_KEYS: (keyof GripChannels)[] = ['t', 'lat', 'lon', 'spd', 'lean', 
 /**
  * Guard the stored envelope before it reaches the pipeline. Element types matter,
  * not just array-ness: a channel holding nulls or strings produces an all-NaN
- * analysis — a blank traction circle and a NaN score — with no error path.
+ * analysis (a blank traction circle and a NaN score), with no error path.
  * Sampled rather than exhaustive, because this runs on the render path for a
  * 65k-sample session; a corrupt channel is corrupt in more than one place.
  */

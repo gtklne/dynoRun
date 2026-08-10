@@ -10,7 +10,7 @@ interface Props {
   refKey: string;
   subjectKey: string;
   anchorG: number;
-  /** metres — highlights the turn the cursor is inside */
+  /** metres: highlights the turn the cursor is inside */
   cursor: number;
   onSelectTurn: (s: number) => void;
 }
@@ -40,7 +40,7 @@ export function CompareTurnTable({ cmp, refKey, subjectKey, anchorG, cursor, onS
     const out = cmp.corners.map((c) => {
       const ref = c.stats.find((s) => s.key === refKey);
       const sub = c.stats.find((s) => s.key === subjectKey);
-      // NaN when either lap left the layout before this turn — kept as NaN so
+      // NaN when either lap left the layout before this turn, kept as NaN so
       // the verdict reads "Not on this lap" instead of "Matched"
       const dTime = sub && ref ? sub.deltaGain - ref.deltaGain : NaN;
       const dScore = sub && ref ? sub.apexScore - ref.apexScore : NaN;
@@ -71,7 +71,7 @@ export function CompareTurnTable({ cmp, refKey, subjectKey, anchorG, cursor, onS
   if (!cmp.corners.length) {
     return (
       <p className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 text-center text-sm text-zinc-500">
-        No turns were detected on these laps — lower “Min lean for a corner” in Settings if the track has only gentle bends.
+        No turns were detected on these laps. Lower “Min lean for a corner” in Settings if the track has only gentle bends.
       </p>
     );
   }
@@ -88,11 +88,11 @@ export function CompareTurnTable({ cmp, refKey, subjectKey, anchorG, cursor, onS
               <>
                 Most time to find at{' '}
                 <b className="text-rose-400">{worst.map((r) => `T${r.c.turn}`).join(', ')}</b>
-                {' — '}
+                {': '}
                 {formatDelta(worst.reduce((s, r) => s + r.dTime, 0))}s of the gap sits there.
               </>
             ) : (
-              <>No turn is losing more than 0.05 s — the gap is spread across the lap.</>
+              <>No turn is losing more than 0.05 s. The gap is spread across the lap.</>
             )}
             {unmeasured > 0 && (
               <> · {unmeasured} turn{unmeasured === 1 ? '' : 's'} not on the subject lap’s section of track.</>
@@ -126,8 +126,8 @@ export function CompareTurnTable({ cmp, refKey, subjectKey, anchorG, cursor, onS
           </thead>
           <tbody>
             {rows.map(({ c, ref, sub, dTime, dScore, dSpeed, dLean, dLoad, payoff }) => {
-              // A turn outside the subject's common section has values — they are
-              // just measured on different tarmac. Printing them next to a "—" for
+              // A turn outside the subject's common section has values. They are
+              // just measured on different tarmac. Printing them next to a "n/a" for
               // time invites exactly the comparison the mask exists to prevent.
               const off = payoff === 'unmeasured';
               return (
@@ -150,10 +150,10 @@ export function CompareTurnTable({ cmp, refKey, subjectKey, anchorG, cursor, onS
                   </span>
                 </td>
                 <td className={`px-3 py-2.5 text-right font-mono tabular-nums ${deltaTextClass(dTime)}`}>
-                  {sameLap || off ? '—' : `${formatDelta(dTime)}s`}
+                  {sameLap || off ? 'n/a' : `${formatDelta(dTime)}s`}
                 </td>
                 <td className="px-3 py-2.5 text-right font-mono tabular-nums text-zinc-300">
-                  {off ? '—' : Math.round(sub?.apexScore ?? 0)}
+                  {off ? 'n/a' : Math.round(sub?.apexScore ?? 0)}
                   {!sameLap && !off && Number.isFinite(dScore) && (
                     <span className={`ml-1.5 text-[11px] ${deltaTextClass(-dScore, 3)}`}>
                       {formatDelta(dScore, 0)}
@@ -161,7 +161,7 @@ export function CompareTurnTable({ cmp, refKey, subjectKey, anchorG, cursor, onS
                   )}
                 </td>
                 <td className="px-3 py-2.5 text-right font-mono tabular-nums text-zinc-300">
-                  {off ? '—' : Math.round((sub?.minSpeed ?? 0) * 3.6)}
+                  {off ? 'n/a' : Math.round((sub?.minSpeed ?? 0) * 3.6)}
                   {!sameLap && !off && (
                     <span className={`ml-1.5 text-[11px] ${deltaTextClass(-dSpeed, 1)}`}>
                       {formatDelta(dSpeed, 0)}
@@ -169,11 +169,11 @@ export function CompareTurnTable({ cmp, refKey, subjectKey, anchorG, cursor, onS
                   )}
                 </td>
                 <td className="px-3 py-2.5 text-right font-mono tabular-nums text-zinc-400">
-                  {off ? '—' : `${Math.round(sub?.maxLean ?? 0)}°`}
+                  {off ? 'n/a' : `${Math.round(sub?.maxLean ?? 0)}°`}
                   {!sameLap && !off && <span className="ml-1.5 text-[11px] text-zinc-500">{formatDelta(dLean, 0)}</span>}
                 </td>
                 <td className="px-3 py-2.5 text-right font-mono tabular-nums text-zinc-400">
-                  {off ? '—' : (sub?.peakLoad ?? 0).toFixed(1)}
+                  {off ? 'n/a' : (sub?.peakLoad ?? 0).toFixed(1)}
                   {!sameLap && !off && <span className="ml-1.5 text-[11px] text-zinc-500">{formatDelta(dLoad, 1)}</span>}
                 </td>
                 <td className={`px-3 py-2.5 text-[12px] ${PAYOFF_STYLE[payoff]}`} title={PAYOFF_HINT[payoff]}>

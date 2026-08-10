@@ -4,7 +4,7 @@ interface AccelTimesCardProps {
   accel: AccelTimes;
 }
 
-const ZERO_TO_HUNDRED_LABEL = '0–100 km/h';
+const ZERO_TO_HUNDRED_LABEL = '0-100 km/h';
 
 function isZeroToHundred(interval: AccelInterval): boolean {
   return interval.from_kmh === 0 && interval.to_kmh === 100;

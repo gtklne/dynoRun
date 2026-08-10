@@ -87,7 +87,7 @@ describe('detectPulls', () => {
   });
 
   it('ignores accelerations that gain too little speed', () => {
-    // +10 km/h nudge — below the 15 km/h gain threshold.
+    // +10 km/h nudge: below the 15 km/h gain threshold.
     const samples = ride([
       { accel: 0, seconds: 30 },
       { accel: 0.9, seconds: 3 },
@@ -133,7 +133,7 @@ describe('detectPulls', () => {
   it('rejects implausibly long acceleration segments', () => {
     const samples = ride([
       { accel: 0, seconds: 10 },
-      { accel: 0.35, seconds: 200 },    // 200 s of creeping accel — not a pull
+      { accel: 0.35, seconds: 200 },    // 200 s of creeping accel, not a pull
       { accel: 0, seconds: 10 },
     ]);
     expect(detectPulls(samples)).toEqual([]);
@@ -153,7 +153,7 @@ describe('slicePullSamples', () => {
     expect(slice[0].t_ms).toBe(0);
     // Span matches the pull duration to within one detection-grid step on each side.
     expect(Math.abs(slice[slice.length - 1].t_ms - pull.duration_ms)).toBeLessThanOrEqual(400);
-    // Speeds are untouched — the slice ends at the pull's peak.
+    // Speeds are untouched: the slice ends at the pull's peak.
     expect(slice[slice.length - 1].speed_mps).toBeCloseTo(
       Math.max(...slice.map((s) => s.speed_mps)),
       5,

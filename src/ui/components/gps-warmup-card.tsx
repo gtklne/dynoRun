@@ -14,7 +14,7 @@ interface GpsWarmupCardProps {
   warmupStartedAt: number;
   goodSince: number | null;
   now: number;
-  /** Suffix in the poor-GPS warning — "dyno data" or "calibration". */
+  /** Suffix in the poor-GPS warning: "dyno data" or "calibration". */
   poorOutcome?: string;
   goodAccuracyM?: number;
   requiredGoodMs?: number;
@@ -85,28 +85,28 @@ export function GpsWarmupCard({
         <div className="flex items-baseline justify-between py-1 border-b border-zinc-800/60">
           <span className="text-zinc-500 text-xs uppercase tracking-wider font-medium">Accuracy</span>
           <span className={`tabular-nums text-sm font-mono font-semibold ${accuracyColor(telemetry?.accuracy_m ?? null, goodAccuracyM)}`}>
-            {telemetry?.accuracy_m != null ? telemetry.accuracy_m.toFixed(1) : '—'}
+            {telemetry?.accuracy_m != null ? telemetry.accuracy_m.toFixed(1) : 'n/a'}
             <span className="text-zinc-500 text-xs font-normal ml-1">m</span>
           </span>
         </div>
         <div className="flex items-baseline justify-between py-1 border-b border-zinc-800/60">
           <span className="text-zinc-500 text-xs uppercase tracking-wider font-medium">Signal Quality</span>
           <span className={`tabular-nums text-sm font-mono font-semibold ${telemetry ? qualityColor(telemetry.quality) : 'text-zinc-500'}`}>
-            {telemetry ? Math.round(telemetry.quality * 100) : '—'}
+            {telemetry ? Math.round(telemetry.quality * 100) : 'n/a'}
             <span className="text-zinc-500 text-xs font-normal ml-1">%</span>
           </span>
         </div>
         <div className="flex items-baseline justify-between py-1 border-b border-zinc-800/60">
           <span className="text-zinc-500 text-xs uppercase tracking-wider font-medium">Fix Rate</span>
           <span className="tabular-nums text-sm font-mono font-semibold text-zinc-100">
-            {telemetry?.fix_rate_hz != null ? telemetry.fix_rate_hz.toFixed(1) : '—'}
+            {telemetry?.fix_rate_hz != null ? telemetry.fix_rate_hz.toFixed(1) : 'n/a'}
             <span className="text-zinc-500 text-xs font-normal ml-1">Hz</span>
           </span>
         </div>
         <div className="flex items-baseline justify-between py-1">
           <span className="text-zinc-500 text-xs uppercase tracking-wider font-medium">Current Speed</span>
           <span className="tabular-nums text-sm font-mono font-semibold text-zinc-100">
-            {currentSpeedKmh != null ? currentSpeedKmh.toFixed(1) : '—'}
+            {currentSpeedKmh != null ? currentSpeedKmh.toFixed(1) : 'n/a'}
             <span className="text-zinc-500 text-xs font-normal ml-1">km/h</span>
           </span>
         </div>

@@ -56,7 +56,7 @@ export class SensorRecorder {
   private motionHandler: ((e: DeviceMotionEvent) => void) | null = null;
 
   /**
-   * `motion: false` skips DeviceMotion capture — a multi-minute hands-free
+   * `motion: false` skips DeviceMotion capture. A multi-minute hands-free
    * session at ~60 Hz motion would balloon the envelope to tens of MB, and
    * the analysis pipeline only consumes GPS.
    */
@@ -163,7 +163,7 @@ export function fixSpeedMps(prev: RawGpsFix | null, cur: RawGpsFix): number {
   return Math.max(0, speed_mps);
 }
 
-/** GPS accuracy → 0–1 quality, matching the live source mapping. */
+/** GPS accuracy → 0-1 quality, matching the live source mapping. */
 export function fixQuality(cur: RawGpsFix): number {
   return cur.accuracy_m != null ? Math.max(0, 1 - cur.accuracy_m / 30) : 0.5;
 }

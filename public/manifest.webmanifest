@@ -1,7 +1,7 @@
 {
   "name": "DynoRun",
   "short_name": "DynoRun",
-  "description": "GPS-based virtual dyno — your phone is a dyno.",
+  "description": "GPS-based virtual dyno. Your phone is a dyno.",
   "theme_color": "#09090b",
   "background_color": "#09090b",
   "display": "standalone",

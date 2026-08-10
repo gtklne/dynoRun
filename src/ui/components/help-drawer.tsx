@@ -133,7 +133,7 @@ export function HelpDrawer({ open, onClose }: HelpDrawerProps) {
             <SectionHeader kicker="Welcome" title="What is DynoRun?" />
             <Body>
               DynoRun derives your car&apos;s wheel-power curve from GPS acceleration
-              data. No dyno required — just drive.
+              data. No dyno required, just drive.
             </Body>
           </Section>
 
@@ -143,7 +143,7 @@ export function HelpDrawer({ open, onClose }: HelpDrawerProps) {
               <StepCard
                 index={1}
                 title="Add vehicle"
-                body="Mass matters — physics is F = m·a."
+                body="Mass matters, physics is F = m·a."
               />
               <StepCard
                 index={2}
@@ -185,7 +185,7 @@ export function HelpDrawer({ open, onClose }: HelpDrawerProps) {
                 definition="Biggest number on your curve, at the RPM where the engine pulls hardest."
               />
               <GlossaryItem
-                term="0–100 km/h"
+                term="0-100 km/h"
                 definition="Only shown if your run started near a stop."
               />
               <GlossaryItem
@@ -206,10 +206,10 @@ export function HelpDrawer({ open, onClose }: HelpDrawerProps) {
           <Section>
             <SectionHeader kicker="Tips" title="Get the cleanest curve" />
             <ul className="text-zinc-300 text-sm space-y-1.5 list-disc list-inside marker:text-amber-400">
-              <li>Clear-sky GPS — open road, no tunnels or canyons.</li>
+              <li>Clear-sky GPS: open road, no tunnels or canyons.</li>
               <li>One gear at a time.</li>
               <li>Smooth throttle from start to redline.</li>
-              <li>Avoid wheelspin — it lies to the accelerometer.</li>
+              <li>Avoid wheelspin, it lies to the accelerometer.</li>
             </ul>
           </Section>
 

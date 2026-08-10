@@ -79,7 +79,7 @@ export function HeroStats({ peak, totalRuns, vehicleCount }: { peak: PeakInfo | 
   const { format } = useUnits();
   return (
     <div className="grid grid-cols-3 gap-2">
-      <StatTile label="All-time peak" value={peak ? format(peak.kw) : '—'} subtitle={peak?.vehicleName} accent />
+      <StatTile label="All-time peak" value={peak ? format(peak.kw) : 'n/a'} subtitle={peak?.vehicleName} accent />
       <StatTile label="Total runs" value={String(totalRuns)} />
       <StatTile label="Cars" value={String(vehicleCount)} subtitle="in garage" />
     </div>

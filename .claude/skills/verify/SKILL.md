@@ -11,7 +11,7 @@ description: Runtime-verify DynoRun changes by driving the real app (Vite + API 
 2. API: `cd server && npm run dev` (its dev.sh checks the tunnel; listens on :3000).
 3. Frontend: `npm run dev` (Vite :5173, proxies `/api` → :3000, so cookies are same-origin).
 
-⚠️ Local dev hits the **live prod Postgres**. Create disposable entities (a `TEST …` vehicle) and delete them after — `DELETE /api/vehicles/:id` cascades runs, samples, curves, calibrations, and recordings.
+⚠️ Local dev hits the **live prod Postgres**. Create disposable entities (a `TEST …` vehicle) and delete them after, `DELETE /api/vehicles/:id` cascades runs, samples, curves, calibrations, and recordings.
 
 ## Auth without email
 
@@ -31,13 +31,13 @@ const setCookie = await serializeSignedCookie('better-auth.session_token', token
 ## Driving GPS-dependent screens
 
 Playwright lives in the npx cache (`~/.npm/_npx/*/node_modules/playwright`), not in the project.
-Override geolocation with `context.addInitScript` — replace
+Override geolocation with `context.addInitScript`, replace
 `navigator.geolocation.watchPosition/clearWatch/getCurrentPosition` with a 1 Hz
 scripted emitter of `{coords: {latitude, longitude, accuracy: 4, altitude, heading, speed}, timestamp}`.
 Native `coords.speed` is consumed directly; accuracy ≤ 10 for ≥ 2 s unlocks the start buttons.
 Set the session cookie via `context.addCookies` for `http://localhost:5173`.
 
 Gotchas seen in practice:
-- Headless Chromium **denies Wake Lock** — anything that `await`s `WakeLock.acquire()` un-guarded dies.
+- Headless Chromium **denies Wake Lock**: anything that `await`s `WakeLock.acquire()` un-guarded dies.
 - Hold-to-press buttons: `mouse.down()` → `waitForTimeout` → `mouse.up()`; a plain `.click()` is the negative probe.
 - Calibrations can be created via API (`POST /api/vehicles/:id/calibrations {gear_label, rpm, speed_kmh, notes}`) to skip the GPS wizard.

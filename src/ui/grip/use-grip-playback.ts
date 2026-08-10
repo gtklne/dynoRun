@@ -17,7 +17,7 @@ export interface GripPlayback {
 }
 
 /**
- * Lap playback at data rate × speed. Position accumulates as a float —
+ * Lap playback at data rate × speed. Position accumulates as a float:
  * rounding into the cursor each frame would discard sub-sample progress and
  * freeze 1× playback on a 60 Hz display (0.42 samples/frame → round 0).
  */

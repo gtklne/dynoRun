@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { BrandLogo } from '@/ui/components/brand-logo';
 
 // These pages are legally required to exist but shouldn't show up in search
-// results — inject a noindex meta tag for the duration this page is mounted.
+// results: inject a noindex meta tag for the duration this page is mounted.
 // robots.txt also disallows crawling them; the meta tag is the belt-and-braces
 // signal for crawlers that see the page anyway (e.g. via a direct link).
 function useNoIndex() {

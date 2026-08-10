@@ -33,9 +33,9 @@ server/
 ```
 
 Infrastructure files (created on the server, not in git):
-- `/etc/dynorun.env` — environment variables
-- `/etc/systemd/system/dynorun-api.service` — systemd service
-- `/etc/nginx/sites-available/dynorun` — updated nginx config (api proxy added)
+- `/etc/dynorun.env` (environment variables
+- `/etc/systemd/system/dynorun-api.service`) systemd service
+- `/etc/nginx/sites-available/dynorun`: updated nginx config (api proxy added)
 
 ---
 
@@ -1028,7 +1028,7 @@ ssh -i ~/.ssh/dynorun_deploy deploy@138.199.154.225 \
   "cd /opt/dynorun-api && source /etc/dynorun.env && npx drizzle-kit push"
 ```
 
-Wait — `drizzle-kit` is a dev dependency and won't be in the production install. Use `drizzle-kit push` locally pointing at the remote DB instead, via SSH tunnel:
+Wait, `drizzle-kit` is a dev dependency and won't be in the production install. Use `drizzle-kit push` locally pointing at the remote DB instead, via SSH tunnel:
 
 ```bash
 ssh -i ~/.ssh/dynorun_deploy -L 5432:localhost:5432 deploy@138.199.154.225 -N &
@@ -1069,7 +1069,7 @@ curl -s -X POST http://138.199.154.225/api/auth/magic-link \
   -d '{"email":"j.nothstein@iwf.ch"}'
 ```
 
-Expected: `{"status":"OK"}` — check your email for the magic link.
+Expected: `{"status":"OK"}`,check your email for the magic link.
 
 - [ ] **Step 3: Click the magic link**
 
@@ -1083,4 +1083,4 @@ In the browser that has the session cookie:
 fetch('/api/vehicles', { credentials: 'include' }).then(r => r.json()).then(console.log)
 ```
 
-Expected: `[]` (empty array — no vehicles yet, but authenticated successfully).
+Expected: `[]` (empty array, no vehicles yet, but authenticated successfully).

@@ -6,7 +6,7 @@ interface AuthUser {
   email: string;
   /** Present because the server declares `role` as a better-auth additional
    *  field. Only ever 'admin' when granted manually in the database; the UI
-   *  flag is cosmetic — every /api/admin route re-checks the role server-side. */
+   *  flag is cosmetic: every /api/admin route re-checks the role server-side. */
   role?: string;
 }
 

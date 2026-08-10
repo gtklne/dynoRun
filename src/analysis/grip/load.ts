@@ -4,7 +4,7 @@ import type { GripLoadChannels } from './types';
 /**
  * Transient channels: the rate of change of the g-g operating point (jerk).
  * jLong = fore/aft transfer rate (dive/squat), jLat = side/side (flick),
- * loadRate = |dG/dt| — how fast the whole load state is moving. The magnitude
+ * loadRate = |dG/dt|: how fast the whole load state is moving. The magnitude
  * is frame-independent, so a hard throttle↔brake swap reads hot even while
  * net g passes through zero.
  */
@@ -28,7 +28,7 @@ export function computeLoad(t: number[], along: Float32Array, alat: Float32Array
 
 /**
  * Dynamic-load metric: steady-state grip demand with the transient folded in
- * as an orthogonal demand — hypot(comb, τ·loadRate). τ (seconds) × g/s = g,
+ * as an orthogonal demand, hypot(comb, τ·loadRate). τ (seconds) × g/s = g,
  * so the mix is dimensionally a g demand on the same absolute scale as comb.
  * Depends only on τ, so it can be re-mixed without re-deriving anything else.
  */

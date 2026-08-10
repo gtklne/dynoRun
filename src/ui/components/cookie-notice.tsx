@@ -28,7 +28,7 @@ export function CookieNotice() {
     <div className="pb-safe fixed bottom-16 left-0 right-0 z-[80] flex justify-center px-4 lg:bottom-4">
       <div className="flex w-full max-w-xl items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 shadow-lg">
         <p className="flex-1 text-xs leading-snug text-zinc-400">
-          We only use a strictly necessary cookie to keep you signed in — no
+          We only use a strictly necessary cookie to keep you signed in, with no
           tracking or analytics.{' '}
           <Link to="/privacy" className="text-amber-400 hover:underline">
             Learn more

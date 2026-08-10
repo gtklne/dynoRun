@@ -51,14 +51,14 @@ interface Props {
 const SECTION_EPS = 0.5;
 
 /**
- * Every selected lap's chosen channel on the shared distance axis — the
+ * Every selected lap's chosen channel on the shared distance axis, the
  * evidence behind the delta chart. Because the x axis is distance and not time,
  * two traces crossing means one rider was genuinely faster *at that point on
  * the track*, which a time axis can never show.
  *
  * A lap is drawn only across the stretch of axis it actually rode. Outside its
  * common section `resampleByDistance` holds the last real value, so drawing the
- * whole axis renders a flat line that is indistinguishable from measurement —
+ * whole axis renders a flat line that is indistinguishable from measurement,
  * on the local fixture pair that is 12% of the axis, at a held 215 km/h.
  */
 export function CompareTraceChart({ cmp, channel, colorOf, keys, cursor, onSeek, height = 170 }: Props) {

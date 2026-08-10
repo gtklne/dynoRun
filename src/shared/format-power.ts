@@ -21,7 +21,7 @@ export function formatPower(
   unit: PowerUnit,
   opts: FormatPowerOptions = {},
 ): string {
-  if (kw == null || !isFinite(kw)) return '—';
+  if (kw == null || !isFinite(kw)) return 'n/a';
   const decimals = opts.decimals ?? (unit === 'kW' ? 1 : 0);
   const value = convertPower(kw, unit).toFixed(decimals);
   return opts.unitSuffix === false ? value : `${value} ${unit}`;

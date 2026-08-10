@@ -33,8 +33,8 @@ describe('formatPower', () => {
   });
 
   it('returns em-dash for null/undefined', () => {
-    expect(formatPower(null, 'kW')).toBe('—');
-    expect(formatPower(undefined, 'hp')).toBe('—');
+    expect(formatPower(null, 'kW')).toBe('n/a');
+    expect(formatPower(undefined, 'hp')).toBe('n/a');
   });
 
   it('honors custom decimals', () => {
@@ -46,8 +46,8 @@ describe('formatPower', () => {
   });
 
   it('rejects non-finite kw', () => {
-    expect(formatPower(Number.NaN, 'kW')).toBe('—');
-    expect(formatPower(Number.POSITIVE_INFINITY, 'kW')).toBe('—');
+    expect(formatPower(Number.NaN, 'kW')).toBe('n/a');
+    expect(formatPower(Number.POSITIVE_INFINITY, 'kW')).toBe('n/a');
   });
 });
 

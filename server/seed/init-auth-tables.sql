@@ -1,6 +1,6 @@
 -- better-auth tables (camelCase columns as required by @better-auth/kysely-adapter)
 -- Run this once after creating the database if tables don't exist.
--- These are NOT managed by Drizzle — better-auth owns them.
+-- These are NOT managed by Drizzle: better-auth owns them.
 
 CREATE TABLE IF NOT EXISTS "user" (
   id TEXT PRIMARY KEY,

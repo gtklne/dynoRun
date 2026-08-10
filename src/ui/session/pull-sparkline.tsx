@@ -1,7 +1,7 @@
 import type { RawSpeedSample } from '@/analysis/types';
 
 /**
- * Tiny inline speed-vs-time preview for a detected pull. Pure SVG — uPlot
+ * Tiny inline speed-vs-time preview for a detected pull. Pure SVG: uPlot
  * would be overkill for a read-only 30-point sparkline inside a list card.
  */
 export function PullSparkline({ samples }: { samples: RawSpeedSample[] }) {

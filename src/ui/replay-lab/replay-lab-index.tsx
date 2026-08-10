@@ -65,7 +65,7 @@ export function ReplayLabIndex() {
       <div>
         <h1 className="text-2xl font-bold text-zinc-100">Replay Lab</h1>
         <p className="text-zinc-500 text-sm mt-1">
-          Re-run any recording in real time — watch the dyno play out without driving. Replays are
+          Re-run any recording in real time: watch the dyno play out without driving. Replays are
           ephemeral: nothing is saved.
         </p>
       </div>

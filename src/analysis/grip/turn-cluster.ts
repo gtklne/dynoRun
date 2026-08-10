@@ -1,8 +1,8 @@
 /**
  * Grouping corner apexes that sit at the same place on a shared distance axis.
  *
- * Corner detection is genuinely unstable — ten laps of one circuit yield 6 to 9
- * corners — so a turn cannot be identified by its detection index. It is
+ * Corner detection is genuinely unstable (ten laps of one circuit yield 6 to 9
+ * corners), so a turn cannot be identified by its detection index. It is
  * identified by *where it is*, which means clustering apex distances along one
  * lap's racing line. Both the single-session turn numbering (turns.ts) and the
  * cross-session comparison (compare.ts) need exactly this, and they must agree,

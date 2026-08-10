@@ -71,7 +71,7 @@ export function GripHome() {
         <div className="min-w-0">
           <h1 className="text-2xl font-bold text-zinc-100">Grip Utilization</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            RaceBox track-session analyzer — traction-circle telemetry, per-corner grip usage, load transfer.
+            RaceBox track-session analyzer: traction-circle telemetry, per-corner grip usage, load transfer.
           </p>
         </div>
         {sessions && sessions.length > 0 && (
@@ -99,7 +99,7 @@ export function GripHome() {
         }`}
       >
         <span className="text-sm font-semibold text-zinc-200">
-          {importing ? 'Analyzing session…' : 'Drop a RaceBox session CSV — or tap to choose'}
+          {importing ? 'Analyzing session…' : 'Drop a RaceBox session CSV, or tap to choose'}
         </span>
         <span className="text-xs text-zinc-500">
           Parsed in your browser, then saved to your account so you can revisit and tune it anytime.
@@ -148,7 +148,7 @@ export function GripHome() {
                   )}
                 </div>
                 <p className="mt-0.5 truncate text-[11px] text-zinc-500">
-                  {[s.label ? s.track : null, s.config, s.session_date].filter(Boolean).join(' · ') || '—'}
+                  {[s.label ? s.track : null, s.config, s.session_date].filter(Boolean).join(' · ') || 'n/a'}
                 </p>
                 <p className="mt-1 font-mono text-[11px] text-zinc-600">
                   {s.lap_count} laps

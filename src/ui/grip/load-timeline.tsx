@@ -16,7 +16,7 @@ interface LoadTimelineProps {
 /**
  * Two bands on a shared time axis. Top: longitudinal g (accel up, brake
  * down). Bottom: load-transfer rate. The payoff is seeing the top trace cross
- * zero exactly where the bottom spikes — the chassis loaded "through the
+ * zero exactly where the bottom spikes: the chassis loaded "through the
  * origin". Faint vertical lines mark corner apexes.
  */
 export function LoadTimeline({ analysis, lap, cursor, rateFS, onSeek }: LoadTimelineProps) {

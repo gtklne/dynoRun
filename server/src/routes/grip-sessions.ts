@@ -15,7 +15,7 @@ interface GripDataEnvelope {
   ch: Record<(typeof CHANNEL_KEYS)[number], number[]>;
 }
 
-// Keep in step with GRIP_DATA_VERSION in src/analysis/grip/types.ts — the server
+// Keep in step with GRIP_DATA_VERSION in src/analysis/grip/types.ts. The server
 // cannot import client code, so this literal is the one place the two must agree.
 // Older envelopes are accepted (the client decides whether it can read them);
 // a *newer* one means this deployment is behind and must not store it.
@@ -30,7 +30,7 @@ const MAX_SAMPLES = 500_000;
  *
  * Element types are checked, not just array-ness: a channel of nulls or strings
  * used to pass, and it is stored as multi-MB jsonb forever behind healthy-looking
- * summary columns while every derived channel comes out NaN — a blank traction
+ * summary columns while every derived channel comes out NaN, a blank traction
  * circle and a NaN score, with no error path anywhere. 65k numeric checks are
  * microseconds; a permanently corrupt row is not recoverable.
  */

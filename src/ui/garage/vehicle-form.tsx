@@ -176,7 +176,7 @@ export function VehicleForm({
         {selectedPreset ? (
           <p className="text-xs text-zinc-500">
             Drag coefficient Cd ≈ {selectedPreset.cd.toFixed(2)} for this shape. Frontal area is
-            prefilled — adjust if you know yours.
+            prefilled: adjust if you know yours.
           </p>
         ) : (
           <p className="text-xs text-zinc-500">
@@ -209,7 +209,7 @@ export function VehicleForm({
           className={`${inputClass} resize-none`}
           rows={3}
           value={notes}
-          placeholder="Optional — mods, baseline, etc."
+          placeholder="Optional: mods, baseline, etc."
           onChange={(e) => setNotes(e.target.value)}
         />
       </div>
@@ -261,7 +261,7 @@ export function VehicleForm({
                   aria-invalid={yearError}
                 />
                 {yearError && (
-                  <p className="text-xs text-red-400">Year must be {MIN_YEAR}–{MAX_YEAR}.</p>
+                  <p className="text-xs text-red-400">Year must be {MIN_YEAR}-{MAX_YEAR}.</p>
                 )}
               </div>
             </div>
@@ -285,7 +285,7 @@ export function VehicleForm({
                 value={transmission}
                 onChange={(e) => setTransmission(e.target.value as Transmission | '')}
               >
-                <option value="">—</option>
+                <option value="">n/a</option>
                 {TRANSMISSIONS.map((t) => (
                   <option key={t.value} value={t.value}>{t.label}</option>
                 ))}

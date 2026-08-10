@@ -101,7 +101,7 @@ describe('track turn identity', () => {
     const one = session([BASE_PACE]);
     expect(one.laps.length).toBe(1);
     expect(one.turnCount).toBeGreaterThan(0);
-    // with a single lap every detection is its own turn — nothing to disagree
+    // with a single lap every detection is its own turn, nothing to disagree
     expect(one.laps[0].corners.every((c) => c.turn > 0)).toBe(true);
   });
 });

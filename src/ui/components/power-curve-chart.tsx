@@ -32,7 +32,7 @@ interface Props {
   /** When supplied, converts power values to the user's unit and updates axis label.
    *  Default 'kW' (no conversion). */
   unit?: PowerUnit;
-  /** Optional series label to mark as "best" — adds a star and a thicker stroke. */
+  /** Optional series label to mark as "best": adds a star and a thicker stroke. */
   highlightLabel?: string;
   height?: number;
 }

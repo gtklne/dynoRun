@@ -50,7 +50,7 @@ export class CalibrationController {
   }
 
   /**
-   * Start the GPS in preview mode — samples flow through onLiveSample so the
+   * Start the GPS in preview mode: samples flow through onLiveSample so the
    * UI can show GPS quality, but no recording, stability detection, or DB
    * write happens. Call start() to promote to a real calibration once GPS
    * is locked.

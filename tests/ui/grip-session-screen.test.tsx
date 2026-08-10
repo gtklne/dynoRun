@@ -87,7 +87,7 @@ describe('GripSessionScreen', () => {
     expect(screen.getByText(/Turn 1 · Left/i)).toBeInTheDocument();
     expect(screen.getByText(/Turn 2 · Right/i)).toBeInTheDocument();
     // dynamic-load metric is the default colouring
-    expect(screen.getByText(/Track map — dynamic load/i)).toBeInTheDocument();
+    expect(screen.getByText(/Track map: dynamic load/i)).toBeInTheDocument();
     cleanup();
   });
 
@@ -109,7 +109,7 @@ describe('GripSessionScreen', () => {
     await renderScreen();
 
     fireEvent.click(screen.getByRole('tab', { name: /^Grip$/i }));
-    expect(screen.getByText(/Track map — grip score/i)).toBeInTheDocument();
+    expect(screen.getByText(/Track map: grip score/i)).toBeInTheDocument();
     cleanup();
   });
 

@@ -53,7 +53,7 @@ html {
   padding-top: env(safe-area-inset-top, 0px);
 }
 
-/* uPlot dark theme — keeps charts readable on zinc-900/950 cards. */
+/* uPlot dark theme: keeps charts readable on zinc-900/950 cards. */
 .uplot {
   font-family: system-ui, -apple-system, sans-serif;
 }

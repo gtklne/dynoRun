@@ -6,7 +6,7 @@
 
 **Architecture:** Two small state machines (calibration, run) drive headless controllers (`CalibrationController`, `RunController`) that depend only on the `SensorSource` and repository interfaces from Plan 1. React screens render the controller's state via subscription callbacks. Chart updates are pushed imperatively into uPlot via a ref so React never re-renders at sensor rate. Wake lock and geolocation permissions are isolated services with their own tests.
 
-**Tech Stack:** Same as Plan 1 — Vite, React 18, TypeScript, Vitest, uPlot, sql.js. No new dependencies.
+**Tech Stack:** Same as Plan 1: Vite, React 18, TypeScript, Vitest, uPlot, sql.js. No new dependencies.
 
 ---
 
@@ -63,7 +63,7 @@ tests/
 
 ---
 
-## Phase A — State machines & detectors
+## Phase A: State machines & detectors
 
 ### Task 1: Run domain types
 
@@ -579,7 +579,7 @@ git -c user.email=gutelkaune+claude@gmail.com -c user.name="DynoRun" commit -am 
 
 ---
 
-## Phase B — App services
+## Phase B: App services
 
 ### Task 6: WakeLock service
 
@@ -782,7 +782,7 @@ git -c user.email=gutelkaune+claude@gmail.com -c user.name="DynoRun" commit -am 
 
 ---
 
-## Phase C — Controllers
+## Phase C: Controllers
 
 ### Task 8: CalibrationController
 
@@ -1316,7 +1316,7 @@ git -c user.email=gutelkaune+claude@gmail.com -c user.name="DynoRun" commit -am 
 
 ---
 
-## Phase D — Streaming chart component
+## Phase D: Streaming chart component
 
 ### Task 10: StreamingChart component
 
@@ -1414,7 +1414,7 @@ git -c user.email=gutelkaune+claude@gmail.com -c user.name="DynoRun" commit -am 
 
 ---
 
-## Phase E — Calibration wizard UI
+## Phase E: Calibration wizard UI
 
 ### Task 11: Calibration wizard screen (host + step 1)
 
@@ -1445,7 +1445,7 @@ export function CalibrationStepGear({ onSubmit }: { onSubmit: (g: GearInput) => 
 
   return (
     <form onSubmit={submit}>
-      <h2>Step 1 — Choose gear and target RPM</h2>
+      <h2>Step 1: Choose gear and target RPM</h2>
       <label>
         Gear
         <input value={gearLabel} onChange={(e) => setGearLabel(e.target.value)} />
@@ -1669,7 +1669,7 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
 
   return (
     <section>
-      <h2>Step 2 — Hold steady at {gear.user_rpm} RPM in {gear.gear_label}</h2>
+      <h2>Step 2: Hold steady at {gear.user_rpm} RPM in {gear.gear_label}</h2>
       <p>Drive at a constant {gear.user_rpm} RPM. The app will capture your speed when it stabilizes.</p>
       {state.kind === 'idle' && (
         <button onClick={start}>Start measurement</button>
@@ -1713,7 +1713,7 @@ import type { Calibration } from '@/shared/types';
 export function CalibrationStepConfirm({ calibration, onDone }: { calibration: Calibration; onDone: () => void }) {
   return (
     <section>
-      <h2>Step 3 — Done</h2>
+      <h2>Step 3: Done</h2>
       <p>Saved calibration for gear <strong>{calibration.gear_label}</strong>:</p>
       <ul>
         <li>{calibration.rpm} RPM @ {calibration.speed_kmh.toFixed(1)} km/h</li>
@@ -1738,7 +1738,7 @@ git -c user.email=gutelkaune+claude@gmail.com -c user.name="DynoRun" commit -m "
 
 ---
 
-## Phase F — Live run UI
+## Phase F: Live run UI
 
 ### Task 14: Live run screen
 
@@ -2085,7 +2085,7 @@ git -c user.email=gutelkaune+claude@gmail.com -c user.name="DynoRun" commit -m "
 
 ---
 
-## Phase G — Wire into existing UI
+## Phase G: Wire into existing UI
 
 ### Task 16: VehicleDetail buttons + App routes
 
@@ -2143,7 +2143,7 @@ export function VehicleDetail() {
       <ul>
         {runs.map((r) => (
           <li key={r.id}>
-            {r.started_at} — {r.gear_label} — {r.status}{' '}
+            {r.started_at}-{r.gear_label}-{r.status}{' '}
             {r.status !== 'aborted' && <Link to={`/runs/${r.id}/review`}>review</Link>}
           </li>
         ))}
@@ -2202,7 +2202,7 @@ git -c user.email=gutelkaune+claude@gmail.com -c user.name="DynoRun" commit -m "
 
 ---
 
-## Phase H — Smoke test in browser
+## Phase H: Smoke test in browser
 
 ### Task 17: Manual browser smoke
 
@@ -2240,7 +2240,7 @@ After all 17 tasks, the prototype supports the complete loop:
 **What's left (Plan 3):** multi-run overlay comparison, settings + JSON export, Capacitor packaging for iOS and Android with native plugins (background location, native SQLite, native wake lock), on-device smoke tests.
 
 **Known follow-ups** (carried forward from Plan 1 review):
-- `SensorRegistry` priority not yet exercised because Plan 2 doesn't introduce a second source per capability — this becomes relevant when OBD-II ships in Plan 3.
-- `PowerCurveChart` does not respond to container resize — Plan 3 should add a `ResizeObserver`.
-- `DbProvider` doesn't close DB on unmount — immaterial for SPA, but worth noting.
+- `SensorRegistry` priority not yet exercised because Plan 2 doesn't introduce a second source per capability. This becomes relevant when OBD-II ships in Plan 3.
+- `PowerCurveChart` does not respond to container resize, Plan 3 should add a `ResizeObserver`.
+- `DbProvider` doesn't close DB on unmount, immaterial for SPA, but worth noting.
 - `MotionAccelSource` is intentionally not built in Plan 2; auto-stop based on GPS-derived deceleration is sufficient.

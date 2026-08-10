@@ -7,7 +7,7 @@ function pad2(n: number): string {
 export function formatRelativeTime(iso: string, now: Date = new Date()): string {
   const then = new Date(iso);
   const ms = now.getTime() - then.getTime();
-  if (!isFinite(ms)) return '—';
+  if (!isFinite(ms)) return 'n/a';
   const sec = Math.round(ms / 1000);
   if (sec < 5) return 'Just now';
   if (sec < 60) return `${sec}s ago`;
@@ -28,7 +28,7 @@ export function formatShortDateTime(iso: string): string {
 }
 
 export function formatDurationMs(ms: number): string {
-  if (!isFinite(ms) || ms < 0) return '—';
+  if (!isFinite(ms) || ms < 0) return 'n/a';
   const total_s = Math.round(ms / 1000);
   const m = Math.floor(total_s / 60);
   const s = total_s % 60;

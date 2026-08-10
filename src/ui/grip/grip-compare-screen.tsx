@@ -43,7 +43,7 @@ function Panel({ title, hint, children }: { title: React.ReactNode; hint?: React
 
 const sessionTitle = (s: GripSessionSummary) => s.label ?? s.track ?? 'Untitled session';
 const sessionSubtitle = (s: GripSessionSummary) =>
-  [s.label ? s.track : null, s.config, s.session_date].filter(Boolean).join(' · ') || '—';
+  [s.label ? s.track : null, s.config, s.session_date].filter(Boolean).join(' · ') || 'n/a';
 
 export function GripCompareScreen() {
   const [params, setParams] = useSearchParams();
@@ -55,7 +55,7 @@ export function GripCompareScreen() {
     () => (params.get('sessions') ?? '').split(',').filter(Boolean),
   );
   // Deduped and capped on the way in: `toggle` enforces MAX_COMPARE_LAPS but the
-  // URL did not, and seriesColor wraps modulo 6 — a hand-edited link with seven
+  // URL did not, and seriesColor wraps modulo 6, a hand-edited link with seven
   // laps gave the seventh the reference's own near-white, and a repeated key gave
   // two traces one colour plus duplicate React keys.
   const [selected, setSelected] = useState<string[]>(() =>
@@ -67,7 +67,7 @@ export function GripCompareScreen() {
   const [channel, setChannel] = useState<TraceChannel>('spd');
   const [cursor, setCursor] = useState(0);
 
-  // The URL is the shareable artefact — a link reopens the same sessions, laps,
+  // The URL is the shareable artefact: a link reopens the same sessions, laps,
   // reference and metric. It is read once on mount and written from exactly one
   // place: two effects each cloning the params and calling setParams race, and
   // the loser silently drops the other's keys.
@@ -97,7 +97,7 @@ export function GripCompareScreen() {
     if (library && library.length > 0 && sessionIds.length === 0) setSessionIds([library[0].id]);
   }, [library, sessionIds.length]);
 
-  // Ids that came back empty — a deleted session, or (because GET is
+  // Ids that came back empty: a deleted session, or (because GET is
   // owner-scoped) any shared link opened by a different account. They must be
   // remembered: this effect depends on `loaded`, and unconditionally publishing a
   // new Map identity when nothing was fetched made it re-run forever, measured at
@@ -208,7 +208,7 @@ export function GripCompareScreen() {
     [analyses],
   );
 
-  // Drop selection entries whose session loaded but whose lap does not exist —
+  // Drop selection entries whose session loaded but whose lap does not exist,
   // a re-uploaded session with fewer laps, or a hand-edited link. Left in place
   // they consume a slot with no way to deselect them.
   useEffect(() => {
@@ -225,7 +225,7 @@ export function GripCompareScreen() {
   // came out ±0.00 s / "Matched" while the delta chart above showed the real gap.
   useEffect(() => {
     const resolved = selected.map((k) => ({ k, lap: lapOf(k) })).filter((x) => x.lap);
-    // nothing has loaded yet — keep whatever the shared link asked for
+    // nothing has loaded yet: keep whatever the shared link asked for
     if (resolved.length === 0) return;
     if (refKey && resolved.some((x) => x.k === refKey)) return;
     setRefKey([...resolved].sort((a, b) => a.lap!.time - b.lap!.time)[0].k);
@@ -368,7 +368,7 @@ export function GripCompareScreen() {
           </Link>
           <h1 className="mt-0.5 text-2xl font-bold text-zinc-100">Compare laps</h1>
           <p className="mt-1 text-xs text-zinc-500">
-            Laps are lined up by position on track, not by the clock — so the delta shows where the time actually went.
+            Laps are lined up by position on track, not by the clock, so the delta shows where the time actually went.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -409,7 +409,7 @@ export function GripCompareScreen() {
         <div className="rounded-2xl border border-amber-900/60 bg-amber-950/25 p-3">
           <p className="text-xs text-amber-300">
             {missingIds.length === 1 ? 'One session in this link is not available' : `${missingIds.length} sessions in this link are not available`}
-            {' — '}it may have been deleted, or it belongs to another account. The remaining laps are compared normally.
+            {': '}it may have been deleted, or it belongs to another account. The remaining laps are compared normally.
           </p>
           <button
             type="button"
@@ -440,7 +440,7 @@ export function GripCompareScreen() {
       {diverged.length > 0 && (
         <p className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-[11px] text-zinc-500">
           These sessions were tuned differently, so {diverged.length === 1 ? 'one setting' : `${diverged.length} settings`} fell
-          back to the default for both — otherwise the channels would not be the same measurement.
+          back to the default for both, otherwise the channels would not be the same measurement.
           <span className="ml-1 font-mono text-zinc-600">{diverged.join(', ')}</span>
         </p>
       )}
@@ -451,7 +451,7 @@ export function GripCompareScreen() {
 
       {partial.map((l) => (
         <p key={l.key} className="rounded-xl border border-amber-900/50 bg-amber-950/20 px-3 py-2 text-[11px] text-amber-300/90">
-          <b>{l.label}</b> shares {Math.round(l.sectionFraction * 100)}% of the reference lap —
+          <b>{l.label}</b> shares {Math.round(l.sectionFraction * 100)}% of the reference lap,
           {' '}{Math.round(l.section.sIn)} m to {Math.round(l.section.sOut)} m. Beyond that the two are on different
           ground, so the delta stops there and no lap-time difference is shown; across the shared stretch it is{' '}
           <b className="font-mono">{formatDelta(l.sectionDelta)}s</b>.
@@ -636,7 +636,7 @@ export function GripCompareScreen() {
                 })}
               </div>
               <p className="mt-2 text-[11px] text-zinc-600">
-                Metres, not percentages — a percentage would hide that one lap covers more ground than the other. Coast is
+                Metres, not percentages: a percentage would hide that one lap covers more ground than the other. Coast is
                 where the tyre is neither driving nor braking, after the drag the tyre has to overcome is accounted for.
               </p>
             </Panel>
@@ -678,7 +678,7 @@ function Legend({
   colorOf: Map<string, string>;
   refKey: string | null;
   theoreticalBest: number | null;
-  /** Σ of the reference's own segments — the only baseline on the same clock */
+  /** Σ of the reference's own segments: the only baseline on the same clock */
   referenceTotal: number | null;
 }) {
   const ref = cmp.laps.find((l) => l.isReference);

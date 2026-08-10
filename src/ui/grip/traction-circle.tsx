@@ -11,7 +11,7 @@ interface TractionCircleProps {
   cursor: number;
   metric: ArrayLike<number>;
   rateFS: number;
-  /** tyre-class colour anchor, g — also drawn as the reference ring */
+  /** tyre-class colour anchor, g, also drawn as the reference ring */
   anchorG: number;
 }
 
@@ -34,7 +34,7 @@ export function TractionCircle({ analysis, lap, cursor, metric, rateFS, anchorG 
     const P = (gx: number, gy: number): [number, number] => [cx + (gx / GMAX) * R, cy - (gy / GMAX) * R];
 
     // The rings, the envelope and the whole-lap scatter are fixed for a given lap
-    // and metric — one filled arc per lap sample, ~1,900 of them, was being
+    // and metric: one filled arc per lap sample, ~1,900 of them, was being
     // repainted on every playback frame for a cursor dot that moved a few pixels.
     const layer = staticLayer([analysis, lap, metric, anchorG], size, (bg) => {
       paintBackdrop(bg, { cx, cy, R, GMAX, P, d, lap, metric, anchorG });
@@ -45,7 +45,7 @@ export function TractionCircle({ analysis, lap, cursor, metric, rateFS, anchorG 
       paintBackdrop(ctx, { cx, cy, R, GMAX, P, d, lap, metric, anchorG });
     }
 
-    // comet trail — recent path, brightness+width = load-transfer rate
+    // comet trail: recent path, brightness+width = load-transfer rate
     const cur = lap.start + cursor;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -67,7 +67,7 @@ export function TractionCircle({ analysis, lap, cursor, metric, rateFS, anchorG 
     ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(px, py); ctx.stroke();
 
-    // dG/dt arrow — direction & speed the load state is moving right now
+    // dG/dt arrow: direction & speed the load state is moving right now
     const n = Math.min(1, d.loadRate[cur] / rateFS);
     if (d.loadRate[cur] > 0.08) {
       const ang = Math.atan2(-d.jLong[cur], d.jLat[cur]); // screen: y down
@@ -139,7 +139,7 @@ function paintBackdrop(ctx: CanvasRenderingContext2D, s: Backdrop): void {
     ctx.fillStyle = '#66655f';
     ctx.fillText('1.0g', P(0, 1.0)[0] + 13, P(0, 1.0)[1]);
 
-    // tyre-class reference ring — the "textbook" limit the colours anchor to
+    // tyre-class reference ring: the "textbook" limit the colours anchor to
     ctx.strokeStyle = 'rgba(208,59,59,0.45)';
     ctx.lineWidth = 1;
     ctx.setLineDash([2, 4]);

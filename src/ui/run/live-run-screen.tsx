@@ -264,7 +264,7 @@ export function LiveRunScreen() {
           </div>
           {liveZeroToHundred != null && (
             <div className="mt-3 pt-3 border-t border-zinc-800 flex items-baseline justify-between">
-              <span className="text-zinc-500 text-xs uppercase tracking-wider">0–100 km/h</span>
+              <span className="text-zinc-500 text-xs uppercase tracking-wider">0-100 km/h</span>
               <span className="tabular-nums">
                 <span className="text-2xl font-bold text-amber-400">{liveZeroToHundred.toFixed(1)}</span>
                 <span className="text-xs text-zinc-400 ml-1">s</span>
@@ -302,7 +302,7 @@ export function LiveRunScreen() {
           >
             Use the hands-free session mode
           </a>{' '}
-          — record the whole ride, pick your pull afterwards.
+          to record the whole ride and pick your pull afterwards.
         </p>
       )}
       {isReady && showPoorWarning && !forceStart && (

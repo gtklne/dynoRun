@@ -101,7 +101,7 @@ export function SettingsScreen() {
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3.5 border-b border-zinc-800 gap-3">
             <span className="text-zinc-200 text-sm">Signed in as</span>
-            <span className="text-zinc-400 text-sm truncate">{user?.email ?? '—'}</span>
+            <span className="text-zinc-400 text-sm truncate">{user?.email ?? 'n/a'}</span>
           </div>
           {isAdmin && (
             <Link

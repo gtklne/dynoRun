@@ -11,7 +11,7 @@
  * baseline the others are measured against.
  */
 export const SERIES_COLORS = [
-  '#e4e4e7', // zinc-200 — reference
+  '#e4e4e7', // zinc-200: reference
   '#4c95ec', // grip blue
   '#c084fc', // violet
   '#f472b6', // pink
@@ -34,9 +34,9 @@ const hexToRgb = (h: string): [number, number, number] => [
 const mix = (a: [number, number, number], b: [number, number, number], f: number) =>
   `rgb(${Math.round(a[0] + (b[0] - a[0]) * f)},${Math.round(a[1] + (b[1] - a[1]) * f)},${Math.round(a[2] + (b[2] - a[2]) * f)})`;
 
-const GAIN = hexToRgb('#38bdf8'); // sky — time gained
-const NEUTRAL = hexToRgb('#52525b'); // zinc-600 — level
-const LOSS = hexToRgb('#fb7185'); // rose — time lost
+const GAIN = hexToRgb('#38bdf8'); // sky: time gained
+const NEUTRAL = hexToRgb('#52525b'); // zinc-600: level
+const LOSS = hexToRgb('#fb7185'); // rose: time lost
 
 /**
  * Signed seconds → diverging colour. `fullScale` is the delta that saturates,
@@ -55,7 +55,7 @@ export function deltaTextClass(seconds: number, eps = 0.05): string {
 
 /** Signed seconds → "+1.23" / "−0.41" / "±0.00", always 2 dp. */
 export function formatDelta(seconds: number, dp = 2): string {
-  if (!Number.isFinite(seconds)) return '—';
+  if (!Number.isFinite(seconds)) return 'n/a';
   const sign = seconds > 0 ? '+' : seconds < 0 ? '−' : '±';
   return `${sign}${Math.abs(seconds).toFixed(dp)}`;
 }

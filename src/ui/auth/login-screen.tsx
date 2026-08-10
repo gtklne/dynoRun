@@ -41,7 +41,7 @@ function BrandPanel() {
         </h2>
         <p className="max-w-md text-base leading-relaxed text-zinc-400">
           Measure wheel power and torque from a single GPS pull. No rollers, no
-          straps — just one gear and an open road.
+          straps, just one gear and an open road.
         </p>
       </div>
     </div>

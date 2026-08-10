@@ -5,7 +5,7 @@ import type { GripChannels, GripLap } from './types';
  *
  * Neither sample index nor clock time can align two laps: they drift apart. The
  * track does not, so one lap's racing line becomes the axis and every other lap
- * is projected onto it by nearest-point. That single choice is load-bearing —
+ * is projected onto it by nearest-point. That single choice is load-bearing:
  * aligning by each lap's own cumulative distance instead is wrong by up to
  * 0.86 s on real data, because a lap that takes a 13 m tighter line arrives
  * "early" on its own odometer everywhere. The classic ∫(1/v)ds time-gain
@@ -18,7 +18,7 @@ export const DIST_STEP_M = 2;
 /**
  * Samples of padding either side of a lap. The axis's zero is the moment the
  * lap crosses the reference lap's start position, found by interpolation, so
- * that instant has to be bracketed by real samples — and a lap's own first
+ * that instant has to be bracketed by real samples, and a lap's own first
  * sample lands up to one sample period *after* the timing line.
  */
 export const LAP_PAD_SAMPLES = 6;
@@ -31,8 +31,8 @@ export const MAX_DATUM_SHIFT_M = 5;
 
 // The search walks forward along the reference: a subject sample may sit a
 // little behind the previous match (GPS jitter) but never far ahead of it.
-// Bounding the window is what keeps the two legs of a hairpin — metres apart in
-// space, half a lap apart along the line — from being confused.
+// Bounding the window is what keeps the two legs of a hairpin (metres apart in
+// space, half a lap apart along the line) from being confused.
 const SEARCH_BACK_M = 25;
 const SEARCH_FWD_M = 90;
 
@@ -60,7 +60,7 @@ const WGS84_E2 = WGS84_F * (2 - WGS84_F);
  * Equirectangular frame on WGS84 local radii of curvature.
  *
  * The single-session map in project.ts uses the flat 111320/110540 constants,
- * which read 0.2–0.6 % short — invisible there because the map auto-fits, but
+ * which read 0.2-0.6 % short: invisible there because the map auto-fits, but
  * compare *prints* metres and integrates them into lap lengths, where it is
  * 8.5 m per lap. Residual shape distortion with the correct scales is under
  * 0.1 m across an 850 m track, two orders below the racing-line spread.
@@ -79,7 +79,7 @@ export function geoFrame(lat0: number, lon0: number): GeoFrame {
   };
 }
 
-/** Frame anchored on one lap's mean position — use the reference lap, so the
+/** Frame anchored on one lap's mean position. Use the reference lap, so the
  *  axis does not move when subject laps are added or removed. */
 export function frameForLap(ch: GripChannels, lap: GripLap): GeoFrame {
   let sLat = 0;
@@ -105,7 +105,7 @@ export interface LapPath {
   k0: number;
   /** local index of lap.end */
   kEnd: number;
-  /** ∫v·dt ÷ geometric length — ≈1 on sound GPS; a quality assertion */
+  /** ∫v·dt ÷ geometric length: ≈1 on sound GPS; a quality assertion */
   odoRatio: number;
 }
 
@@ -134,7 +134,7 @@ export function lapPath(
   const kEnd = lap.end - i0;
   // accumulate in a double: Float32 addition over ~2600 steps drifts ~0.3 m
   let acc = 0;
-  // the odometer cross-check covers the timed lap only — a pad reaches into the
+  // the odometer cross-check covers the timed lap only. A pad reaches into the
   // neighbouring lap, and a lap boundary is exactly where position and clock
   // are allowed to disagree
   let odo = 0;
@@ -163,8 +163,8 @@ export interface ReferenceAxis {
   /** axis length, metres (lap start → lap end) */
   length: number;
   /**
-   * Smallest gap between two points of the line that are far apart along it —
-   * the basin inside which nearest-point matching is unambiguous.
+   * Smallest gap between two points of the line that are far apart along it.
+   * The basin inside which nearest-point matching is unambiguous.
    */
   selfClearance: number;
   /** projection tolerance derived from the clearance, metres */
@@ -222,7 +222,7 @@ export interface LapProjection {
   u: Float32Array;
   /** perpendicular offset from the reference line, metres */
   off: Float32Array;
-  /** nearest point on the reference line, shared frame — for the datum fit */
+  /** nearest point on the reference line, shared frame, for the datum fit */
   nx: Float32Array;
   ny: Float32Array;
   /** how often the monotone clamp fired; nonzero means GPS trouble */
@@ -354,7 +354,7 @@ export function projectOntoReference(
 /**
  * Longest contiguous stretch of the axis the lap stays on the reference line.
  * Outside it the two are simply not on the same track, and a delta there is not
- * merely imprecise — when a layout diverges, the projection saturates and dumps
+ * merely imprecise: when a layout diverges, the projection saturates and dumps
  * twenty seconds of the other layout's detour into seventy metres of axis.
  */
 function longestRun(u: Float32Array, off: Float32Array, axis: ReferenceAxis): CommonSection {
@@ -378,7 +378,7 @@ function longestRun(u: Float32Array, off: Float32Array, axis: ReferenceAxis): Co
 }
 
 /**
- * Constant position bias between two sessions — different days, different
+ * Constant position bias between two sessions, different days, different
  * satellite geometry, often different receivers. Fitted as a translation only:
  * rotation or scale would let a racing-line difference masquerade as a datum.
  * Never fit this within a session, where the datum is identical by construction

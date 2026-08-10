@@ -74,7 +74,7 @@ describe('motion-fusion', () => {
     onMotionSample(s, 5, 0, 0, 1000);   // baseline tick
     onMotionSample(s, 5, 0, 0, 1100);   // intX += 0.5
     expect(s.intX).toBeCloseTo(0.5, 5);
-    onGpsFix(s, 10);                    // no delta — integrators still reset
+    onGpsFix(s, 10);                    // no delta: integrators still reset
     expect(s.intX).toBe(0);
     expect(s.intY).toBe(0);
     expect(s.intZ).toBe(0);

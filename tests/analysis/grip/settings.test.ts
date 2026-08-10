@@ -20,7 +20,7 @@ describe('sanitizeGripSettings', () => {
     for (const d of DEFS) {
       expect(sanitizeGripSettings({ [d.key]: d.min - 1000 })[d.key]).toBe(d.min);
       expect(sanitizeGripSettings({ [d.key]: d.max + 1000 })[d.key]).toBe(d.max);
-      // an in-range value survives untouched — the rider's tuning is not lost
+      // an in-range value survives untouched: the rider's tuning is not lost
       const mid = (d.min + d.max) / 2;
       expect(sanitizeGripSettings({ [d.key]: mid })[d.key]).toBe(mid);
     }

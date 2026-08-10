@@ -9,7 +9,7 @@ export interface PowerTorquePoint {
   wheel_power_kw: number;
   wheel_torque_nm: number;
   // Road-load decomposition of wheel power (kW). By construction the four sum to
-  // wheel_power_kw. p_grade_kw is SIGNED (negative downhill). In-memory only —
+  // wheel_power_kw. p_grade_kw is SIGNED (negative downhill). In-memory only,
   // never persisted; used by the expert-view breakdown.
   p_inertia_kw: number;
   p_aero_kw: number;

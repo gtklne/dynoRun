@@ -191,7 +191,7 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
         </p>
       </div>
 
-      {/* Warmup card — visible during idle state (GPS lock acquisition) */}
+      {/* Warmup card: visible during idle state (GPS lock acquisition) */}
       {state.kind === 'idle' && (
         <GpsWarmupCard
           telemetry={live ? { accuracy_m: live.accuracy_m, quality: live.quality, fix_rate_hz: live.fix_rate_hz } : null}
@@ -203,7 +203,7 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
         />
       )}
 
-      {/* Measuring state — telemetry debug panel */}
+      {/* Measuring state: telemetry debug panel */}
       {state.kind === 'measuring' && (
         <div className="bg-zinc-900 border border-amber-800/40 rounded-2xl overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-2.5 border-b border-zinc-800 bg-zinc-950/60">
@@ -215,7 +215,7 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
             <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Current Speed</p>
             <div className="flex items-baseline gap-2">
               <span className="text-5xl font-bold tabular-nums text-zinc-100 font-mono">
-                {displaySpeed != null ? displaySpeed.toFixed(1) : '—'}
+                {displaySpeed != null ? displaySpeed.toFixed(1) : 'n/a'}
               </span>
               <span className="text-lg text-zinc-500">km/h</span>
             </div>
@@ -225,19 +225,19 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
             <p className="text-zinc-600 text-xs uppercase tracking-wider pt-2 pb-1">GPS Signal</p>
             <TelemetryRow
               label="Accuracy"
-              value={live?.accuracy_m != null ? live.accuracy_m.toFixed(1) : '—'}
+              value={live?.accuracy_m != null ? live.accuracy_m.toFixed(1) : 'n/a'}
               unit="m"
               valueClass={accuracyColor(live?.accuracy_m ?? null)}
             />
             <TelemetryRow
               label="Signal Quality"
-              value={live ? Math.round(live.quality * 100).toString() : '—'}
+              value={live ? Math.round(live.quality * 100).toString() : 'n/a'}
               unit="%"
               valueClass={live ? qualityColor(live.quality) : 'text-zinc-500'}
             />
             <TelemetryRow
               label="Fix Rate"
-              value={live?.fix_rate_hz != null ? live.fix_rate_hz.toFixed(1) : '—'}
+              value={live?.fix_rate_hz != null ? live.fix_rate_hz.toFixed(1) : 'n/a'}
               unit="Hz"
             />
             {live?.altitude_m != null && (
@@ -269,7 +269,7 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
             <div className="flex items-baseline justify-between">
               <span className="text-zinc-600 text-xs">Speed Δ</span>
               <span className={`text-xs font-mono tabular-nums font-semibold ${deltaOk ? 'text-emerald-400' : 'text-red-400'}`}>
-                {live ? `±${(live.stability.speed_delta_kmh / 2).toFixed(2)} km/h` : '—'}
+                {live ? `±${(live.stability.speed_delta_kmh / 2).toFixed(2)} km/h` : 'n/a'}
                 <span className="text-zinc-600 font-normal ml-1">
                   (max ±{live ? (live.stability.max_delta_kmh / 2).toFixed(1) : '0.5'})
                 </span>

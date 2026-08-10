@@ -11,7 +11,7 @@ export interface DemoRecording {
 }
 
 // Synthetic constant-acceleration profile chosen so the resulting curve covers
-// a believable rev band (≈600–5400 RPM at rollout 0.5 m/rev) without needing a
+// a believable rev band (≈600-5400 RPM at rollout 0.5 m/rev) without needing a
 // real recording bundled in the repo.
 function generateSamples(): RawSpeedSample[] {
   const samples: RawSpeedSample[] = [];

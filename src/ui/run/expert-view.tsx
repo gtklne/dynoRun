@@ -14,7 +14,7 @@ const COMPONENT_META = [
   { key: 'p_grade_kw', label: 'Grade', color: '#34d399' },
 ] as const;
 
-const TOTAL_COLOR = '#a1a1aa'; // zinc-400 — reads as a reference line, not a 5th component
+const TOTAL_COLOR = '#a1a1aa'; // zinc-400: reads as a reference line, not a 5th component
 
 interface ExpertViewProps {
   roadLoad: RoadLoadSummary;

@@ -24,7 +24,7 @@ export function binByRpm(input: PowerTorquePoint[], bin_width_rpm: number): RpmP
 
 // One RPM bin of the road-load decomposition. The four component averages sum to
 // total_kw, and total_kw equals binByRpm's wheel_power_kw for the same bin
-// (averaging is linear). In-memory only — parallels binByRpm, never persisted.
+// (averaging is linear). In-memory only: parallels binByRpm, never persisted.
 export interface PowerBreakdownPoint {
   rpm: number;
   p_inertia_kw: number;

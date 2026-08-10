@@ -25,14 +25,14 @@ app.use(cors({
 app.on(['GET', 'POST'], '/api/auth/**', (c) => auth.handler(c.req.raw));
 
 // Dev-only login bypass (skips magic-link email + captcha). Mounted only when
-// DEV_LOGIN is explicitly enabled — never registered in prod, so the route
+// DEV_LOGIN is explicitly enabled, never registered in prod, so the route
 // surface stays absent there.
 if (process.env.DEV_LOGIN === 'true' && process.env.NODE_ENV !== 'production') {
   app.route('/api', devAuthRoute);
-  console.warn('⚠  DEV_LOGIN enabled — POST /api/dev/login bypasses email auth');
+  console.warn('⚠  DEV_LOGIN enabled, POST /api/dev/login bypasses email auth');
 }
 
-// Public share route — must mount before any auth-gated routes so a logged-out
+// Public share route: must mount before any auth-gated routes so a logged-out
 // browser can read a shared run without redirecting to /login.
 app.route('/api', publicShareRoute);
 

@@ -5,7 +5,7 @@ import path from 'node:path';
 
 export default defineConfig({
   // The whole system is one app served at the domain root (wasgoht.ch/), and the
-  // Capacitor webview also serves from root — so base is '/' everywhere.
+  // Capacitor webview also serves from root, so base is '/' everywhere.
   base: '/',
   plugins: [react(), tailwindcss()],
   // scripts/prerender-landing.mjs reads the entry's hashed stylesheet from the
@@ -16,7 +16,7 @@ export default defineConfig({
   },
   // Dev only: proxy API + auth calls to the local Hono server (npm run dev in
   // server/). Keeps frontend and API same-origin so better-auth session cookies
-  // work without cross-site/secure-cookie hassle. Not used by the prod build —
+  // work without cross-site/secure-cookie hassle. Not used by the prod build:
   // nginx proxies /api there.
   server: {
     proxy: {

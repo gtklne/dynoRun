@@ -6,8 +6,8 @@ const DEFAULT_EMAIL = (import.meta.env.VITE_DEV_LOGIN_EMAIL as string | undefine
 /**
  * Dev-only sign-in shortcut. Posts to the server's DEV_LOGIN bypass, which mints
  * a session cookie without the magic-link email + captcha. Rendered only under
- * `import.meta.env.DEV`, so Vite strips it entirely from the production bundle —
- * it can never ship to prod, and the backing route isn't mounted there either.
+ * `import.meta.env.DEV`, so Vite strips it entirely from the production bundle.
+ * It can never ship to prod, and the backing route isn't mounted there either.
  */
 export function DevLoginPanel() {
   const [email, setEmail] = useState(DEFAULT_EMAIL);
@@ -26,7 +26,7 @@ export function DevLoginPanel() {
       });
       if (!res.ok) {
         const msg = res.status === 404
-          ? 'Dev login is off — set DEV_LOGIN=true in server/.env and restart the API'
+          ? 'Dev login is off. Set DEV_LOGIN=true in server/.env and restart the API'
           : `Dev login failed (${res.status})`;
         setError(msg);
         setLoading(false);
@@ -35,7 +35,7 @@ export function DevLoginPanel() {
       // Full reload so AuthProvider re-reads the freshly set session cookie.
       window.location.assign(import.meta.env.BASE_URL);
     } catch {
-      setError('Could not reach the API — is `npm run dev` running in server/?');
+      setError('Could not reach the API. Is `npm run dev` running in server/?');
       setLoading(false);
     }
   }

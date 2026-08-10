@@ -33,7 +33,7 @@ describe('formatRelativeTime', () => {
   });
 
   it('returns dash for invalid date', () => {
-    expect(formatRelativeTime('not a date', NOW)).toBe('—');
+    expect(formatRelativeTime('not a date', NOW)).toBe('n/a');
   });
 });
 
@@ -53,7 +53,7 @@ describe('formatDurationMs', () => {
   });
 
   it('returns dash for invalid', () => {
-    expect(formatDurationMs(-1)).toBe('—');
-    expect(formatDurationMs(Number.NaN)).toBe('—');
+    expect(formatDurationMs(-1)).toBe('n/a');
+    expect(formatDurationMs(Number.NaN)).toBe('n/a');
   });
 });

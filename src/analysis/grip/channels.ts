@@ -2,7 +2,7 @@ import type { GripChannels, GripDerivedChannels } from './types';
 
 export const GRAVITY = 9.80665;
 
-// Fixed generic-race-motorcycle constants — a rough guideline by design, not a
+// Fixed generic-race-motorcycle constants: a rough guideline by design, not a
 // per-bike calibration: ρ 1.20 kg/m³, CdA 0.40 m², 260 kg bike+rider, Crr 0.015.
 const K_DRAG = (0.5 * 1.2 * 0.4) / (260 * GRAVITY); // g per (m/s)²
 
@@ -40,7 +40,7 @@ export function movAvg(a: ArrayLike<number>, w: number): Float32Array {
 /**
  * Derive the g-force channels from raw speed and lean.
  * Longitudinal g is the central difference of smoothed speed (~0.24 s window
- * at 25 Hz) plus resistanceG(v) — dv/dt alone is *vehicle* acceleration, but
+ * at 25 Hz) plus resistanceG(v): dv/dt alone is *vehicle* acceleration, but
  * the tire also carries the drive force that holds speed against drag, and
  * during braking the wind decelerates the body without loading the tire, so
  * the correction shifts `along` from net accel to tire demand in both

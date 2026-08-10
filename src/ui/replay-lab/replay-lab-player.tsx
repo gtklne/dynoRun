@@ -328,19 +328,19 @@ export function ReplayLabPlayer() {
           <div>
             <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">RPM</p>
             <p className="tabular-nums">
-              <span className="text-3xl font-bold text-zinc-100">{rpmKnown ? currentRpm.toFixed(0) : '—'}</span>
+              <span className="text-3xl font-bold text-zinc-100">{rpmKnown ? currentRpm.toFixed(0) : 'n/a'}</span>
             </p>
           </div>
           <div>
             <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Live peak</p>
             <p className="tabular-nums">
-              <span className="text-2xl font-bold text-amber-400">{livePeakKw != null ? units.format(livePeakKw) : '—'}</span>
+              <span className="text-2xl font-bold text-amber-400">{livePeakKw != null ? units.format(livePeakKw) : 'n/a'}</span>
             </p>
           </div>
         </div>
         {zeroToHundred != null && (
           <div className="mt-3 pt-3 border-t border-zinc-800 flex items-baseline justify-between">
-            <span className="text-zinc-500 text-xs uppercase tracking-wider">0–100 km/h</span>
+            <span className="text-zinc-500 text-xs uppercase tracking-wider">0-100 km/h</span>
             <span className="tabular-nums">
               <span className="text-2xl font-bold text-amber-400">{zeroToHundred.toFixed(1)}</span>
               <span className="text-xs text-zinc-400 ml-1">s</span>
@@ -382,7 +382,7 @@ export function ReplayLabPlayer() {
           <div>
             <NumField label="Vehicle mass" value={massKg} onChange={setMassKg} step={10} suffix="kg" placeholder="enter mass" />
             <p className="text-zinc-600 text-[10px] mt-1">
-              {massSource ? `from ${massSource}` : 'no linked vehicle — enter manually'}
+              {massSource ? `from ${massSource}` : 'no linked vehicle, enter manually'}
             </p>
           </div>
 
@@ -400,7 +400,7 @@ export function ReplayLabPlayer() {
               </div>
             )}
             <p className="text-zinc-600 text-[10px]">
-              {rolloutSource ? `from ${rolloutSource}` : 'no linked calibration — enter manually'}
+              {rolloutSource ? `from ${rolloutSource}` : 'no linked calibration, enter manually'}
               {effectiveRollout != null ? ` · ${effectiveRollout.toFixed(4)} m/rev` : ''}
             </p>
           </div>

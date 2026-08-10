@@ -4,7 +4,7 @@ export interface CanvasSize {
   ctx: CanvasRenderingContext2D;
   w: number;
   h: number;
-  /** device pixel ratio the bitmap was sized at — needed for offscreen layers */
+  /** device pixel ratio the bitmap was sized at, needed for offscreen layers */
   dpr: number;
 }
 
@@ -59,10 +59,10 @@ export function useCanvasDraw(
 /**
  * An offscreen canvas holding the parts of a chart that do not move.
  *
- * The playback cursor changes 25–60 times a second, and both the track map and
+ * The playback cursor changes 25-60 times a second, and both the track map and
  * the traction circle used to repaint everything for it: one stroked path per
  * lap sample and one filled arc per lap sample, measured at ~3,900 path
- * submissions per frame — ~234k/s at 4× — for roughly fifty changed pixels. The
+ * submissions per frame (~234k/s at 4×) for roughly fifty changed pixels. The
  * static content is redrawn only when `key` changes, then blitted.
  *
  * Returns the layer, or null if it could not be created (draw inline then).

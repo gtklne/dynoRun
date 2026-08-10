@@ -11,7 +11,7 @@ interface Props {
   bestRunId: string | null;
   /** Best peak among currently-selected runs (in kW). Used to show per-row deltas. */
   bestSelectedKw: number | null;
-  /** ID of the run that owns `bestSelectedKw` — skip its own delta row. */
+  /** ID of the run that owns `bestSelectedKw`: skip its own delta row. */
   bestSelectedRunId: string | null;
 }
 

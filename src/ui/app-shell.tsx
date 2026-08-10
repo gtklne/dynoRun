@@ -120,7 +120,7 @@ export function AppShell() {
         </div>
       </aside>
 
-      {/* Top header (mobile only — the sidebar carries the brand on desktop). */}
+      {/* Top header (mobile only, the sidebar carries the brand on desktop). */}
       <header className="lg:hidden pt-safe sticky top-0 z-50 bg-zinc-950/95 backdrop-blur-sm border-b border-zinc-800/60 px-4 py-3 flex items-center gap-2">
         <Link to="/home" className="flex items-center gap-2 transition-opacity hover:opacity-80">
           <SuiteMark size={22} />

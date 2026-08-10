@@ -66,7 +66,7 @@ export function SystemHome() {
             accent="#f59e0b"
             icon={<BrandLogo size={26} />}
             name="DynoRun"
-            blurb="GPS virtual dyno — drive one gear and derive a wheel-power curve."
+            blurb="GPS virtual dyno: drive one gear and derive a wheel-power curve."
           />
           <ToolTile
             to="/grip"

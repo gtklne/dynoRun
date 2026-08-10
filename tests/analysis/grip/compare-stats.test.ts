@@ -215,7 +215,7 @@ describe('turnPayoff', () => {
   });
 
   // Same time on materially different demand is the most actionable row in the
-  // table; reporting it as "Matched — same time, same demand" discarded it.
+  // table; reporting it as "Matched: same time, same demand" discarded it.
   it('separates same-time-different-demand from a true match', () => {
     expect(turnPayoff(0.01, 9)).toBe('level-dearer');
     expect(turnPayoff(0.01, -9)).toBe('level-cheaper');
@@ -269,8 +269,8 @@ describe('partial laps are not measured over track they never rode', () => {
   }
 
   // Outside its common section every grid channel holds its last real value, so
-  // integrating the whole axis charged a partial lap ~12% of its duty — measured
-  // 292 m of "drive" — to track it was never on, under a caption insisting the
+  // integrating the whole axis charged a partial lap ~12% of its duty (measured
+  // 292 m of "drive") to track it was never on, under a caption insisting the
   // metres can be trusted precisely because they are metres.
   it('confines dutyMetres to the shared section', () => {
     const { cmp, partial } = partialComparison();

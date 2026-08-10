@@ -52,7 +52,7 @@ export interface AnalyzedRun {
   accel_times: AccelTimes;
   quality: RunQuality;
   // Road-load decomposition for the expert view. Parallel to `points` (same RPM
-  // bins). In-memory only — not part of the persisted DerivedCurve.
+  // bins). In-memory only, not part of the persisted DerivedCurve.
   breakdown: PowerBreakdownPoint[];
   road_load: RoadLoadSummary;
 }
@@ -61,7 +61,7 @@ export interface AnalyzedRun {
 // no longer pollutes the RPM bins with negative power.
 // v3: derive acceleration-time stats (0-100, quarter mile, etc.) and a run
 // quality score from the same data so the review screen can surface them.
-// v4: road-load corrections — wheel force now includes aerodynamic drag,
+// v4: road-load corrections,wheel force now includes aerodynamic drag,
 // rolling resistance, and grade (from GPS altitude) on top of m·a. Drivetrain
 // loss and rotational inertia are intentionally excluded (we report wheel
 // power, not crank). Bumped so v3 curves recompute via ensureCurrentCurve.

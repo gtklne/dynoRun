@@ -34,7 +34,7 @@ function oppositeUnit(unit: PowerUnit): PowerUnit {
   return unit === 'kW' ? 'hp' : 'kW';
 }
 
-// A share link is a fixed, public, canonical web URL — it must be valid even
+// A share link is a fixed, public, canonical web URL. It must be valid even
 // when produced by the native app (whose origin is capacitor://). So it is NOT
 // origin- or BASE_URL-derived. Keep in sync with server buildShareUrl().
 function shareUrlFor(token: string): string {
@@ -306,7 +306,7 @@ export function RunReviewScreen() {
       {/* Desktop: data & chart in the wide left column, editable metadata and
           actions in the right rail. Mobile keeps the single-column order. */}
       <div className="space-y-5 lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-6 lg:items-start lg:space-y-0">
-        {/* LEFT — data & visualization */}
+        {/* LEFT: data & visualization */}
         <div className="space-y-5">
 
       {/* Peak stats */}
@@ -315,24 +315,24 @@ export function RunReviewScreen() {
           <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Peak power</p>
           <p className="tabular-nums">
             <span className="text-3xl font-bold text-amber-400">
-              {peak ? formatPower(peak.wheel_power_kw, units.unit, { unitSuffix: false }) : '—'}
+              {peak ? formatPower(peak.wheel_power_kw, units.unit, { unitSuffix: false }) : 'n/a'}
             </span>
             <span className="text-sm text-zinc-400 ml-1">{units.unit}</span>
           </p>
           <p className="text-zinc-600 text-xs mt-1">
-            {peak ? formatPower(peak.wheel_power_kw, opp) : '—'}
+            {peak ? formatPower(peak.wheel_power_kw, opp) : 'n/a'}
           </p>
         </div>
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
           <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Peak torque</p>
           <p className="tabular-nums">
             <span className="text-3xl font-bold text-zinc-100">
-              {peakTorque ? peakTorque.wheel_torque_nm.toFixed(0) : '—'}
+              {peakTorque ? peakTorque.wheel_torque_nm.toFixed(0) : 'n/a'}
             </span>
             <span className="text-sm text-zinc-400 ml-1">Nm</span>
           </p>
           <p className="text-zinc-600 text-xs mt-1">
-            {peakTorque ? `@ ${peakTorque.rpm.toFixed(0)} RPM` : '—'}
+            {peakTorque ? `@ ${peakTorque.rpm.toFixed(0)} RPM` : 'n/a'}
           </p>
         </div>
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
@@ -342,8 +342,8 @@ export function RunReviewScreen() {
               {powerBand
                 ? powerBand.lo === powerBand.hi
                   ? `${powerBand.lo}`
-                  : `${powerBand.lo}–${powerBand.hi}`
-                : '—'}
+                  : `${powerBand.lo}-${powerBand.hi}`
+                : 'n/a'}
             </span>
             <span className="text-sm text-zinc-400 ml-1">RPM</span>
           </p>
@@ -363,7 +363,7 @@ export function RunReviewScreen() {
             </>
           ) : (
             <>
-              <p className="text-2xl font-bold text-zinc-400 tabular-nums">{diffDisplay ?? '—'}</p>
+              <p className="text-2xl font-bold text-zinc-400 tabular-nums">{diffDisplay ?? 'n/a'}</p>
               <p className="text-zinc-600 text-xs mt-1">vs your best</p>
             </>
           )}
@@ -405,7 +405,7 @@ export function RunReviewScreen() {
       )}
 
         </div>
-        {/* RIGHT — metadata, conditions & actions */}
+        {/* RIGHT: metadata, conditions & actions */}
         <div className="space-y-5">
 
       {/* Raw sensor recording */}
@@ -496,7 +496,7 @@ export function RunReviewScreen() {
           <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Public link</p>
           <p className="text-zinc-500 text-xs mt-1.5">
             {run.share_token
-              ? 'Anyone with this URL can view the run — no sign-in required.'
+              ? 'Anyone with this URL can view the run, no sign-in required.'
               : 'Generate a read-only URL anyone can open.'}
           </p>
         </div>

@@ -101,7 +101,7 @@ export function slicePullSamples(samples: RawSpeedSample[], pull: DetectedPull):
   const slice = samples.filter((s) => s.t_ms >= pull.t_start_ms && s.t_ms <= pull.t_end_ms);
   if (slice.length === 0) return [];
   // Pull boundaries live on the detection grid, which need not coincide with a
-  // raw sample time — rebase to the first included sample so t starts at 0.
+  // raw sample time: rebase to the first included sample so t starts at 0.
   const t0 = slice[0].t_ms;
   return slice.map((s) => ({ ...s, t_ms: s.t_ms - t0 }));
 }

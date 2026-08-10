@@ -165,7 +165,7 @@ export function VehicleDetail() {
         Garage
       </Link>
 
-      {/* Edit form — full width (its own internal responsive grid). */}
+      {/* Edit form: full width (its own internal responsive grid). */}
       {editing && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 lg:p-6">
           <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-4">Edit vehicle</p>
@@ -183,8 +183,8 @@ export function VehicleDetail() {
                 setRuns(await runRepository.listByVehicle(updated.id));
                 toast.show(
                   count === 0
-                    ? 'Vehicle updated — no runs to recompute'
-                    : `Vehicle updated — recomputed ${count} run${count === 1 ? '' : 's'}`,
+                    ? 'Vehicle updated (no runs to recompute'
+                    : `Vehicle updated) recomputed ${count} run${count === 1 ? '' : 's'}`,
                   { variant: 'success' },
                 );
               } catch {
@@ -202,7 +202,7 @@ export function VehicleDetail() {
           history in the wide right column. Mobile keeps the current stacked
           order (the left column's content precedes the right's in the DOM). */}
       <div className="space-y-5 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start lg:space-y-0">
-        {/* LEFT — identity / config */}
+        {/* LEFT: identity / config */}
         <div className="space-y-5 lg:col-span-1">
           {!editing && <VehicleProfileCard vehicle={vehicle} onEdit={() => setEditing(true)} />}
 
@@ -218,7 +218,7 @@ export function VehicleDetail() {
             <div className="grid grid-cols-3 gap-2">
               <Stat label="Runs" value={completeRuns.length} />
               <Stat label="Best power" value={format(bestPeak)} accent />
-              <Stat label="Last run" value={mostRecent ? formatRelativeTime(mostRecent.started_at) : '—'} />
+              <Stat label="Last run" value={mostRecent ? formatRelativeTime(mostRecent.started_at) : 'n/a'} />
             </div>
           )}
 
@@ -269,7 +269,7 @@ export function VehicleDetail() {
           </div>
         </div>
 
-        {/* RIGHT — performance / history */}
+        {/* RIGHT: performance / history */}
         <div className="space-y-5 lg:col-span-2">
           {/* Compare shortcut */}
           {completeRuns.length >= 2 && (
@@ -325,7 +325,7 @@ export function VehicleDetail() {
                     </div>
                     <div className="flex flex-col items-end gap-1 shrink-0">
                       <p className="tabular-nums text-amber-400 text-sm font-semibold">
-                        {showPeak ? format(r.peak_power_kw) : '—'}
+                        {showPeak ? format(r.peak_power_kw) : 'n/a'}
                       </p>
                       <div className="flex items-center gap-3">
                         <span className={`text-xs font-medium capitalize ${statusColor[r.status] ?? 'text-zinc-400'}`}>
@@ -349,7 +349,7 @@ export function VehicleDetail() {
         </div>
       </div>
 
-      {/* Danger zone — full width below the columns. */}
+      {/* Danger zone: full width below the columns. */}
       {!editing && (
         <div className="pt-2">
           <button

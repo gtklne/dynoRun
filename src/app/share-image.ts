@@ -13,7 +13,7 @@ export async function shareRun(input: ShareRunInput, fallback: () => void): Prom
       return;
     }
   } catch {
-    // user dismissed or share failed — fall through to fallback
+    // user dismissed or share failed: fall through to fallback
   }
   fallback();
 }
@@ -62,7 +62,7 @@ export async function shareRunCard(input: ShareRunCardInput, textFallback?: () =
         return;
       }
     } catch {
-      // user dismissed or platform rejected — fall through
+      // user dismissed or platform rejected: fall through
     }
   }
 

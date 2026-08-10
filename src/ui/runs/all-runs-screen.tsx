@@ -15,7 +15,7 @@ interface RowVm {
 type SortKey = 'newest' | 'peak';
 const ALL_VEHICLES = '__all__';
 
-// Hide filter/sort UI for tiny lists — adds clutter without value.
+// Hide filter/sort UI for tiny lists: adds clutter without value.
 const FILTER_UI_THRESHOLD = 5;
 
 const SORT_OPTIONS: ReadonlyArray<{ value: SortKey; label: string }> = [
@@ -149,7 +149,7 @@ function RunRow({ row }: RunRowProps) {
             </p>
           </div>
           <p className="text-zinc-500 text-xs mt-0.5 truncate">
-            {vehicle?.name ?? '—'} · {run.gear_label} · {formatRelativeTime(run.started_at)}
+            {vehicle?.name ?? 'n/a'} · {run.gear_label} · {formatRelativeTime(run.started_at)}
           </p>
         </div>
         <div className="text-right shrink-0">
