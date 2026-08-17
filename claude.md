@@ -42,7 +42,7 @@ src/
   shared/        Types, units (km/h ↔ m/s, RPM ↔ ω), observable Subject, haversine, UUID, ISO time
   ui/            Screens (garage, calibration wizard, run, recordings, compare, grip, settings) + chart components
   prerender/     landing-document.tsx: renders LandingScreen to a script-free HTML document
-scripts/         prerender-landing.mjs: post-build step writing dist/landing.html
+scripts/         prerender-landing.mjs: post-build step writing dist/hello.html
 server/src/
   schema.ts      Drizzle schema: source of truth for Postgres (vehicles, calibrations, runs, samples, recordings, derived_curves, grip_sessions)
   index.ts       Hono app, CORS, mounts /api/* routes + better-auth /api/auth/**
@@ -106,7 +106,8 @@ Frontend (`src/App.tsx`, react-router-dom 6, all behind `RequireAuth` except `/l
 | Path | Screen |
 |---|---|
 | `/login` | Magic-link sign-in (Resend) |
-| `/` | `RootRoute`: signed in → `/home`, native → `/login`, else the public landing page (prerendered in prod, see below) |
+| `/` | `RootRoute`: signed in → `/home`, native → `/login`, else → `/hello`. In prod nginx 301s anonymous visitors before React loads (see below) |
+| `/hello` | Public landing page (prerendered in prod, see below). **The indexable homepage**, not `/` |
 | `/home` | System home (tool launcher) |
 | `/garage` | Garage (vehicle list) |
 | `/vehicles/:id` | Detail + calibrations + run history |
@@ -123,12 +124,16 @@ Frontend (`src/App.tsx`, react-router-dom 6, all behind `RequireAuth` except `/l
 | `/settings` | Load replay recording, view permissions |
 | `/admin` | Admin panel (admins only): user/content KPIs, growth & activity charts, users table, recent runs, leaderboard, system health |
 
-**The landing page is prerendered and ships zero JS.** `npm run build` runs `scripts/prerender-landing.mjs` after `vite build`: it renders `LandingScreen` via `src/prerender/landing-document.tsx` and writes `dist/landing.html`, a standalone document with **no `<script>` tag at all** and the entry stylesheet inlined into `<style>`. In prod nginx serves that file for exactly `/` (see *Deployment layout*), so the one page crawlers and first-time visitors get needs no JS, no hydration, and no sub-resource beyond the favicon and manifest. Build-time, not request-time: the page has no dynamic data, so an SSR round-trip through the API would only add a dependency and a latency floor. Consequences worth knowing:
+**The landing page is prerendered, ships zero JS, and lives at `/hello`, not at `/`.** `npm run build` runs `scripts/prerender-landing.mjs` after `vite build`: it renders `LandingScreen` via `src/prerender/landing-document.tsx` and writes `dist/hello.html`, a standalone document with **no `<script>` tag at all** and the entry stylesheet inlined into `<style>`. In prod nginx serves that file for exactly `/hello` and 301s `/` to it (see *Deployment layout*), so the one page crawlers and first-time visitors get needs no JS, no hydration, and no sub-resource beyond the favicon and manifest. Build-time, not request-time: the page has no dynamic data, so an SSR round-trip through the API would only add a dependency and a latency floor. Consequences worth knowing:
 
+- **Why not `/`, the URL you would obviously want:** Google had merged `wasgoht.ch/` into a duplicate cluster inherited from an unrelated events project that once ran on this domain and on `whatsgoodin.ch`, and elected `https://whatsgoodin.ch/fr/city/duggingen/parties` as that cluster's canonical, so `/` returned "Duplicate, Google chose different canonical than user" and could not be indexed whatever it served. Two things built that cluster, both verified: the old project served the same pages on both domains, and until 2026-08-10 every path on wasgoht.ch (including `/` itself) returned the byte-identical 2150 byte SPA shell, which glued `/` to the old URLs by content. Requesting indexing cannot break it, because the elected canonical is unfetchable (`whatsgoodin.ch` now resolves nowhere, and before that presented a `*.hostpoint.ch` certificate), and Google treats unreachable as temporarily-failing rather than gone, so it never drops the URL. `/hello` sidesteps all of it: a fresh URL with no cluster history, serving bytes nothing else on the domain duplicates.
+- **`LANDING_URL` in `landing-document.tsx` is the single source of truth for that path.** It feeds `rel=canonical` and `og:url`, and the build script derives the output filename from it, so the canonical the document declares and the file nginx serves cannot drift apart. A page served at `/hello` that still declared `https://wasgoht.ch/` as its canonical would point Google straight back at the poisoned URL and the move would fail silently, which is why `tests/prerender/landing-document.test.tsx` pins the literal string rather than only comparing against the constant.
+- **No internal link may point at `/`.** It only 301s, so linking it spends crawl budget re-asking Google about the abandoned URL. The landing logo and the demo screen's logo both target `/hello`, and the prerender test asserts no `href="/"` survives.
 - **`LandingScreen` must stay hook-free and `<Link>`-free.** It is rendered by both the prerender and the SPA (dev, and prod visitors with a stale session cookie), and `renderToStaticMarkup` runs no effects while a react-router `<Link>` needs a Router that a script-free page will never boot. Plain `<a>` works in both. The page title lives in the two `<head>`s, not in a `useEffect`.
 - **The CSS is inlined because nginx here only gzips `text/html`** (`gzip_types` is left at its default). Inlined, the 60 kB stylesheet reaches the browser as ~11 kB and blocks nothing; as `/assets/index-*.css` the same bytes would be served uncompressed.
 - **`build.manifest: true` in `vite.config.ts` exists for this**: the script reads the entry's hashed stylesheet out of `dist/.vite/manifest.json`.
-- The script **fails the build** if the output contains `<script` or the body renders under 2 kB. A silently blank or silently scripted landing page would deploy happily and look fine to anyone testing with JS on.
+- The script **fails the build** if the output contains `<script`, if the body renders under 2 kB, if the canonical does not match `LANDING_URL`, or if `LANDING_URL`'s path is not one flat segment. A silently blank, silently scripted, or silently mis-canonicalised landing page would deploy happily and look fine to anyone testing with JS on.
+- **`public/sitemap.xml` lists `/hello` and nothing else.** `/` is a redirect (a redirecting URL in a sitemap is a signal error), and `/login` and `/demo` are served as the SPA shell, byte-identical to every unknown path on the domain, so submitting them offers Google more copies of the document that caused the problem.
 
 API (Hono, all `/api/*` require session cookie):
 
@@ -198,25 +203,29 @@ API (Hono, all `/api/*` require session cookie):
 
 ### Deployment layout
 
-- Web root: `/var/www/dynorun` (owned by `deploy:deploy`), static SPA build (`index.html` + `assets/`) plus the prerendered `landing.html`
+- Web root: `/var/www/dynorun` (owned by `deploy:deploy`), static SPA build (`index.html` + `assets/`) plus the prerendered `hello.html`
 - Web server: nginx (`/etc/nginx/sites-enabled/dynorun`), HTTPS on port 443, SPA fallback to `/index.html`, `/api/` proxied to `:3000`
-- **`location = /` is cookie-switched, and it is not in the repo.** nginx serves the zero-JS `landing.html` at `/` to anonymous visitors, but must keep serving the SPA shell to signed-in ones or `RootRoute`'s redirect to `/home` never runs. A `map` on `$http_cookie` picks the file, which is why it is a `map` and not an `if`, and why the location sets `Vary: Cookie` (otherwise any cache in front could hand a signed-in user the landing page, or the reverse):
+- **`location = /` is cookie-switched and `location = /hello` serves the landing page, and neither is in the repo.** Anonymous visitors at `/` get a 301 to `/hello`; signed-in ones must keep getting the SPA shell or `RootRoute`'s redirect to `/home` never runs. A `map` on `$http_cookie` decides which, so the cookie test is evaluated once outside the location, and the location sets `Vary: Cookie` because otherwise any cache in front could redirect a signed-in user to the marketing page, or hand an anonymous one the app shell:
   ```nginx
   # http context, top of /etc/nginx/sites-enabled/dynorun
-  map $http_cookie $wasgoht_root {
-      default                        /landing.html;
-      "~*better-auth\.session_token=" /index.html;   # matches the __Secure- prefixed name too
+  map $http_cookie $wasgoht_signed_in {
+      default                        0;
+      "~*better-auth\.session_token=" 1;   # matches the __Secure- prefixed name too
   }
   # inside the apex server block, before `location /`
   location = / {
       add_header Vary Cookie;
-      add_header Cache-Control "no-cache";
-      try_files $wasgoht_root /index.html;   # NOT =404: see below
+      add_header Cache-Control "no-cache";   # load-bearing: see below
+      if ($wasgoht_signed_in = 0) { return 301 https://wasgoht.ch/hello; }
+      try_files /index.html =404;
+  }
+  location = /hello {
+      try_files /hello.html /index.html;     # NOT =404: see below
   }
   ```
-  The fallback is `/index.html`, not `=404`: `landing.html` is a build artefact, so a build whose prerender step was skipped or renamed would otherwise **404 the homepage** rather than quietly degrade to the client-rendered SPA. CI only rsyncs `dist/`, so **this block survives deploys but is never re-applied by them**: it lives only on the server (backup of the pre-landing config: `/root/dynorun.nginx.bak.pre-landing`). If `/` ever starts serving the SPA to anonymous visitors, this block is what went missing. Always `nginx -t` before `systemctl reload nginx`.
+  `Cache-Control: no-cache` on the `/` response is load-bearing, not hygiene: a 301 is cacheable indefinitely by default, so a visitor who was anonymous when they first hit `/` would keep being redirected to the marketing page from their own browser cache after signing in, never reaching the server to be routed into the app. `add_header` does apply to a 301.
 
-  Verified live after applying: anonymous `GET /` → 68 kB, 0 `<script>`, `Vary: Cookie`, 15.5 kB gzipped on the wire; the same request carrying `better-auth.session_token` → the 1.6 kB SPA shell; every other route and `/api/` unchanged.
+  `/hello`'s fallback is `/index.html`, not `=404`: `hello.html` is a build artefact, so a build whose prerender step was skipped or renamed would otherwise **404 the landing page** rather than quietly degrade to the client-rendered SPA (`App.tsx` has a `/hello` route for exactly that). CI only rsyncs `dist/`, so **these blocks survive deploys but are never re-applied by them**: they live only on the server (backups: `/root/dynorun.nginx.bak.pre-landing`, `/root/dynorun.nginx.bak.pre-hello`). If `/` ever starts serving a page instead of redirecting, this is what went missing. Always `nginx -t` before `systemctl reload nginx`.
 - API service: `dynorun-api` systemd unit, Node.js Hono server at `/opt/dynorun-api/`, reads `/etc/dynorun.env`
 - Database: PostgreSQL 16 in Docker (`docker exec postgres psql -U dynorun -d dynorun`), data at `/var/lib/pg-data`
 - Deploy user: `deploy` (`/home/deploy`), used to rsync built frontend into `/var/www/dynorun`

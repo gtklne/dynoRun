@@ -52,14 +52,19 @@ function RequireAdmin({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-// The domain root: public marketing landing for logged-out web visitors; signed-in
-// users skip it for the app home; native never shows marketing.
+// The domain root: signed-in users go to the app home, native never shows marketing,
+// and anonymous web visitors go to the public landing page at /hello.
+//
+// In prod nginx 301s "/" to /hello before this component ever runs, because a crawler
+// must see a redirect rather than a second copy of the landing page. This mirror keeps
+// dev behaving like prod, and keeps the redirect working at all if that server-only
+// nginx block ever goes missing (deploys never re-apply it, see CLAUDE.md).
 function RootRoute() {
   const { user, loading } = useAuth();
   if (loading) return <div className="flex min-h-screen items-center justify-center">Loading…</div>;
   if (user) return <Navigate to="/home" replace />;
   if (isNative()) return <Navigate to="/login" replace />;
-  return <LandingScreen />;
+  return <Navigate to="/hello" replace />;
 }
 
 function ScreenLoading() {
@@ -84,6 +89,7 @@ export default function App() {
               <Suspense fallback={<ScreenLoading />}>
                 <Routes>
                   <Route path="/" element={<RootRoute />} />
+                  <Route path="/hello" element={<LandingScreen />} />
                   <Route path="/login" element={<LoginScreen />} />
                   <Route path="/share/:token" element={<PublicShareScreen />} />
                   <Route path="/demo" element={<DemoRunScreen />} />

@@ -1,12 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Only /hello is listed. "/" 301s here, and a redirecting URL in a sitemap is a
+     signal error. /login and /demo are served as the SPA shell, which is byte-identical
+     to every unknown path on the domain, so submitting them offers Google more copies
+     of the same document rather than anything worth indexing. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://wasgoht.ch/</loc>
-  </url>
-  <url>
-    <loc>https://wasgoht.ch/demo</loc>
-  </url>
-  <url>
-    <loc>https://wasgoht.ch/login</loc>
+    <loc>https://wasgoht.ch/hello</loc>
   </url>
 </urlset>

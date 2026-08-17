@@ -18,6 +18,17 @@ describe('renderLandingDocument', () => {
     expect(html).toContain(`<link rel="canonical" href="${LANDING_URL}" />`);
   });
 
+  // Pinned to the literal URL, not just to LANDING_URL: this page exists at /hello
+  // precisely because Google holds "/" in an inherited duplicate cluster, so a
+  // canonical that quietly reverts to "/" would undo the whole move and still pass
+  // a test written against the constant.
+  it('claims /hello as its own canonical, never the domain root', () => {
+    expect(LANDING_URL).toBe('https://wasgoht.ch/hello');
+    expect(html).toContain('<link rel="canonical" href="https://wasgoht.ch/hello" />');
+    expect(html).toContain('<meta property="og:url" content="https://wasgoht.ch/hello" />');
+    expect(html).not.toContain('href="https://wasgoht.ch/"');
+  });
+
   it('ships no JavaScript', () => {
     expect(html).not.toMatch(/<script/i);
     expect(html).not.toMatch(/\son[a-z]+=/i);
@@ -42,9 +53,12 @@ describe('renderLandingDocument', () => {
   });
 
   it('keeps the public, product, and legal routes navigable without JavaScript', () => {
-    for (const href of ['/', '/login', '/demo', '/grip', '/privacy', '/imprint']) {
+    for (const href of ['/hello', '/login', '/demo', '/grip', '/privacy', '/imprint']) {
       expect(html).toContain(`href="${href}"`);
     }
+    // No internal link points at "/": it only 301s here, and linking it keeps asking
+    // Google to crawl the URL this page was moved off.
+    expect(html).not.toMatch(/href="\/"/);
     expect(html.match(/href="\/login"/g)?.length).toBeGreaterThanOrEqual(3);
     expect(html).toContain('Start measuring');
     expect(html).toContain('See a real run');

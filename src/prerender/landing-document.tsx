@@ -1,12 +1,24 @@
 // Build-time prerender of the public landing page into a standalone, script-free
 // HTML document (see scripts/prerender-landing.mjs).
 //
-// Why prerender instead of letting the SPA render "/": the landing page is the
+// Why prerender instead of letting the SPA render it: the landing page is the
 // only route crawlers may fetch (robots.txt disallows /imprint and /privacy, and
 // every other route sits behind RequireAuth), and it is the only page an
 // anonymous first-time visitor ever sees. It also has no dynamic data at all, so
 // there is nothing a request-time render could add. A file on disk is strictly
 // better than an SSR round-trip through the API.
+//
+// Why it lives at /hello and not at "/": Google had merged "/" into a duplicate
+// cluster inherited from an unrelated project that once ran on this domain and on
+// whatsgoodin.ch, and elected a whatsgoodin URL as that cluster's canonical, so
+// "/" reported "Duplicate, Google chose different canonical than user" no matter
+// what it served. /hello is a fresh URL with no cluster history, and it serves a
+// document nothing else on the domain is byte-identical to, which is what pulled
+// "/" into the cluster in the first place.
+//
+// LANDING_URL is the single source of truth for that path: the build script derives
+// the output filename from it (scripts/prerender-landing.mjs), so the canonical this
+// document declares and the file nginx serves cannot drift apart.
 //
 // The CSS is inlined rather than linked because nginx here only gzips text/html
 // (gzip_types is left at its default), so 60 kB of inlined CSS goes over the wire
@@ -17,7 +29,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { LandingScreen } from '@/ui/home/landing-screen';
 
 export const LANDING_TITLE = 'wasgoht | GPS dyno and grip analysis for drivers.';
-export const LANDING_URL = 'https://wasgoht.ch/';
+export const LANDING_URL = 'https://wasgoht.ch/hello';
 export const LANDING_SOCIAL_IMAGE = 'https://wasgoht.ch/media/wasgoht-social-card.png';
 
 const DESCRIPTION =

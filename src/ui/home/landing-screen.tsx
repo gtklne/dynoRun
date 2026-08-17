@@ -172,7 +172,7 @@ export function LandingScreen() {
     <div className="landing-root min-h-screen overflow-x-clip bg-[#09090b] text-zinc-100">
       <header className="landing-nav pt-safe">
         <div className="landing-container flex h-[72px] items-center justify-between gap-4">
-          <a href="/" aria-label="wasgoht home" className="flex shrink-0 items-center gap-2.5">
+          <a href="/hello" aria-label="wasgoht home" className="flex shrink-0 items-center gap-2.5">
             <SuiteMark size={28} />
             <Wordmark brand="suite" className="text-lg font-bold tracking-tight" />
           </a>
@@ -339,7 +339,7 @@ export function LandingScreen() {
       <footer className="landing-footer">
         <div className="landing-container">
           <div className="landing-footer-primary">
-            <a href="/" aria-label="wasgoht home" className="flex items-center gap-2.5">
+            <a href="/hello" aria-label="wasgoht home" className="flex items-center gap-2.5">
               <SuiteMark size={24} />
               <Wordmark brand="suite" className="text-base font-bold tracking-tight" />
             </a>
