@@ -260,6 +260,23 @@ Failure to sign out thoroughly is the sharp edge: the web session dies with the 
 - Deploy user: `deploy` (`/home/deploy`), used to rsync built frontend into `/var/www/dynorun`
 - **Deploy = `git push origin main`** → GitHub Actions builds frontend + API, rsyncs both to server, runs `drizzle-kit push` against Postgres to apply schema changes, then restarts `dynorun-api`.
 
+### Backups
+
+Nightly `pg_dump` at 03:17 UTC via `dynorun-db-backup.timer`, script at `/usr/local/bin/dynorun-db-backup.sh`, output to `/root/db-backups/dynorun-<UTC stamp>.sql.gz`, 14 days retained. Installed by hand on the server, **not** by CI, so a redeploy neither installs nor removes it. Check it with `systemctl list-timers dynorun-db-backup.timer` and `journalctl -u dynorun-db-backup.service`.
+
+Two ordering details in the script are deliberate. It dumps to `.partial` and renames only after `gzip -t` passes, so a truncated dump can never be mistaken for a usable backup. And retention runs only *after* a verified new backup exists, so a run of consecutive failures cannot age out the last good copy.
+
+Restore into a scratch database first, never straight over `dynorun`:
+
+```
+docker exec postgres psql -U dynorun -d postgres -c "CREATE DATABASE restore_test;"
+zcat /root/db-backups/dynorun-<stamp>.sql.gz | docker exec -i postgres psql -U dynorun -d restore_test
+```
+
+Verified working on 2026-08-22: row counts across every table matched live exactly and the credential password hash survived intact.
+
+**These are local-disk backups on the same server as the database.** They cover a bad migration, a mistaken delete, or table corruption. They do **not** cover losing the server itself, and Hetzner Cloud's own backup product is not enabled on `dynorun-prod`. Off-site copies are the remaining gap.
+
 ### Database migrations
 
 - Source of truth: `server/src/schema.ts` (drizzle-orm).

@@ -35,6 +35,17 @@ aligned and the release process was written down.
   bearer token. `requireAuth` is unchanged.
 - Deleted four dormant accounts that held no data, leaving the single admin.
 
+### Data protection and operations
+
+- **Fixed: account deletion and export skipped grip sessions.** `grip_sessions`
+  is the fifth table keyed by `user_id` and was missing from both, so deleting
+  an account left multi-MB GPS traces orphaned in the database and the data
+  export answered access requests incompletely. A test now derives the
+  user-scoped table list from the schema, so a newly added table cannot be
+  forgotten in the same way.
+- **Added nightly database backups** with verified restore, 14 day retention.
+  There were none before this release.
+
 ### Existing feature set at 1.0.0
 
 - **Virtual dyno.** Drive one gear, the phone's GPS records speed, and the
