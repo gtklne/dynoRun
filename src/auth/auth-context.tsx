@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { authClient } from './auth-client';
+import { clearNativeToken } from './native-token';
 
 interface AuthUser {
   id: string;
@@ -35,6 +36,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signOut() {
     await authClient.signOut();
+    // Web sessions die with the cookie the server clears, but the native
+    // bearer token lives in localStorage and would otherwise survive sign-out
+    // and silently re-authenticate on the next launch.
+    clearNativeToken();
     setUser(null);
   }
 

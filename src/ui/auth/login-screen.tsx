@@ -1,54 +1,27 @@
-import { useRef, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { authClient } from '@/auth/auth-client';
-import { BrandLogo } from '@/ui/components/brand-logo';
+import {
+  listenForNativeAuthCallback,
+  signInWithSocial,
+  type SocialProvider,
+} from '@/auth/social-sign-in';
 import { TurnstileWidget, type TurnstileWidgetHandle } from '@/ui/auth/turnstile-widget';
 import { DevLoginPanel } from '@/ui/auth/dev-login-panel';
+import { SocialButtons } from '@/ui/auth/social-buttons';
+import {
+  AuthLayout,
+  BrandHeader,
+  LegalFootnote,
+  inputClass,
+  primaryButtonClass,
+} from '@/ui/auth/auth-layout';
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string;
 
-function BrandHeader() {
-  return (
-    <div className="flex flex-col items-center text-center space-y-2">
-      <BrandLogo size={56} />
-      <h1 className="text-3xl font-bold text-zinc-100">DynoRun</h1>
-      <p className="text-zinc-500 text-sm">Your phone is a dyno.</p>
-    </div>
-  );
-}
+type Mode = 'signin' | 'signup';
 
-function LegalFootnote() {
-  return (
-    <p className="text-center text-xs text-zinc-500">
-      By continuing you agree to our{' '}
-      <Link to="/privacy" className="text-zinc-400 hover:text-amber-400 underline">
-        Privacy Policy
-      </Link>
-      . <Link to="/imprint" className="text-zinc-400 hover:text-amber-400 underline">Imprint</Link>
-    </p>
-  );
-}
-
-// Desktop-only hero panel for the split login layout. Hidden below lg so the
-// mobile screen stays the bare centered max-w-sm column.
-function BrandPanel() {
-  return (
-    <div className="hidden lg:flex lg:flex-col lg:items-start lg:justify-center lg:gap-6 lg:bg-zinc-900 lg:border-r lg:border-zinc-800 lg:p-16">
-      <BrandLogo size={96} />
-      <div className="space-y-3">
-        <h2 className="text-4xl font-bold tracking-tight text-zinc-100">
-          Your phone is a dyno.
-        </h2>
-        <p className="max-w-md text-base leading-relaxed text-zinc-400">
-          Measure wheel power and torque from a single GPS pull. No rollers, no
-          straps, just one gear and an open road.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function safeCallbackPath(value: unknown): string | null {
+export function safeCallbackPath(value: unknown): string | null {
   if (typeof value !== 'string' || !value.startsWith('/')) return null;
   try {
     const url = new URL(value, window.location.origin);
@@ -61,8 +34,11 @@ function safeCallbackPath(value: unknown): string | null {
 
 export function LoginScreen() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [mode, setMode] = useState<Mode>('signin');
   const [email, setEmail] = useState('');
-  const [sent, setSent] = useState(false);
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
@@ -77,62 +53,99 @@ export function LoginScreen() {
     : new URLSearchParams(location.search).get('next');
   const callbackURL = safeCallbackPath(requestedPath) ?? '/home';
 
+  // Only sign-up is captcha'd: see the captcha endpoints in server/src/auth.ts.
+  const needsCaptcha = mode === 'signup';
+
+  // Native social sign-in finishes asynchronously, when the OS hands back the
+  // deep link, so the result arrives here rather than from the click handler.
+  useEffect(() => {
+    let dispose: (() => void) | undefined;
+    void listenForNativeAuthCallback(
+      () => { window.location.assign(callbackURL); },
+      (message) => { setError(message); setLoading(false); },
+    ).then((cleanup) => { dispose = cleanup; });
+    return () => { dispose?.(); };
+  }, [callbackURL]);
+
+  function resetCaptcha() {
+    setCaptchaToken(null);
+    turnstileRef.current?.reset();
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
     try {
-      const res = await authClient.signIn.magicLink({
-        email,
-        // Preserve a protected deep link while keeping direct login on Home.
-        callbackURL,
-        fetchOptions: { headers: { 'x-captcha-response': captchaToken! } },
-      });
+      const res = mode === 'signup'
+        ? await authClient.signUp.email({
+            email,
+            password,
+            name: name.trim() || email.split('@')[0],
+            callbackURL,
+            fetchOptions: { headers: { 'x-captcha-response': captchaToken! } },
+          })
+        : await authClient.signIn.email({ email, password });
+
       if (res.error) {
         setError(res.error.message ?? 'Something went wrong');
-        setCaptchaToken(null);
-        turnstileRef.current?.reset();
-      } else {
-        setSent(true);
+        if (needsCaptcha) resetCaptcha();
+        return;
       }
+      navigate(callbackURL, { replace: true });
     } catch {
-      setError('Could not send the sign-in link. Check your connection and try again.');
-      setCaptchaToken(null);
-      turnstileRef.current?.reset();
+      setError('Could not reach the server. Check your connection and try again.');
+      if (needsCaptcha) resetCaptcha();
     } finally {
       setLoading(false);
     }
   }
 
-  if (sent) {
-    return (
-      <div className="flex min-h-screen items-center justify-center p-4 bg-zinc-950 lg:grid lg:grid-cols-2 lg:items-stretch lg:p-0">
-        <BrandPanel />
-        <div className="contents lg:flex lg:items-center lg:justify-center lg:p-4">
-          <div className="w-full max-w-sm space-y-6 text-center">
-            <BrandHeader />
-            <div className="space-y-2">
-              <h2 className="text-xl font-semibold text-zinc-100">Check your email</h2>
-              <p className="text-zinc-400 text-sm">
-                We sent a sign-in link to <strong className="text-zinc-200">{email}</strong>.
-              </p>
-            </div>
-            <LegalFootnote />
-          </div>
-        </div>
-      </div>
-    );
+  async function handleSocial(provider: SocialProvider) {
+    setLoading(true);
+    setError(null);
+    try {
+      // On web this navigates away and never resolves meaningfully; on native
+      // it returns once the system browser is open and the deep-link listener
+      // above takes it from there.
+      await signInWithSocial(provider, callbackURL);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not start sign-in');
+      setLoading(false);
+    }
   }
 
+  function switchMode(next: Mode) {
+    setMode(next);
+    setError(null);
+    setPassword('');
+    resetCaptcha();
+  }
+
+  const submitLabel = mode === 'signup' ? 'Create account' : 'Sign in';
+
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 bg-zinc-950 lg:grid lg:grid-cols-2 lg:items-stretch lg:p-0">
-      <BrandPanel />
-      <div className="contents lg:flex lg:items-center lg:justify-center lg:p-4">
-        <div className="flex w-full max-w-sm flex-col items-center gap-6">
-        <form onSubmit={handleSubmit} className="w-full space-y-6">
-          <BrandHeader />
-          <div className="space-y-4">
-            <label htmlFor="email" className="sr-only">Email address</label>
+    <AuthLayout>
+      <form onSubmit={handleSubmit} className="w-full space-y-6">
+        <BrandHeader />
+        <div className="space-y-4">
+          {mode === 'signup' && (
+            <div className="space-y-1">
+              <label htmlFor="name" className="text-sm text-zinc-400">Name</label>
+              <input
+                id="name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Optional"
+                autoComplete="name"
+                className={inputClass}
+              />
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <label htmlFor="email" className="text-sm text-zinc-400">Email address</label>
             <input
               id="email"
               type="email"
@@ -143,8 +156,33 @@ export function LoginScreen() {
               autoComplete="email"
               aria-invalid={Boolean(error)}
               aria-describedby={error ? 'login-error' : undefined}
-              className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-amber-500 focus:outline-none transition-colors"
+              className={inputClass}
             />
+          </div>
+
+          <div className="space-y-1">
+            <div className="flex items-baseline justify-between">
+              <label htmlFor="password" className="text-sm text-zinc-400">Password</label>
+              {mode === 'signin' && (
+                <Link to="/forgot-password" className="text-xs text-zinc-500 hover:text-amber-400 underline">
+                  Forgot password?
+                </Link>
+              )}
+            </div>
+            <input
+              id="password"
+              type="password"
+              required
+              minLength={mode === 'signup' ? 8 : undefined}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder={mode === 'signup' ? 'At least 8 characters' : '••••••••'}
+              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+              className={inputClass}
+            />
+          </div>
+
+          {needsCaptcha && (
             <TurnstileWidget
               ref={turnstileRef}
               siteKey={TURNSTILE_SITE_KEY}
@@ -152,20 +190,45 @@ export function LoginScreen() {
               onExpire={() => setCaptchaToken(null)}
               onError={() => setCaptchaToken(null)}
             />
-            {error && <p id="login-error" role="alert" className="text-red-400 text-sm">{error}</p>}
-            <button
-              type="submit"
-              disabled={loading || !captchaToken}
-              className="w-full rounded-lg bg-amber-500 hover:bg-amber-400 active:bg-amber-600 px-4 py-2 text-zinc-950 font-semibold disabled:opacity-50 disabled:hover:bg-amber-500 transition-colors"
-            >
-              {loading ? 'Sending…' : 'Send magic link'}
-            </button>
-          </div>
-          <LegalFootnote />
-        </form>
-        {import.meta.env.DEV && <DevLoginPanel />}
+          )}
+
+          {error && <p id="login-error" role="alert" className="text-red-400 text-sm">{error}</p>}
+
+          <button
+            type="submit"
+            disabled={loading || (needsCaptcha && !captchaToken)}
+            className={primaryButtonClass}
+          >
+            {loading ? 'Working…' : submitLabel}
+          </button>
+
+          <SocialButtons
+            onSelect={handleSocial}
+            disabled={loading}
+            verb={mode === 'signup' ? 'Sign up' : 'Sign in'}
+          />
+
+          <p className="text-center text-sm text-zinc-500">
+            {mode === 'signin' ? (
+              <>
+                No account yet?{' '}
+                <button type="button" onClick={() => switchMode('signup')} className="text-amber-400 hover:text-amber-300 underline">
+                  Create one
+                </button>
+              </>
+            ) : (
+              <>
+                Already have an account?{' '}
+                <button type="button" onClick={() => switchMode('signin')} className="text-amber-400 hover:text-amber-300 underline">
+                  Sign in
+                </button>
+              </>
+            )}
+          </p>
         </div>
-      </div>
-    </div>
+        <LegalFootnote />
+      </form>
+      {import.meta.env.DEV && <DevLoginPanel />}
+    </AuthLayout>
   );
 }

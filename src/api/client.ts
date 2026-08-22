@@ -44,7 +44,7 @@ export async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise
       throw new ApiError(401, 'Unauthorized');
     }
     // Session expiry can happen on a deep screen. Preserve it through the
-    // magic-link flow instead of always returning the person to Home.
+    // sign-in flow instead of always returning the person to Home.
     const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
     window.location.href = `/login?next=${encodeURIComponent(currentPath)}`;
     throw new ApiError(401, 'Unauthorized');

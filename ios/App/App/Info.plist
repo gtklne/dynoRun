@@ -47,6 +47,20 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<!-- OAuth hand-back: the system browser redirects to com.dynorun.app://auth
+	     after a social sign-in, which is what brings the app back to the front.
+	     Must match NATIVE_SCHEME in server/src/auth.ts and src/auth/social-sign-in.ts. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.dynorun.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.dynorun.app</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>DynoRun needs your location to measure your car or motorcycle's speed during a run.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>

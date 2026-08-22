@@ -22,7 +22,7 @@ export function PrivacyScreen() {
 
       <h2>What data we collect</h2>
       <ul className="list-disc pl-5 space-y-1">
-        <li><strong className="text-zinc-300">Account:</strong> your email address, used to sign you in via a magic link.</li>
+        <li><strong className="text-zinc-300">Account:</strong> your email address and display name, used to sign you in. If you sign in with a password we store a salted hash of it, never the password itself. If you sign in with Google, Apple, or Discord we store the account identifier that provider gives us, and no password.</li>
         <li><strong className="text-zinc-300">Vehicles &amp; calibrations:</strong> details you enter about your vehicle and gear ratios.</li>
         <li><strong className="text-zinc-300">Run data:</strong> GPS location, altitude, speed, and motion-sensor readings recorded during a run, used to compute a power/torque curve. This is precise location data.</li>
         <li><strong className="text-zinc-300">Notes:</strong> any free text you add to a vehicle, calibration, or run.</li>
@@ -47,12 +47,17 @@ export function PrivacyScreen() {
         the app to function, so no consent banner is required for it. There is no
         analytics, advertising, or tracking cookie of any kind. A small number of
         preferences (e.g. display units) are stored in your browser's local
-        storage, not as cookies, and never leave your device.
+        storage, not as cookies, and never leave your device. The iOS and Android
+        apps keep their session token in that same local storage instead of a
+        cookie, because a sign-in that passes through the system browser cannot
+        hand a cookie back to the app.
       </p>
 
       <h2>Third parties we use</h2>
       <ul className="list-disc pl-5 space-y-1">
-        <li><strong className="text-zinc-300">Resend</strong>, delivers the sign-in email containing your magic link. Receives your email address and a one-time sign-in URL.</li>
+        <li><strong className="text-zinc-300">Resend</strong>, delivers password-reset email. Receives your email address and a one-time reset URL, and only when you ask to reset a password.</li>
+        <li><strong className="text-zinc-300">Cloudflare</strong>, provides the Turnstile anti-bot check on sign-up and password reset. Receives your IP address and a challenge token.</li>
+        <li><strong className="text-zinc-300">Google, Apple, Discord</strong>, only if you choose to sign in with one of them. They tell us your email address, name, and their account identifier for you. We never receive your password with them.</li>
         <li><strong className="text-zinc-300">Hetzner Online GmbH</strong>, hosts the application and database in Germany.</li>
       </ul>
 

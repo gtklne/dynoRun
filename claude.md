@@ -38,7 +38,8 @@ src/
   sensors/       SpeedSource abstraction (GPS-web, GPS-native, recorded, mock) + SensorRecorder
   api/           apiFetch client + per-table repository implementations (server-backed)
   app/           Platform glue: wake lock, geolocation permission, export, isNative()
-  auth/          better-auth React client + AuthProvider context
+  auth/          better-auth React client + AuthProvider context + social sign-in
+                 + native-token.ts (bearer store, native only)
   shared/        Types, units (km/h ↔ m/s, RPM ↔ ω), observable Subject, haversine, UUID, ISO time
   ui/            Screens (garage, calibration wizard, run, recordings, compare, grip, settings) + chart components
   prerender/     landing-document.tsx: renders LandingScreen to a script-free HTML document
@@ -46,7 +47,8 @@ scripts/         prerender-landing.mjs: post-build step writing dist/hello.html
 server/src/
   schema.ts      Drizzle schema: source of truth for Postgres (vehicles, calibrations, runs, samples, recordings, derived_curves, grip_sessions)
   index.ts       Hono app, CORS, mounts /api/* routes + better-auth /api/auth/**
-  auth.ts        better-auth config (magic-link via Resend + Cloudflare Turnstile captcha → /etc/dynorun.env)
+  auth.ts        better-auth config (email+password, Google/Apple/Discord, Turnstile captcha,
+                 Resend for password reset only → /etc/dynorun.env)
   routes/        vehicles, calibrations, runs, samples, curves, recordings, grip-sessions
   middleware/    requireAuth: validates session, sets c.var.userId
   lib/           runBelongsToUser ownership check
@@ -105,7 +107,10 @@ Frontend (`src/App.tsx`, react-router-dom 6, all behind `RequireAuth` except `/l
 
 | Path | Screen |
 |---|---|
-| `/login` | Magic-link sign-in (Resend) |
+| `/login` | Email+password sign in / sign up, plus configured social providers |
+| `/forgot-password` | Request a password-reset email (captcha'd) |
+| `/reset-password` | Set a new password from an emailed `?token=` |
+| `/native-callback` | Native OAuth hand-back. Runs in the **system browser**, not the app |
 | `/` | `RootRoute`: signed in → `/home`, native → `/login`, else → `/hello`. In prod nginx 301s anonymous visitors before React loads (see below) |
 | `/hello` | Public landing page (prerendered in prod, see below). **The indexable homepage**, not `/` |
 | `/home` | System home (tool launcher) |
@@ -149,11 +154,32 @@ API (Hono, all `/api/*` require session cookie):
 | CRUD | `/api/recordings[/:id]` | Raw sensor recordings (jsonb) |
 | CRUD | `/api/grip-sessions[/:id]` | Grip track sessions (columnar jsonb channels; summary columns derived server-side from the envelope) |
 | GET | `/api/admin/{overview,timeseries,users,activity}` | Admin stats (requireAdmin) |
+| GET | `/api/auth-providers` | Public: which social providers are configured |
 | ALL | `/api/auth/**` | Delegated to better-auth |
 
 `requireAuth` middleware sets `c.var.userId`; every query filters by it. Run-scoped routes use `runBelongsToUser` for ownership.
 
 **Admin access:** `user.role` column (added via `init-auth-tables.sql`, NOT drizzle-managed) defaults to `'user'`. `requireAdmin` re-reads the role from the DB per request and answers **404** (not 403) to non-admins so the route surface stays invisible. The role is declared as a better-auth additional field with `input: false`, so no auth API call can ever set it. Grant admin only via manual SQL: `UPDATE "user" SET role = 'admin' WHERE email = '...'`. The frontend `RequireAdmin` wrapper and nav links keyed on `useAuth().isAdmin` are cosmetic only.
+
+## Authentication
+
+**Email + password and social sign-in, both via better-auth.** There is no magic link: the plugin was removed, and Resend now sends exactly one kind of mail, the password reset. Sign-up is open to anyone (`emailAndPassword.enabled`, `requireEmailVerification: false`), because gating first sign-in on a clicked email link would reinstate the round trip the magic link was dropped to avoid. Turnstile plus rate limits carry that load instead.
+
+**Social providers register only when their credentials are present.** `configuredSocialProviders()` in `server/src/auth.ts` builds the map from env pairs (`GOOGLE_CLIENT_ID`/`_SECRET`, `APPLE_*`, `DISCORD_*`), and `GET /api/auth-providers` publishes the resulting key list. `SocialButtons` fetches that and renders exactly those buttons. Hardcoding them client-side is the failure mode this prevents: a provider whose secret is missing is not registered at all, so its button would 500 at the OAuth redirect with an opaque error, and Apple in particular can lag the others by days (paid developer account, Services ID, .p8 key). The map is typed as better-auth's own `SocialProviders`, not a loose `Record`, so a misspelt provider key is a compile error.
+
+**Redirect URI to register with every provider is `<APP_URL>/api/auth/callback/<provider>`.**
+
+**Native social sign-in cannot use cookies, and this is the whole reason for the `bearer` + `oneTimeToken` plugins.** OAuth happens in the *system browser* (SFSafariViewController / Chrome Custom Tab), because Google and Apple refuse to render a consent screen inside an embedded webview. The session cookie better-auth sets therefore lands in that browser's jar, which the Capacitor webview cannot read. The handoff:
+
+1. App calls `signIn.social({ provider, callbackURL: '<APP_URL>/native-callback', disableRedirect: true })`. `disableRedirect` is what makes better-auth return the authorize URL instead of 302ing, so the webview can hand it to `Browser.open` rather than following it.
+2. OAuth completes in the system browser, which lands on `/native-callback` **with the session cookie**.
+3. That page (`native-callback-screen.tsx`, the only screen that runs outside the app) calls `GET /api/auth/one-time-token/generate` and redirects to `com.dynorun.app://auth?token=…`. Single-use and short-lived is what makes a token in a URL acceptable here, since the OS logs and routes it.
+4. The OS reopens the app, `@capacitor/app`'s `appUrlOpen` fires, and `listenForNativeAuthCallback` trades the token via `/one-time-token/verify`.
+5. Verify sets a session cookie, the `bearer` plugin's after-hook mirrors that value into a `set-auth-token` header, and the auth client's `onSuccess` stores it. Every later request sends `Authorization: Bearer …`, which the bearer plugin's before-hook converts back into a session cookie server-side, **so `requireAuth` is unchanged and knows nothing about any of this**.
+
+`NATIVE_SCHEME` (`com.dynorun.app`) must stay identical in four places: `server/src/auth.ts`, `src/auth/social-sign-in.ts`, the iOS `CFBundleURLSchemes` entry, and the Android intent-filter. Android's `MainActivity` is already `launchMode="singleTask"`, which is what makes the deep link resume the running app instead of starting a second copy.
+
+Failure to sign out thoroughly is the sharp edge: the web session dies with the cookie the server clears, but the native bearer token lives in `localStorage` and would survive sign-out and silently re-authenticate on next launch, so `AuthProvider.signOut` calls `clearNativeToken()`.
 
 ## Conventions
 
@@ -174,8 +200,9 @@ API (Hono, all `/api/*` require session cookie):
 - **iOS native speed can be -1** (unknown). `CapacitorGpsSpeedSource` and `GpsSpeedSource` both treat null/-1/0 as unavailable and fall back to haversine distance between consecutive fixes.
 - **`PIPELINE_VERSION` is stored on every `derived_curves` row.** Bump it when the math changes so stale curves can be detected/recomputed (no migration runs automatically).
 - **`samples.t_ms` is relative to `performance.now()` at sensor start**, not wall-clock, so it resets each session. Use `runs.started_at` for absolute time.
-- **Turnstile captcha gates every magic-link request** (`server/src/auth.ts`, `captcha({ endpoints: ['/sign-in/magic-link'] })`), since there's no separate sign-up flow, returning users solve a captcha on every sign-in too, not just new-account creation. If `TURNSTILE_SECRET_KEY` is unset server-side, every sign-in silently fails.
-- **Dev login bypass (no email):** magic-link sends real mail, which is painful on dev. `POST /api/dev/login {email}` (`server/src/routes/dev-auth.ts`) mints a real better-auth session cookie for that email (find-or-create, same semantics as magic-link verify) and skips the email + captcha. Gated by `DEV_LOGIN=true` in `server/.env` (absent from prod `/etc/dynorun.env`, so the route is never mounted in prod). The login screen shows a "Dev sign-in" panel under `import.meta.env.DEV`, Vite strips it from prod builds. Prefill the panel via `VITE_DEV_LOGIN_EMAIL` (root `.env`); the endpoint defaults to `DEV_LOGIN_EMAIL` when the body omits one. Restart the API after adding the env var (`--env-file` is read at process start, not on watch-reload).
+- **Turnstile gates `/sign-up/email` and `/request-password-reset`, deliberately NOT `/sign-in/email`.** Those two are the endpoints that create something (an account, or mail to an attacker-chosen address); a captcha on every sign-in was the friction that made magic links unbearable, and credential stuffing is covered by the `rateLimit.customRules` block instead (10 sign-ins/min, 5 sign-ups/min, 3 reset requests/min). If `TURNSTILE_SECRET_KEY` is unset server-side, sign-up and password reset silently fail while plain sign-in keeps working, so the breakage is easy to misread.
+- **The reset endpoint is `/request-password-reset`, not `/forget-password`.** better-auth 1.6 removed the old name (only the email-otp plugin still has a `/forget-password/email-otp`), and the client method is `authClient.requestPasswordReset`. A captcha or rate-limit rule naming the dead path silently protects nothing while looking configured, which would leave the mail-sending endpoint open.
+- **Dev login bypass (no password):** dev has no Turnstile keys and no seeded credentials. `POST /api/dev/login {email}` (`server/src/routes/dev-auth.ts`) mints a real better-auth session cookie for that email (find-or-create, same semantics as a real sign-in) and skips the password + captcha. Gated by `DEV_LOGIN=true` in `server/.env` (absent from prod `/etc/dynorun.env`, so the route is never mounted in prod). The login screen shows a "Dev sign-in" panel under `import.meta.env.DEV`, Vite strips it from prod builds. Prefill the panel via `VITE_DEV_LOGIN_EMAIL` (root `.env`); the endpoint defaults to `DEV_LOGIN_EMAIL` when the body omits one. Restart the API after adding the env var (`--env-file` is read at process start, not on watch-reload).
 - **`@capacitor-community/sqlite` is in `package.json` but unused**: leftover from a pre-Postgres local-first architecture. Safe to remove if you want to slim the install (would also drop `sql.js`, `localforage`, `jeep-sqlite` transitive deps). Not removed yet because no functional impact.
 - **The two local RaceBox fixtures are NOT the same track layout**, despite both CSVs declaring `Track,Anneau Du Rhin` / `Configuration,Short` and having start/finish fixes ~2 m apart. Their laps are **2739 m** and **3411 m**: the second runs a ~690 m extension and rejoins before the line, sharing 88.5% of the first. Track name + configuration + a common start line is **not** layout identity: verify geometrically (`compare.ts` uses ordered-projection coverage + length ratio). This pair is the acceptance case for the partial-overlap path.
 - **`GripCorner.n` is a per-lap detection index, never a track turn ID.** On ten laps of the same physical circuit, corner detection finds anywhere from **6 to 9** corners, so lap 3's "corner 5" and lap 1's "corner 5" are different bends. Use `GripCorner.turn` (assigned by `turns.ts`, see above) for anything that pairs corners across laps or that a rider reads as a turn number; `n` is only good for keying a map within one lap. `turn === 0` means "no other lap agrees this is a bend", exclude it from cross-lap comparisons rather than treating it as turn zero.
@@ -189,6 +216,8 @@ API (Hono, all `/api/*` require session cookie):
 - **Two different clocks measure a lap, and they differ by ~52 ms.** `GripLap.time` / `CompareLapResult.lapTime` come from the RaceBox CSV metadata; `compareSegments`' times come from the spatial axis (zeroed at the interpolated crossing of `u = 0`, ending at `u = length`). Subtracting one from the other invents a gain: the compare legend reported a 0.05 s "theoretical best" advantage even when the reference lap won every segment. Compare axis figures only against `SegmentBreakdown.referenceTotal`.
 - **`grip-session-cache.ts` is an LRU of 6, and every write path must invalidate it.** A parsed session retains ~3.5 MB, and the key carries `updated_at`, so an unbounded map grew a *new* full copy on every debounced settings save while the old one stayed reachable, measured ~21 MB of dead channel data after six analyzer↔compare round-trips, which is a discarded tab on mobile Safari. The analyzer reads through the cache (so the round-trip does not re-download), which means its settings/label/vehicle PATCHes and the home screen's delete all call `invalidateGripSession`.
 - **Canvas draw code does not run in jsdom, and asserting "no console.error" does not test it.** `tests/ui/compare-canvas.test.tsx` and `tests/ui/session-canvas.test.tsx` stub `getBoundingClientRect` to force the draws, then wrap the 2D context in a counting Proxy and assert a floor on `stroke`/`beginPath`, verified by mutating `useCanvasDraw` to never draw, which now fails all of them and previously left 392 tests green. The session-canvas Proxy additionally throws on any non-finite coordinate; that is how the one-sample-lap divide-by-zero in `load-timeline.tsx` was found.
+- **Native builds authenticate with a bearer token in `localStorage`, not a cookie.** See *Authentication*. Two consequences: `AuthProvider.signOut` must call `clearNativeToken()` or the app silently re-authenticates on next launch, and CORS must expose `set-auth-token` (`exposeHeaders` in `index.ts`) or the webview's fetch cannot read the token it was just issued.
+- **`@capacitor/app` and `@capacitor/browser` are imported dynamically, behind `isNative()`.** Importing them at module scope pulls Capacitor plugin shims into the web bundle and breaks the jsdom test environment. `social-sign-in.ts` returns before the imports on web.
 - **The `samples` repository's `deleteByRun` is a no-op** (`src/api/repositories/sample-repository.ts`). Real cascade happens server-side in `DELETE /api/runs/:id` via a transaction. Don't add it to the API client without removing the server-side cascade.
 
 ## Production server (Hetzner)

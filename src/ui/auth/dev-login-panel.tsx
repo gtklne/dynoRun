@@ -5,7 +5,7 @@ const DEFAULT_EMAIL = (import.meta.env.VITE_DEV_LOGIN_EMAIL as string | undefine
 
 /**
  * Dev-only sign-in shortcut. Posts to the server's DEV_LOGIN bypass, which mints
- * a session cookie without the magic-link email + captcha. Rendered only under
+ * a session cookie for any email without needing a password. Rendered only under
  * `import.meta.env.DEV`, so Vite strips it entirely from the production bundle.
  * It can never ship to prod, and the backing route isn't mounted there either.
  */

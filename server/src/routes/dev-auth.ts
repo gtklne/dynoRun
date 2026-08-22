@@ -4,14 +4,14 @@ import { auth } from '../auth.js';
 
 /**
  * Dev-only login bypass. Mints a real better-auth session for an email and sets
- * the session cookie directly: skipping the magic-link email + Turnstile
- * captcha that make local sign-in painful (no inbox to click on dev).
+ * the session cookie directly, so local sign-in needs neither a password nor a
+ * Turnstile solve (dev has no Turnstile keys and no seeded credentials).
  *
  * This route is mounted in index.ts ONLY when DEV_LOGIN === 'true', which is set
  * in server/.env locally and absent from prod's /etc/dynorun.env. The inner guard
  * (plus the NODE_ENV check) is defence-in-depth so it can never activate in prod
- * even if the flag leaks in. Same find-or-create semantics as the magic-link
- * verify handler, so it grants exactly the access a real sign-in would.
+ * even if the flag leaks in. Same find-or-create semantics as a real sign-in, so
+ * it grants exactly the access one would.
  */
 export const devAuthRoute = new Hono();
 

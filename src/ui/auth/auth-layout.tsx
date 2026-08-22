@@ -1,0 +1,65 @@
+import { Link } from 'react-router-dom';
+import type { ReactNode } from 'react';
+import { BrandLogo } from '@/ui/components/brand-logo';
+
+export function BrandHeader({ title, subtitle }: { title?: string; subtitle?: string }) {
+  return (
+    <div className="flex flex-col items-center text-center space-y-2">
+      <BrandLogo size={56} />
+      <h1 className="text-3xl font-bold text-zinc-100">{title ?? 'DynoRun'}</h1>
+      <p className="text-zinc-500 text-sm">{subtitle ?? 'Your phone is a dyno.'}</p>
+    </div>
+  );
+}
+
+export function LegalFootnote() {
+  return (
+    <p className="text-center text-xs text-zinc-500">
+      By continuing you agree to our{' '}
+      <Link to="/privacy" className="text-zinc-400 hover:text-amber-400 underline">
+        Privacy Policy
+      </Link>
+      . <Link to="/imprint" className="text-zinc-400 hover:text-amber-400 underline">Imprint</Link>
+    </p>
+  );
+}
+
+// Desktop-only hero panel for the split auth layout. Hidden below lg so the
+// mobile screen stays the bare centered max-w-sm column.
+function BrandPanel() {
+  return (
+    <div className="hidden lg:flex lg:flex-col lg:items-start lg:justify-center lg:gap-6 lg:bg-zinc-900 lg:border-r lg:border-zinc-800 lg:p-16">
+      <BrandLogo size={96} />
+      <div className="space-y-3">
+        <h2 className="text-4xl font-bold tracking-tight text-zinc-100">
+          Your phone is a dyno.
+        </h2>
+        <p className="max-w-md text-base leading-relaxed text-zinc-400">
+          Measure wheel power and torque from a single GPS pull. No rollers, no
+          straps, just one gear and an open road.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/** The split brand/form shell shared by sign-in, sign-up and the two password
+ *  reset screens, so they cannot drift apart visually. */
+export function AuthLayout({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center p-4 bg-zinc-950 lg:grid lg:grid-cols-2 lg:items-stretch lg:p-0">
+      <BrandPanel />
+      <div className="contents lg:flex lg:items-center lg:justify-center lg:p-4">
+        <div className="flex w-full max-w-sm flex-col items-center gap-6">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export const inputClass =
+  'w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-amber-500 focus:outline-none transition-colors';
+
+export const primaryButtonClass =
+  'w-full rounded-lg bg-amber-500 hover:bg-amber-400 active:bg-amber-600 px-4 py-2 text-zinc-950 font-semibold disabled:opacity-50 disabled:hover:bg-amber-500 transition-colors';

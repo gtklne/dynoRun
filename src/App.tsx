@@ -12,6 +12,9 @@ import { CookieNotice } from './ui/components/cookie-notice';
 // replay, and Grip code is substantial; visitors should only download the tool
 // they open instead of paying for the entire suite on first paint.
 const LoginScreen = lazy(() => import('./ui/auth/login-screen').then(({ LoginScreen: Screen }) => ({ default: Screen })));
+const ForgotPasswordScreen = lazy(() => import('./ui/auth/forgot-password-screen').then(({ ForgotPasswordScreen: Screen }) => ({ default: Screen })));
+const ResetPasswordScreen = lazy(() => import('./ui/auth/reset-password-screen').then(({ ResetPasswordScreen: Screen }) => ({ default: Screen })));
+const NativeCallbackScreen = lazy(() => import('./ui/auth/native-callback-screen').then(({ NativeCallbackScreen: Screen }) => ({ default: Screen })));
 const LandingScreen = lazy(() => import('./ui/home/landing-screen').then(({ LandingScreen: Screen }) => ({ default: Screen })));
 const SystemHome = lazy(() => import('./ui/home/system-home').then(({ SystemHome: Screen }) => ({ default: Screen })));
 const GripHome = lazy(() => import('./ui/grip/grip-home').then(({ GripHome: Screen }) => ({ default: Screen })));
@@ -91,6 +94,11 @@ export default function App() {
                   <Route path="/" element={<RootRoute />} />
                   <Route path="/hello" element={<LandingScreen />} />
                   <Route path="/login" element={<LoginScreen />} />
+                  <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
+                  <Route path="/reset-password" element={<ResetPasswordScreen />} />
+                  {/* Runs in the system browser at the end of a native OAuth
+                      round trip, so it must stay outside RequireAuth. */}
+                  <Route path="/native-callback" element={<NativeCallbackScreen />} />
                   <Route path="/share/:token" element={<PublicShareScreen />} />
                   <Route path="/demo" element={<DemoRunScreen />} />
                   <Route path="/imprint" element={<ImprintScreen />} />
