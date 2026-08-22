@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { eq, inArray } from 'drizzle-orm';
 import { db, pool } from '../db.js';
-import { vehicles, calibrations, runs, samples, derivedCurves, recordings } from '../schema.js';
+import { vehicles, calibrations, runs, samples, derivedCurves, recordings, gripSessions } from '../schema.js';
 import { requireAuth, type AuthVariables } from '../middleware/require-auth.js';
 
 const route = new Hono<{ Variables: AuthVariables }>();
@@ -9,7 +9,7 @@ route.use(requireAuth);
 
 route.get('/account/export', async (c) => {
   const userId = c.get('userId');
-  const [userResult, vehicleRows, calibrationRows, runRows, recordingRows] = await Promise.all([
+  const [userResult, vehicleRows, calibrationRows, runRows, recordingRows, gripRows] = await Promise.all([
     pool.query(
       `SELECT id, name, email, "emailVerified", "createdAt" FROM "user" WHERE id = $1`,
       [userId],
@@ -18,6 +18,7 @@ route.get('/account/export', async (c) => {
     db.select().from(calibrations).where(eq(calibrations.userId, userId)),
     db.select().from(runs).where(eq(runs.userId, userId)),
     db.select().from(recordings).where(eq(recordings.userId, userId)),
+    db.select().from(gripSessions).where(eq(gripSessions.userId, userId)),
   ]);
 
   const runIds = runRows.map((r) => r.id);
@@ -38,6 +39,7 @@ route.get('/account/export', async (c) => {
     samples: sampleRows,
     derived_curves: curveRows,
     recordings: recordingRows,
+    grip_sessions: gripRows,
   });
 });
 
@@ -57,6 +59,7 @@ route.delete('/account', async (c) => {
     await tx.delete(runs).where(eq(runs.userId, userId));
     await tx.delete(calibrations).where(eq(calibrations.userId, userId));
     await tx.delete(recordings).where(eq(recordings.userId, userId));
+    await tx.delete(gripSessions).where(eq(gripSessions.userId, userId));
     await tx.delete(vehicles).where(eq(vehicles.userId, userId));
   });
 

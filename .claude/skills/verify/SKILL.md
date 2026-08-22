@@ -13,20 +13,23 @@ description: Runtime-verify DynoRun changes by driving the real app (Vite + API 
 
 ⚠️ Local dev hits the **live prod Postgres**. Create disposable entities (a `TEST …` vehicle) and delete them after, `DELETE /api/vehicles/:id` cascades runs, samples, curves, calibrations, and recordings.
 
-## Auth without email
+## Auth
 
-Magic-link login always sends real mail via Resend. Instead mint a session:
-insert a row into `session` (columns: id, "expiresAt", token, "createdAt",
-"updatedAt", "ipAddress", "userAgent", "userId") and sign the token with
-better-auth's own helper so the format can't drift:
+Sign-in is email + password, so a test can just log in. Two ways, cheapest first:
 
-```js
-const { serializeSignedCookie } = await import('<repo>/server/node_modules/better-call/dist/cookies.mjs');
-const setCookie = await serializeSignedCookie('better-auth.session_token', token, env.BETTER_AUTH_SECRET, {});
-// cookie value = setCookie.split(';')[0] after the first '='
-```
+1. **Dev bypass, no password needed.** Set `DEV_LOGIN=true` in `server/.env` and
+   `POST /api/dev/login {email}`; the response sets a real session cookie.
+   Mounted only when that flag is set, so it does not exist in prod.
+2. **A real sign-in**, when the thing under test is the login flow itself:
+   `POST /api/auth/sign-in/email {email, password}`. No captcha on this endpoint
+   (Turnstile only gates `/sign-up/email` and `/request-password-reset`), so it
+   works headless. It is rate limited to 10/min per IP.
 
-`DATABASE_URL` + `BETTER_AUTH_SECRET` come from `server/.env`. Delete the session row when done.
+Grab the `set-cookie` from either and hand it to `context.addCookies`. Only
+`/sign-up/email` and `/request-password-reset` need a Turnstile solve, and for
+those use Cloudflare's always-passes test keys rather than driving the widget.
+
+Hand-minting a `session` row is no longer necessary and is the wrong reflex now.
 
 ## Driving GPS-dependent screens
 

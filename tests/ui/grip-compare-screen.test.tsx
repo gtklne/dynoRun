@@ -73,7 +73,13 @@ async function renderScreen(entry = '/grip/compare') {
       </Routes>
     </MemoryRouter>,
   );
-  await waitFor(() => expect(screen.queryByText(/Pick at least one lap/)).not.toBeInTheDocument());
+  // These tests run the real spatial alignment and compare pipeline over the
+  // fixtures, which is genuinely slow: on a loaded machine it overruns
+  // waitFor's 1 s default and the suite goes flaky rather than red.
+  await waitFor(
+    () => expect(screen.queryByText(/Pick at least one lap/)).not.toBeInTheDocument(),
+    { timeout: 10_000 },
+  );
   return result;
 }
 
@@ -110,7 +116,10 @@ describe('GripCompareScreen', () => {
 
     await renderScreen();
 
-    expect(screen.getByRole('heading', { name: 'Turn by turn' })).toBeInTheDocument();
+    // findBy, not getBy: laps being selected (what renderScreen waits for) does
+    // not mean the comparison has finished computing and rendered its tables.
+    expect(await screen.findByRole('heading', { name: 'Turn by turn' }, { timeout: 10_000 }))
+      .toBeInTheDocument();
     const table = screen.getByRole('table');
     // the closed circuit has four detectable turns
     expect(within(table).getAllByRole('row').length).toBeGreaterThan(4);
