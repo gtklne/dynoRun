@@ -15,6 +15,7 @@ const LoginScreen = lazy(() => import('./ui/auth/login-screen').then(({ LoginScr
 const ForgotPasswordScreen = lazy(() => import('./ui/auth/forgot-password-screen').then(({ ForgotPasswordScreen: Screen }) => ({ default: Screen })));
 const ResetPasswordScreen = lazy(() => import('./ui/auth/reset-password-screen').then(({ ResetPasswordScreen: Screen }) => ({ default: Screen })));
 const NativeCallbackScreen = lazy(() => import('./ui/auth/native-callback-screen').then(({ NativeCallbackScreen: Screen }) => ({ default: Screen })));
+const ContinueScreen = lazy(() => import('./ui/auth/continue-screen').then(({ ContinueScreen: Screen }) => ({ default: Screen })));
 const LandingScreen = lazy(() => import('./ui/home/landing-screen').then(({ LandingScreen: Screen }) => ({ default: Screen })));
 const SystemHome = lazy(() => import('./ui/home/system-home').then(({ SystemHome: Screen }) => ({ default: Screen })));
 const GripHome = lazy(() => import('./ui/grip/grip-home').then(({ GripHome: Screen }) => ({ default: Screen })));
@@ -96,6 +97,9 @@ export default function App() {
                   <Route path="/login" element={<LoginScreen />} />
                   <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
                   <Route path="/reset-password" element={<ResetPasswordScreen />} />
+                  {/* Where a web social sign-in lands, only to restore the
+                      destination better-auth's callbackURL cannot carry. */}
+                  <Route path="/auth/continue" element={<ContinueScreen />} />
                   {/* Runs in the system browser at the end of a native OAuth
                       round trip, so it must stay outside RequireAuth. */}
                   <Route path="/native-callback" element={<NativeCallbackScreen />} />

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { authClient } from '@/auth/auth-client';
 import {
@@ -24,6 +24,13 @@ export function ResetPasswordScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const redirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Without this the timer still fires after the user has clicked through
+  // themselves, replacing whatever they navigated to 1.5 s later.
+  useEffect(() => () => {
+    if (redirectTimer.current) clearTimeout(redirectTimer.current);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -31,6 +38,8 @@ export function ResetPasswordScreen() {
       setError('The two passwords do not match.');
       return;
     }
+    // Narrowing, not a runtime guard: the !token case already rendered the
+    // expired-link screen below, so this form does not exist without a token.
     if (!token) return;
     setLoading(true);
     setError(null);
@@ -43,7 +52,7 @@ export function ResetPasswordScreen() {
       setDone(true);
       // The reset does not sign you in, so send them to sign in with the new
       // password rather than leaving them on a dead-end success screen.
-      setTimeout(() => navigate('/login', { replace: true }), 1500);
+      redirectTimer.current = setTimeout(() => navigate('/login', { replace: true }), 1500);
     } catch {
       setError('Could not reach the server. Check your connection and try again.');
     } finally {

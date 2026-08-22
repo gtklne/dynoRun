@@ -90,7 +90,12 @@ export function ForgotPasswordScreen() {
             siteKey={TURNSTILE_SITE_KEY}
             onToken={setCaptchaToken}
             onExpire={() => setCaptchaToken(null)}
-            onError={() => setCaptchaToken(null)}
+            onError={(reason) => {
+              setCaptchaToken(null);
+              if (reason === 'load') {
+                setError('The anti-bot check could not load. Disable your ad blocker for this page, or try another network.');
+              }
+            }}
           />
           {error && <p id="forgot-error" role="alert" className="text-red-400 text-sm">{error}</p>}
           <button type="submit" disabled={loading || !captchaToken} className={primaryButtonClass}>

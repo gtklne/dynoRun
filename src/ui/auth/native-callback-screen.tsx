@@ -14,8 +14,9 @@ const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
  * is single-use and short-lived, which is what makes it safe to put in a URL
  * that the OS logs and routes.
  *
- * Reached only from a native OAuth round trip. On a desktop browser it just
- * fails to leave, which is why it says so rather than spinning forever.
+ * Reached only from a native OAuth round trip. Opened in a desktop browser the
+ * custom-scheme redirect is a no-op, so it shows the hand-off notice and stops
+ * there; there is no app to return to and nothing useful it could do instead.
  */
 export function NativeCallbackScreen() {
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +29,9 @@ export function NativeCallbackScreen() {
         const res = await fetch(`${API_BASE}/api/auth/one-time-token/generate`, {
           credentials: 'include',
         });
-        if (!res.ok) throw new Error(`Handoff failed (${res.status})`);
+        // Deliberately not the raw status: this string is handed to the app
+        // and shown to the user.
+        if (!res.ok) throw new Error('Could not complete sign-in. Please try again.');
         const { token } = (await res.json()) as { token?: string };
         if (!token) throw new Error('No token was issued');
         if (cancelled) return;
@@ -36,10 +39,16 @@ export function NativeCallbackScreen() {
       } catch (err) {
         if (cancelled) return;
         const message = err instanceof Error ? err.message : 'Sign-in could not be completed';
+        // Shown only where the redirect below cannot go anywhere (a desktop
+        // browser); in the app it is replaced immediately.
         setError(message);
-        // Tell the app rather than stranding it on a browser sheet that will
-        // never close by itself.
-        window.location.replace(`${NATIVE_CALLBACK_URL}?error=${encodeURIComponent(message)}`);
+        try {
+          // Tell the app rather than stranding it on a browser sheet that will
+          // never close by itself.
+          window.location.replace(`${NATIVE_CALLBACK_URL}?error=${encodeURIComponent(message)}`);
+        } catch {
+          // Some browsers throw on an unknown scheme; the message above stands.
+        }
       }
     }
 

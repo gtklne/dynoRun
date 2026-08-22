@@ -30,6 +30,7 @@ vi.mock('@capacitor/app', () => ({
 import {
   signInWithSocial,
   listenForNativeAuthCallback,
+  takePostLoginPath,
   NATIVE_CALLBACK_URL,
 } from '@/auth/social-sign-in';
 
@@ -38,40 +39,43 @@ describe('signInWithSocial', () => {
     isNative.mockReset();
     signInSocial.mockReset().mockResolvedValue({ error: null, data: { url: 'https://accounts.google.com/o/oauth2/auth?x=1' } });
     browserOpen.mockReset();
+    sessionStorage.clear();
   });
 
-  it('lets the browser follow the redirect on web', async () => {
+  it('never sends the real destination as the callbackURL on web', async () => {
     isNative.mockReturnValue(false);
-    await signInWithSocial('google', '/grip');
+    // A real shared compare link. better-auth validates a relative callbackURL
+    // against a character class with no colon in it and 403s the whole request,
+    // so passing this through would break sign-in on exactly the links people
+    // share. The destination travels in sessionStorage instead.
+    const deepLink = '/grip/compare?sessions=abc&laps=abc:3&ref=abc:3&m=spd';
+    await signInWithSocial('google', deepLink);
 
-    expect(signInSocial).toHaveBeenCalledWith({ provider: 'google', callbackURL: '/grip' });
-    expect(browserOpen).not.toHaveBeenCalled();
-  });
-
-  it('opens the system browser on native instead of redirecting the webview', async () => {
-    isNative.mockReturnValue(true);
-    await signInWithSocial('google', '/grip');
-
-    // disableRedirect is what makes better-auth hand back the authorize URL.
-    // Without it the webview would follow the redirect itself and the OAuth
-    // provider would refuse to render inside an embedded webview.
-    expect(signInSocial).toHaveBeenCalledWith(expect.objectContaining({
+    expect(signInSocial).toHaveBeenCalledWith({
       provider: 'google',
-      disableRedirect: true,
-      callbackURL: expect.stringContaining('/native-callback'),
-    }));
-    expect(browserOpen).toHaveBeenCalledWith({ url: 'https://accounts.google.com/o/oauth2/auth?x=1' });
-  });
-
-  it('fails loudly when the provider returns no URL', async () => {
-    isNative.mockReturnValue(true);
-    signInSocial.mockResolvedValue({ error: null, data: {} });
-
-    await expect(signInWithSocial('discord', '/home')).rejects.toThrow(/did not return a URL/i);
+      callbackURL: '/auth/continue',
+      errorCallbackURL: '/auth/continue',
+    });
+    expect(takePostLoginPath()).toBe(deepLink);
     expect(browserOpen).not.toHaveBeenCalled();
   });
 
-  it('propagates a provider error', async () => {
+  it('starts native sign-in in the system browser via the server, not the webview', async () => {
+    isNative.mockReturnValue(true);
+    await signInWithSocial('google', '/grip');
+
+    // Calling /sign-in/social from the webview is the bug this replaced: with a
+    // database configured better-auth also sets a signed `state` cookie, and
+    // the OAuth callback requires it. Started here, the cookie lands in the
+    // webview while the callback arrives in the system browser without it, and
+    // every native sign-in dies on a state mismatch before reaching the app.
+    expect(signInSocial).not.toHaveBeenCalled();
+    expect(browserOpen).toHaveBeenCalledWith({
+      url: expect.stringContaining('/api/native/sign-in/google'),
+    });
+  });
+
+  it('propagates a provider error on web', async () => {
     isNative.mockReturnValue(false);
     signInSocial.mockResolvedValue({ error: { message: 'Provider not configured' } });
 

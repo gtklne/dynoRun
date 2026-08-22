@@ -12,10 +12,16 @@ export const NATIVE_SCHEME = 'com.dynorun.app';
 
 /** A Capacitor webview is its own origin, so the native builds are cross-origin
  *  to this API even though the web app is same-origin behind nginx. iOS serves
- *  from capacitor://localhost, Android from http://localhost. */
+ *  from capacitor://localhost; Android from https://localhost because
+ *  capacitor.config.ts sets androidScheme: 'https'.
+ *
+ *  Plain `http://localhost` is deliberately absent. It is a browser-reachable
+ *  origin, so allowing it with credentials: true would let anything serving on
+ *  a user's own machine make credentialed calls to production and read the
+ *  replies. The other two entries are not reachable from a browser. */
 export const NATIVE_ORIGINS = [
   'capacitor://localhost',
-  'http://localhost',
+  'https://localhost',
   `${NATIVE_SCHEME}://`,
 ];
 
@@ -61,7 +67,8 @@ function configuredSocialProviders(): SocialProviders {
   return providers;
 }
 
-export const enabledSocialProviders = Object.keys(configuredSocialProviders());
+const socialProviders = configuredSocialProviders();
+export const enabledSocialProviders = Object.keys(socialProviders);
 
 export const auth = betterAuth({
   database: pool,
@@ -82,16 +89,44 @@ export const auth = betterAuth({
     // reintroduce exactly the magic-link round trip this replaced. Turnstile on
     // /sign-up/email is what keeps bots out, not the inbox.
     requireEmailVerification: false,
+    // The usual reason to reset a password is that the account is compromised.
+    // Without this, the attacker's existing session survives the reset.
+    revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ user, url }) => {
-      await resend.emails.send({
+      const { error } = await resend.emails.send({
         from: `DynoRun <${process.env.FROM_EMAIL}>`,
         to: user.email,
         subject: 'Reset your DynoRun password',
         html: `<p>Click the link below to choose a new password. It expires in 1 hour.</p><p><a href="${url}">Reset your password</a></p><p>If you did not ask for this, ignore this email and your password stays unchanged.</p>`,
       });
+      // The Resend SDK resolves with {data, error} rather than throwing, so an
+      // unverified sender, a bad key or a suppressed address would otherwise be
+      // discarded silently while the endpoint still answered 200 and the UI
+      // still said the link was on its way. This is the only mail we send.
+      if (error) {
+        console.error('[auth] reset password email failed:', error);
+        throw new Error('Could not send the reset email');
+      }
     },
   },
-  socialProviders: configuredSocialProviders(),
+  socialProviders,
+  account: {
+    // OAuth access/refresh/id tokens are written to the account table. Off by
+    // default, which means a database compromise hands over usable provider
+    // tokens alongside the rows.
+    encryptOAuthTokens: true,
+  },
+  advanced: {
+    ipAddress: {
+      // nginx overwrites X-Forwarded-For with $remote_addr (it used to append
+      // to the client's own value, which made every IP-keyed rate limit
+      // spoofable), and the API binds to 127.0.0.1 so nothing can reach it
+      // without passing through nginx first. Both halves are load-bearing:
+      // better-auth reads the LEFTMOST element of this header, and skips rate
+      // limiting entirely when it cannot determine an IP.
+      ipAddressHeaders: ['x-forwarded-for'],
+    },
+  },
   rateLimit: {
     // better-auth only enables rate limiting in production by default; turning
     // it on unconditionally means the limits are exercised in dev too, rather

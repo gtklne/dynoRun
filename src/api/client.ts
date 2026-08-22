@@ -1,4 +1,5 @@
 import { Subject } from '@/shared/observable';
+import { getNativeToken } from '@/auth/native-token';
 
 const BASE = import.meta.env.VITE_API_URL ?? '';
 
@@ -27,6 +28,16 @@ export async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise
   // default for this API's write payloads, but a GET has no content to type.
   if (rest.body !== undefined && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
+  }
+  // Native builds have no usable cookie: the webview origin
+  // (capacitor://localhost) is cross-site to the API, and better-auth's session
+  // cookie is SameSite=Lax, so `credentials: 'include'` sends nothing. Without
+  // this header every request from the app 401s and the 401 handler below
+  // bounces it back to /login, in a loop, however successful the sign-in was.
+  // Returns null on web, where the cookie is the session. See native-token.ts.
+  const nativeToken = getNativeToken();
+  if (nativeToken && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${nativeToken}`);
   }
   let res: Response;
   try {

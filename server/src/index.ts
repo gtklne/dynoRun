@@ -13,6 +13,7 @@ import { shareTokenRoute, publicShareRoute } from './routes/share.js';
 import { adminRoute } from './routes/admin.js';
 import { accountRoute } from './routes/account.js';
 import { devAuthRoute } from './routes/dev-auth.js';
+import { nativeAuthRoute } from './routes/native-auth.js';
 
 const app = new Hono();
 
@@ -44,6 +45,10 @@ if (process.env.DEV_LOGIN === 'true' && process.env.NODE_ENV !== 'production') {
   console.warn('⚠  DEV_LOGIN enabled, POST /api/dev/login bypasses email auth');
 }
 
+// Public: starts native social sign-in from inside the system browser.
+// Must be unauthenticated, it is what creates the session.
+app.route('/api', nativeAuthRoute);
+
 // Public share route: must mount before any auth-gated routes so a logged-out
 // browser can read a shared run without redirecting to /login.
 app.route('/api', publicShareRoute);
@@ -61,9 +66,16 @@ app.route('/api', adminRoute);
 app.route('/api', accountRoute);
 
 const port = parseInt(process.env.PORT ?? '3000', 10);
+// Loopback only. Bound to every interface, this port was reachable from the
+// public internet, which let anyone skip nginx: no TLS, no client_max_body_size,
+// and, because better-auth reads the client IP from X-Forwarded-For and skips
+// rate limiting entirely when it cannot determine one, no rate limiting at all
+// on /sign-in/email. Verified: 14 straight sign-in attempts direct to :3000
+// drew no 429 while the same burst through nginx was blocked at the 11th.
+const hostname = process.env.HOST ?? '127.0.0.1';
 
-const server = serve({ fetch: app.fetch, port }, () => {
-  console.log(`DynoRun API listening on :${port}`);
+const server = serve({ fetch: app.fetch, port, hostname }, () => {
+  console.log(`DynoRun API listening on ${hostname}:${port}`);
 });
 server.on('error', (err: NodeJS.ErrnoException) => {
   console.error('Server error:', err.message);

@@ -25,7 +25,7 @@ let turnstileLoadPromise: Promise<void> | null = null;
 function loadTurnstileScript(): Promise<void> {
   if (window.turnstile) return Promise.resolve();
   if (turnstileLoadPromise) return turnstileLoadPromise;
-  turnstileLoadPromise = new Promise((resolve, reject) => {
+  turnstileLoadPromise = new Promise<void>((resolve, reject) => {
     const script = document.createElement('script');
     script.src = TURNSTILE_SCRIPT_SRC;
     script.async = true;
@@ -33,6 +33,12 @@ function loadTurnstileScript(): Promise<void> {
     script.onload = () => resolve();
     script.onerror = () => reject(new Error('Failed to load Turnstile script'));
     document.head.appendChild(script);
+  }).catch((err) => {
+    // Clear the cached rejection so a later attempt can retry. Otherwise one
+    // blocked load (ad blocker, corporate proxy, offline) poisons every
+    // subsequent mount for the life of the page.
+    turnstileLoadPromise = null;
+    throw err;
   });
   return turnstileLoadPromise;
 }
@@ -45,7 +51,10 @@ interface TurnstileWidgetProps {
   siteKey: string;
   onToken: (token: string) => void;
   onExpire?: () => void;
-  onError?: () => void;
+  /** Called for a challenge error AND for a failure to load the widget at all.
+   *  The latter used to be swallowed, which left the submit button disabled
+   *  forever with nothing on screen explaining why. */
+  onError?: (reason: 'load' | 'challenge') => void;
 }
 
 export const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
@@ -69,8 +78,10 @@ export const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidget
           sitekey: siteKey,
           callback: (token) => callbacksRef.current.onToken(token),
           'expired-callback': () => callbacksRef.current.onExpire?.(),
-          'error-callback': () => callbacksRef.current.onError?.(),
+          'error-callback': () => callbacksRef.current.onError?.('challenge'),
         });
+      }).catch(() => {
+        if (!cancelled) callbacksRef.current.onError?.('load');
       });
       return () => {
         cancelled = true;

@@ -9,6 +9,8 @@ import {
 import { TurnstileWidget, type TurnstileWidgetHandle } from '@/ui/auth/turnstile-widget';
 import { DevLoginPanel } from '@/ui/auth/dev-login-panel';
 import { SocialButtons } from '@/ui/auth/social-buttons';
+import { safeCallbackPath } from '@/auth/callback-path';
+import { describeAuthError } from '@/auth/auth-errors';
 import {
   AuthLayout,
   BrandHeader,
@@ -21,17 +23,6 @@ const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string;
 
 type Mode = 'signin' | 'signup';
 
-export function safeCallbackPath(value: unknown): string | null {
-  if (typeof value !== 'string' || !value.startsWith('/')) return null;
-  try {
-    const url = new URL(value, window.location.origin);
-    if (url.origin !== window.location.origin) return null;
-    return `${url.pathname}${url.search}${url.hash}`;
-  } catch {
-    return null;
-  }
-}
-
 export function LoginScreen() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -40,7 +31,9 @@ export function LoginScreen() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    () => describeAuthError(new URLSearchParams(window.location.search).get('error')),
+  );
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const turnstileRef = useRef<TurnstileWidgetHandle>(null);
 
@@ -59,13 +52,34 @@ export function LoginScreen() {
   // Native social sign-in finishes asynchronously, when the OS hands back the
   // deep link, so the result arrives here rather than from the click handler.
   useEffect(() => {
+    let cancelled = false;
     let dispose: (() => void) | undefined;
-    void listenForNativeAuthCallback(
+    listenForNativeAuthCallback(
       () => { window.location.assign(callbackURL); },
       (message) => { setError(message); setLoading(false); },
-    ).then((cleanup) => { dispose = cleanup; });
-    return () => { dispose?.(); };
+    ).then((cleanup) => {
+      // The listener registration awaits two dynamic imports. Without the
+      // cancelled check, an unmount before they resolve (StrictMode's double
+      // invoke in dev does exactly this) leaves dispose undefined at cleanup
+      // and the listener leaks. Leaked listeners then race on the single-use
+      // token and an error overwrites a successful sign-in.
+      if (cancelled) { cleanup(); return; }
+      dispose = cleanup;
+    }).catch(() => {
+      if (!cancelled) setError('Sign-in is unavailable on this device.');
+    });
+    return () => { cancelled = true; dispose?.(); };
   }, [callbackURL]);
+
+  // A social sign-in navigates away, so nothing here clears `loading`. Coming
+  // back (browser Back, or dismissing the native browser sheet) restores this
+  // component with loading stuck true and every control disabled until a manual
+  // reload. pageshow covers the bfcache restore, which does not re-run effects.
+  useEffect(() => {
+    const revive = () => setLoading(false);
+    window.addEventListener('pageshow', revive);
+    return () => window.removeEventListener('pageshow', revive);
+  }, []);
 
   function resetCaptcha() {
     setCaptchaToken(null);
@@ -82,7 +96,9 @@ export function LoginScreen() {
             email,
             password,
             name: name.trim() || email.split('@')[0],
-            callbackURL,
+            // No callbackURL: with no verification email configured better-auth
+            // ignores it, and it is rejected outright when the destination
+            // contains a colon, which shared compare links do.
             fetchOptions: { headers: { 'x-captcha-response': captchaToken! } },
           })
         : await authClient.signIn.email({ email, password });
@@ -118,6 +134,7 @@ export function LoginScreen() {
   function switchMode(next: Mode) {
     setMode(next);
     setError(null);
+    setLoading(false);
     setPassword('');
     resetCaptcha();
   }
@@ -188,7 +205,12 @@ export function LoginScreen() {
               siteKey={TURNSTILE_SITE_KEY}
               onToken={setCaptchaToken}
               onExpire={() => setCaptchaToken(null)}
-              onError={() => setCaptchaToken(null)}
+              onError={(reason) => {
+                setCaptchaToken(null);
+                if (reason === 'load') {
+                  setError('The anti-bot check could not load. Disable your ad blocker for this page, or try another network.');
+                }
+              }}
             />
           )}
 

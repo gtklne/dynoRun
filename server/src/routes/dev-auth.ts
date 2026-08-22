@@ -5,7 +5,7 @@ import { auth } from '../auth.js';
 /**
  * Dev-only login bypass. Mints a real better-auth session for an email and sets
  * the session cookie directly, so local sign-in needs neither a password nor a
- * Turnstile solve (dev has no Turnstile keys and no seeded credentials).
+ * seeded account to exist first.
  *
  * This route is mounted in index.ts ONLY when DEV_LOGIN === 'true', which is set
  * in server/.env locally and absent from prod's /etc/dynorun.env. The inner guard

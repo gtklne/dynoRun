@@ -17,38 +17,74 @@ export const NATIVE_CALLBACK_URL = `${NATIVE_SCHEME}://auth`;
 
 /** Where the API (and therefore the web app) lives. Native builds are served
  *  from the webview's own origin, so they cannot use a relative callback. */
-const API_ORIGIN = (import.meta.env.VITE_API_URL as string | undefined) || window.location.origin;
+export const API_ORIGIN =
+  (import.meta.env.VITE_API_URL as string | undefined) || window.location.origin;
+
+/** Where the OAuth round trip returns to on web. It has to be a constant,
+ *  see stashPostLoginPath. */
+const CONTINUE_PATH = '/auth/continue';
+const POST_LOGIN_KEY = 'dynorun.after_login';
+
+/**
+ * better-auth validates a relative callbackURL against
+ * `^\/(?!\/|\\|%2f|%5c)[\w\-.\+/@]*(?:\?[\w\-.\+/=&%@]*)?$` and rejects the
+ * request outright otherwise. Colons and commas are not in that class, so
+ * handing it a real deep link like
+ * `/grip/compare?sessions=a&laps=a:3&ref=a:3` produced a 403 Invalid
+ * callbackURL: exactly the links people share.
+ *
+ * So the destination never goes through better-auth at all. It is stashed here
+ * and the provider is always sent the same constant path, which
+ * ContinueScreen reads on the way back.
+ */
+export function stashPostLoginPath(path: string): void {
+  try {
+    sessionStorage.setItem(POST_LOGIN_KEY, path);
+  } catch {
+    // Private mode or storage disabled: the sign-in still works, it just
+    // lands on the default destination.
+  }
+}
+
+export function takePostLoginPath(): string | null {
+  try {
+    const value = sessionStorage.getItem(POST_LOGIN_KEY);
+    sessionStorage.removeItem(POST_LOGIN_KEY);
+    return value;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * On web this navigates away and never returns. On native it opens the system
  * browser and returns immediately: sign-in completes later, when the OS hands
- * the app back the `com.dynorun.app://auth?token=` deep link that
+ * the app the `com.dynorun.app://auth?token=` deep link that
  * `listenForNativeAuthCallback` is waiting on.
  */
 export async function signInWithSocial(
   provider: SocialProvider,
   callbackPath: string,
 ): Promise<void> {
+  stashPostLoginPath(callbackPath);
+
   if (!isNative()) {
-    const res = await authClient.signIn.social({ provider, callbackURL: callbackPath });
+    const res = await authClient.signIn.social({
+      provider,
+      callbackURL: CONTINUE_PATH,
+      errorCallbackURL: CONTINUE_PATH,
+    });
     if (res.error) throw new Error(res.error.message ?? `Could not sign in with ${provider}`);
     return;
   }
 
-  // disableRedirect makes better-auth return the provider's authorize URL
-  // instead of 302ing, because the webview must hand that URL to the system
-  // browser rather than follow it itself.
-  const res = await authClient.signIn.social({
-    provider,
-    callbackURL: `${API_ORIGIN}/native-callback`,
-    disableRedirect: true,
-  });
-  if (res.error) throw new Error(res.error.message ?? `Could not sign in with ${provider}`);
-  const url = res.data?.url;
-  if (!url) throw new Error('The sign-in provider did not return a URL');
-
+  // The whole OAuth round trip has to start inside the system browser. Calling
+  // /sign-in/social from here instead would put better-auth's signed `state`
+  // cookie in the webview, while the callback arrives in the browser without
+  // it, and every native sign-in would die on a state mismatch. The server
+  // route issues the redirect and the cookie to the same browser.
   const { Browser } = await import('@capacitor/browser');
-  await Browser.open({ url });
+  await Browser.open({ url: `${API_ORIGIN}/api/native/sign-in/${provider}` });
 }
 
 /**

@@ -35,6 +35,38 @@ aligned and the release process was written down.
   bearer token. `requireAuth` is unchanged.
 - Deleted four dormant accounts that held no data, leaving the single admin.
 
+### Fixed after independent review
+
+Two subagent reviews (security and correctness) were run against the auth
+change before release. They found that native sign-in could not have worked:
+
+- **Native OAuth died before reaching the app.** With a database configured
+  better-auth also sets a signed `state` cookie and the callback requires it.
+  Starting the flow from the webview put that cookie in the wrong browser, so
+  every attempt ended on `?error=state_mismatch`. The flow now starts server
+  side, in the system browser, via `GET /api/native/sign-in/:provider`.
+- **`apiFetch` never sent the bearer token,** so even a successful native
+  sign-in 401'd on every data request and bounced back to the login screen in a
+  loop. Now covered by a test that fails without the fix.
+- **The sign-in rate limit was bypassable two ways,** both confirmed against
+  production: the API was listening on a public port with no firewall (skipping
+  nginx, and better-auth skips rate limiting entirely when it cannot determine
+  an IP), and nginx appended to a client-supplied `X-Forwarded-For` whose
+  leftmost value better-auth trusts. The API now binds to loopback and nginx
+  overwrites the header. Measured: 14 unthrottled attempts before, 429 at the
+  11th after.
+- **Shared deep links broke social sign-in.** better-auth rejects a
+  `callbackURL` containing a colon, which `/grip/compare` links contain. The
+  destination now travels in `sessionStorage` instead.
+- Password reset now revokes existing sessions, OAuth tokens are encrypted at
+  rest, a failed reset email no longer reports success, a blocked social link
+  explains itself instead of showing an unbranded error page, and the sign-in
+  button no longer sticks on "Working…" after a browser Back.
+
+Remaining known limitation, documented in `docs/native-build-setup.md`: the
+native callback uses a custom URL scheme, which is not an exclusive claim, so
+App Links and Universal Links are required before either app ships to a store.
+
 ### Data protection and operations
 
 - **Fixed: account deletion and export skipped grip sessions.** `grip_sessions`
