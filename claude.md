@@ -264,6 +264,12 @@ Failure to sign out thoroughly is the sharp edge: the web session dies with the 
   `Cache-Control: no-cache` on the `/` response is load-bearing, not hygiene: a 301 is cacheable indefinitely by default, so a visitor who was anonymous when they first hit `/` would keep being redirected to the marketing page from their own browser cache after signing in, never reaching the server to be routed into the app. `add_header` does apply to a 301.
 
   `/hello`'s fallback is `/index.html`, not `=404`: `hello.html` is a build artefact, so a build whose prerender step was skipped or renamed would otherwise **404 the landing page** rather than quietly degrade to the client-rendered SPA (`App.tsx` has a `/hello` route for exactly that). CI only rsyncs `dist/`, so **these blocks survive deploys but are never re-applied by them**: they live only on the server (backups: `/root/dynorun.nginx.bak.pre-landing`, `/root/dynorun.nginx.bak.pre-hello`). If `/` ever starts serving a page instead of redirecting, this is what went missing. Always `nginx -t` before `systemctl reload nginx`.
+- **Two more hand-applied nginx lines in the `/api/` location, both load-bearing and neither in the repo:**
+  ```nginx
+  proxy_pass http://127.0.0.1:3000;          # NOT http://localhost:3000
+  proxy_set_header X-Forwarded-For $remote_addr;   # NOT $proxy_add_x_forwarded_for
+  ```
+  `127.0.0.1` rather than `localhost` because the API binds to IPv4 loopback only, while `localhost` on this box resolves to `::1` first: leave it as `localhost` and the whole API 502s. And `$remote_addr` rather than nginx's usual `$proxy_add_x_forwarded_for`, which *prepends the client's own header value*, because better-auth reads the leftmost element to key its rate limits. Backup of the pre-change config: `/root/dynorun.nginx.bak.pre-xff`.
 - API service: `dynorun-api` systemd unit, Node.js Hono server at `/opt/dynorun-api/`, reads `/etc/dynorun.env`
 - Database: PostgreSQL 16 in Docker (`docker exec postgres psql -U dynorun -d dynorun`), data at `/var/lib/pg-data`
 - Deploy user: `deploy` (`/home/deploy`), used to rsync built frontend into `/var/www/dynorun`

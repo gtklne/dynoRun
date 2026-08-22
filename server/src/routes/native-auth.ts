@@ -1,4 +1,4 @@
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { auth, NATIVE_SCHEME } from '../auth.js';
 
 /**
@@ -22,14 +22,21 @@ export const nativeAuthRoute = new Hono();
 
 const PROVIDER_PATTERN = /^[a-z]+$/;
 
+/** Always hand failures back over the custom scheme. Anything else strands the
+ *  app on a system-browser sheet that will not close by itself. */
+function errorRedirect(c: Context, reason: string) {
+  return c.redirect(`${NATIVE_SCHEME}://auth?error=${encodeURIComponent(reason)}`, 302);
+}
+
 nativeAuthRoute.get('/native/sign-in/:provider', async (c) => {
   const provider = c.req.param('provider');
   if (!PROVIDER_PATTERN.test(provider)) {
     return c.json({ error: 'Unknown provider' }, 400);
   }
 
+  let res: Response;
   try {
-    return await auth.api.signInSocial({
+    res = await auth.api.signInSocial({
       body: {
         provider,
         callbackURL: '/native-callback',
@@ -41,10 +48,15 @@ nativeAuthRoute.get('/native/sign-in/:provider', async (c) => {
       asResponse: true,
     });
   } catch {
-    // A provider with no credentials configured throws PROVIDER_NOT_FOUND.
-    // Bounce to the callback page so the app is told, rather than leaving the
-    // browser sheet open on a JSON error body.
-    const reason = encodeURIComponent(`${provider} sign-in is not available`);
-    return c.redirect(`${NATIVE_SCHEME}://auth?error=${reason}`, 302);
+    return errorRedirect(c, `${provider} sign-in is not available`);
   }
+
+  // asResponse turns an APIError into a Response rather than throwing, so an
+  // unconfigured provider arrives here as a 404 body, not in the catch above.
+  // Returning it unchanged left the browser sheet parked on a JSON error with
+  // no way back into the app.
+  if (res.status < 300 || res.status >= 400) {
+    return errorRedirect(c, `${provider} sign-in is not available`);
+  }
+  return res;
 });
