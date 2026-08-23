@@ -1,20 +1,43 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
-import { CalibrationStepGear, type GearInput } from './calibration-step-gear';
+import { useEffect, useState } from 'react';
+import { vehicleRepository } from '@/api/repositories/vehicle-repository';
+import { CalibrationStepGear, type GearInput, type MeasureMode } from './calibration-step-gear';
 import { CalibrationStepMeasure } from './calibration-step-measure';
+import { CalibrationStepMeasureHandsFree } from './calibration-step-measure-handsfree';
 import { CalibrationStepConfirm } from './calibration-step-confirm';
-import type { Calibration } from '@/shared/types';
+import type { Calibration, VehicleKind } from '@/shared/types';
 
 type WizardStep = 'gear' | 'measure' | 'confirm';
 
 const STEPS: WizardStep[] = ['gear', 'measure', 'confirm'];
+
+// A rider cannot watch the screen or tap a confirm button mid-pull, so a
+// motorcycle starts on the hands-free capture. Still switchable either way: a
+// bike on a rolling road, or a car whose driver would rather not watch either.
+function defaultMeasureMode(kind: VehicleKind | null): MeasureMode {
+  return kind === 'motorcycle' ? 'hands_free' : 'tap';
+}
 
 export function CalibrationWizardScreen() {
   const { vehicleId = '' } = useParams();
   const navigate = useNavigate();
   const [step, setStep] = useState<WizardStep>('gear');
   const [gear, setGear] = useState<GearInput | null>(null);
+  const [measureMode, setMeasureMode] = useState<MeasureMode>('tap');
   const [calibration, setCalibration] = useState<Calibration | null>(null);
+  const [kind, setKind] = useState<VehicleKind | null>(null);
+  const [kindLoaded, setKindLoaded] = useState(false);
+
+  // The gear step seeds its mode toggle from this, and useState only reads an
+  // initial value once, so the step must not mount before the fetch settles.
+  useEffect(() => {
+    let cancelled = false;
+    vehicleRepository.get(vehicleId)
+      .then((v) => { if (!cancelled) setKind(v?.kind ?? null); })
+      .catch(() => { /* fall back to the tap default */ })
+      .finally(() => { if (!cancelled) setKindLoaded(true); });
+    return () => { cancelled = true; };
+  }, [vehicleId]);
 
   const stepIndex = STEPS.indexOf(step);
 
@@ -53,11 +76,25 @@ export function CalibrationWizardScreen() {
         <span className="text-zinc-500 text-xs ml-1">Step {stepIndex + 1} of {STEPS.length}</span>
       </div>
 
-      {step === 'gear' && (
-        <CalibrationStepGear onSubmit={(g) => { setGear(g); setStep('measure'); }} />
+      {step === 'gear' && !kindLoaded && (
+        <p className="text-zinc-500 text-sm">Loading vehicle…</p>
       )}
-      {step === 'measure' && gear && (
+      {step === 'gear' && kindLoaded && (
+        <CalibrationStepGear
+          defaultMeasureMode={defaultMeasureMode(kind)}
+          onSubmit={(g, mode) => { setGear(g); setMeasureMode(mode); setStep('measure'); }}
+        />
+      )}
+      {step === 'measure' && gear && measureMode === 'tap' && (
         <CalibrationStepMeasure
+          vehicleId={vehicleId}
+          gear={gear}
+          onConfirmed={(cal) => { setCalibration(cal); setStep('confirm'); }}
+          onCancel={() => navigate(-1)}
+        />
+      )}
+      {step === 'measure' && gear && measureMode === 'hands_free' && (
+        <CalibrationStepMeasureHandsFree
           vehicleId={vehicleId}
           gear={gear}
           onConfirmed={(cal) => { setCalibration(cal); setStep('confirm'); }}

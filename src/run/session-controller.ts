@@ -1,5 +1,7 @@
 import { sessionReducer, initialSessionState, type SessionEvent } from './session-state-machine';
-import { MAX_SESSION_DURATION_MS, type SessionState, type SessionPull } from './types';
+import { StandstillDetector, type StandstillProgress } from './standstill-detector';
+import { SensorWatchdog } from './sensor-watchdog';
+import { MAX_SESSION_DURATION_MS, type SessionState, type SessionPull, type StandstillConfig } from './types';
 import type { RunLiveSample } from './run-controller';
 import type { SpeedSource, SensorSample, SpeedValue } from '@/sensors/types';
 import type { Unsubscribe } from '@/shared/observable';
@@ -22,8 +24,15 @@ export interface SessionControllerOptions {
   derivedCurveRepository: IDerivedCurveRepository;
   maxDurationMs?: number;
   detection?: Partial<PullDetectionConfig>;
+  standstill?: Partial<StandstillConfig>;
+  sensorStallMs?: number;
+  watchdogTickMs?: number;
   onStateChange: (state: SessionState) => void;
   onLiveSample?: (s: RunLiveSample) => void;
+  /** Fires on every sample while recording, so the UI can show the countdown. */
+  onStandstillProgress?: (p: StandstillProgress) => void;
+  /** A sensor-level problem the rider needs to hear about, not a fatal error. */
+  onSensorWarning?: (message: string) => void;
   onError?: (err: unknown) => void;
   onRecordingFinished?: (rec: SensorRecording) => void;
 }
@@ -45,9 +54,25 @@ export class SessionController {
   private finishing = false;
   private fixTimestamps: number[] = [];
   private readonly maxDurationMs: number;
+  private readonly standstill: StandstillDetector;
+  private readonly watchdog: SensorWatchdog;
+  private errorUnsub: Unsubscribe | null = null;
 
   constructor(private readonly opts: SessionControllerOptions) {
     this.maxDurationMs = opts.maxDurationMs ?? MAX_SESSION_DURATION_MS;
+    this.standstill = new StandstillDetector(opts.standstill);
+    this.watchdog = new SensorWatchdog({
+      maxDurationMs: this.maxDurationMs,
+      stallMs: opts.sensorStallMs,
+      tickMs: opts.watchdogTickMs,
+      onMaxDuration: () => this.autoFinish(),
+      onStall: () => {
+        this.opts.onSensorWarning?.(
+          'GPS stopped reporting, so the session was closed with what it had recorded.',
+        );
+        this.autoFinish();
+      },
+    });
   }
 
   getState(): SessionState {
@@ -72,6 +97,9 @@ export class SessionController {
       gear_label: cal.gear_label,
     });
     this.unsub = this.opts.sensor.samples$.subscribe((s) => this.onSample(s));
+    this.errorUnsub = this.opts.sensor.errors$?.subscribe((e) => {
+      this.opts.onSensorWarning?.(e.message);
+    }) ?? null;
     await this.opts.sensor.start();
     this.sensorRunning = true;
   }
@@ -81,6 +109,8 @@ export class SessionController {
     if (this.state.kind !== 'ready') throw new Error('start() requires ready state');
     this.samples = [];
     this.finishing = false;
+    this.standstill.reset();
+    this.watchdog.start();
     if (this.opts.onRecordingFinished) {
       this.recorder = new SensorRecorder();
       this.recorder.start(
@@ -102,6 +132,7 @@ export class SessionController {
   async finish(): Promise<void> {
     if (this.state.kind !== 'recording' || this.finishing) return;
     this.finishing = true;
+    this.watchdog.stop();
     this.unsub?.();
     this.unsub = null;
     try { await this.opts.sensor.stop(); } catch { /* keep going: analysis is local */ }
@@ -231,8 +262,11 @@ export class SessionController {
 
   /** Safe on unmount in any state; a still-open recording is still persisted. */
   async dispose(): Promise<void> {
+    this.watchdog.stop();
     this.unsub?.();
     this.unsub = null;
+    this.errorUnsub?.();
+    this.errorUnsub = null;
     if (this.recorder) {
       const rec = this.recorder.finish();
       this.recorder = null;
@@ -247,6 +281,7 @@ export class SessionController {
   private onSample(s: SensorSample<SpeedValue>): void {
     if (!this.calibration) return;
 
+    this.watchdog.beat();
     this.fixTimestamps.push(s.t_ms);
     if (this.fixTimestamps.length > 10) this.fixTimestamps.shift();
     const span_ms = this.fixTimestamps.length > 1
@@ -279,10 +314,22 @@ export class SessionController {
       altitude_m: s.value.altitude_m ?? null,
     });
 
+    this.standstill.push({ t_ms: s.t_ms, speed_mps: s.value.speed_mps });
+    this.opts.onStandstillProgress?.(this.standstill.progress());
+    if (this.standstill.check()) {
+      void this.finish().catch((err) => this.opts.onError?.(err));
+      return;
+    }
+
     const elapsed = s.t_ms - this.samples[0].t_ms;
     if (elapsed >= this.maxDurationMs) {
       void this.finish().catch((err) => this.opts.onError?.(err));
     }
+  }
+
+  private autoFinish(): void {
+    if (this.state.kind !== 'recording' || this.finishing) return;
+    void this.finish().catch((err) => this.opts.onError?.(err));
   }
 
   private transition(event: SessionEvent): void {

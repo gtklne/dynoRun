@@ -20,6 +20,9 @@ export interface CalibrationLiveSample {
     speed_delta_kmh: number;
     window_ms: number;
     max_delta_kmh: number;
+    min_speed_kmh: number;
+    /** Steady, but too slow to be a calibration point, so it will never capture. */
+    below_min_speed: boolean;
   };
 }
 
@@ -133,7 +136,7 @@ export class CalibrationController {
 
     if (this.opts.onLiveSample) {
       const window = this.opts.window ?? DEFAULT_STABILITY_WINDOW;
-      const { elapsed_ms, speed_delta_kmh } = this.detector.progress(sample.t_ms);
+      const { elapsed_ms, speed_delta_kmh, mean_speed_kmh } = this.detector.progress(sample.t_ms);
       const span_ms = this.fixTimestamps.length > 1
         ? this.fixTimestamps[this.fixTimestamps.length - 1] - this.fixTimestamps[0]
         : 0;
@@ -146,7 +149,14 @@ export class CalibrationController {
         altitude_m: sample.value.altitude_m ?? null,
         heading_deg: sample.value.heading_deg ?? null,
         fix_rate_hz,
-        stability: { elapsed_ms, speed_delta_kmh, window_ms: window.duration_ms, max_delta_kmh: window.max_speed_delta_kmh },
+        stability: {
+          elapsed_ms,
+          speed_delta_kmh,
+          window_ms: window.duration_ms,
+          max_delta_kmh: window.max_speed_delta_kmh,
+          min_speed_kmh: window.min_speed_kmh,
+          below_min_speed: elapsed_ms > 0 && mean_speed_kmh < window.min_speed_kmh,
+        },
       });
     }
 

@@ -1,4 +1,4 @@
-import type { Capability, GpsPosition, SensorSample, SpeedSource, SpeedValue } from './types';
+import type { Capability, GpsPosition, SensorError, SensorSample, SpeedSource, SpeedValue } from './types';
 import { Subject } from '@/shared/observable';
 import { haversineDistance } from '@/shared/geo';
 
@@ -9,7 +9,7 @@ export class GpsSpeedSource implements SpeedSource {
   readonly capabilities: Capability[] = ['speed'];
   readonly samples$ = new Subject<SensorSample<SpeedValue>>();
   readonly rawPosition$ = new Subject<GpsPosition>();
-  readonly errors$ = new Subject<GeolocationPositionError>();
+  readonly errors$ = new Subject<SensorError>();
   private watchId: number | null = null;
   private startMs = 0;
   private lastFix: LastFix | null = null;
@@ -54,7 +54,7 @@ export class GpsSpeedSource implements SpeedSource {
           quality,
         });
       },
-      (err) => this.errors$.next(err),
+      (err) => this.errors$.next({ message: err.message }),
       { enableHighAccuracy: true, maximumAge: 0 },
     );
   }

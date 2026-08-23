@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { SessionController } from '@/run/session-controller';
-import type { SessionState } from '@/run/types';
+import { DEFAULT_STANDSTILL_CONFIG, type SessionState } from '@/run/types';
 import { Subject } from '@/shared/observable';
-import type { SpeedSource, SensorSample, SpeedValue, Capability } from '@/sensors/types';
+import type { SpeedSource, SensorSample, SpeedValue, Capability, SensorError } from '@/sensors/types';
 import type {
   IVehicleRepository, ICalibrationRepository, IRunRepository, ISampleRepository, IDerivedCurveRepository,
 } from '@/api/repositories/types';
@@ -13,6 +13,7 @@ class FakeSpeedSource implements SpeedSource {
   readonly id = 'fake';
   readonly capabilities: Capability[] = ['speed'];
   readonly samples$ = new Subject<SensorSample<SpeedValue>>();
+  readonly errors$ = new Subject<SensorError>();
   started = 0;
   stopped = 0;
   async start(): Promise<void> { this.started++; }
@@ -98,7 +99,14 @@ function makeRepos(): Repos {
   };
 }
 
-/** Feed a 1 Hz ride into the source: standstill → gentle ride → settle → hard pull → coast. */
+/**
+ * Feed a 1 Hz ride into the source: standstill, gentle ride, settle, hard pull,
+ * coast. The coast deliberately stops at 4.5 m/s (16.2 km/h) rather than at
+ * zero: it is above `DEFAULT_STANDSTILL_CONFIG.stopped_speed_kmh`, so no test
+ * built on this ride ever trips the standstill auto-finish. Lengthen the coast
+ * past ~28 s and every assertion downstream quietly becomes an auto-finish
+ * test instead. Standstill has its own tests below.
+ */
 function emitRide(source: FakeSpeedSource): void {
   let v = 0;
   let t = 0;
@@ -241,6 +249,80 @@ describe('SessionController', () => {
     for (let t = 1000; t <= 15_000; t += 1000) source.emit(t, 10);
     await vi.waitFor(() => expect(ctrl.getState().kind).toBe('reviewing'));
     expect(source.stopped).toBe(1);
+  });
+
+  it('auto-finishes once the rider has been stopped for the standstill window', async () => {
+    const source = new FakeSpeedSource();
+    const repos = makeRepos();
+    const { ctrl } = makeController(repos, source);
+    await ctrl.warmup('v1', 'c1');
+    ctrl.start();
+    let t = 0;
+    // Arm it: the standstill only counts once the vehicle has actually moved.
+    for (let i = 0; i < 15; i++) { t += 1000; source.emit(t, 20); }
+    for (let i = 0; i < 25; i++) { t += 1000; source.emit(t, 0); }
+    await vi.waitFor(() => expect(ctrl.getState().kind).toBe('reviewing'));
+    expect(source.stopped).toBe(1);
+    await ctrl.dispose();
+  });
+
+  it('never auto-finishes from the standstill the session started in', async () => {
+    const source = new FakeSpeedSource();
+    const { ctrl } = makeController(makeRepos(), source);
+    await ctrl.warmup('v1', 'c1');
+    ctrl.start();
+    // Three times the window, parked in the garage, never having moved.
+    for (let t = 1000; t <= 60_000; t += 1000) source.emit(t, 0);
+    expect(ctrl.getState().kind).toBe('recording');
+    await ctrl.dispose();
+  });
+
+  it('reports standstill progress so the UI can count down', async () => {
+    const source = new FakeSpeedSource();
+    const seen: Array<{ armed: boolean; stopped: boolean; remaining_ms: number }> = [];
+    const { ctrl } = makeController(makeRepos(), source, {
+      onStandstillProgress: (p) => seen.push({ armed: p.armed, stopped: p.stopped, remaining_ms: p.remaining_ms }),
+    });
+    await ctrl.warmup('v1', 'c1');
+    ctrl.start();
+    let t = 0;
+    for (let i = 0; i < 15; i++) { t += 1000; source.emit(t, 20); }
+    for (let i = 0; i < 5; i++) { t += 1000; source.emit(t, 0); }
+    const last = seen[seen.length - 1];
+    expect(last.armed).toBe(true);
+    expect(last.stopped).toBe(true);
+    expect(last.remaining_ms).toBeGreaterThan(0);
+    expect(last.remaining_ms).toBeLessThan(DEFAULT_STANDSTILL_CONFIG.standstill_ms);
+    await ctrl.dispose();
+  });
+
+  it('closes the session on a wall clock when the sensor goes silent', async () => {
+    const source = new FakeSpeedSource();
+    const warnings: string[] = [];
+    const { ctrl } = makeController(makeRepos(), source, {
+      sensorStallMs: 60,
+      watchdogTickMs: 10,
+      onSensorWarning: (m) => warnings.push(m),
+    });
+    await ctrl.warmup('v1', 'c1');
+    ctrl.start();
+    source.emit(1000, 20);
+    // No further samples: nothing sample-driven can ever end this session.
+    await vi.waitFor(() => expect(ctrl.getState().kind).toBe('reviewing'));
+    expect(warnings.join(' ')).toMatch(/GPS stopped reporting/i);
+    await ctrl.dispose();
+  });
+
+  it('surfaces a sensor error as a warning without aborting the session', async () => {
+    const source = new FakeSpeedSource();
+    const warnings: string[] = [];
+    const { ctrl } = makeController(makeRepos(), source, { onSensorWarning: (m) => warnings.push(m) });
+    await ctrl.warmup('v1', 'c1');
+    ctrl.start();
+    source.errors$.next({ message: 'Location permission denied' });
+    expect(warnings).toEqual(['Location permission denied']);
+    expect(ctrl.getState().kind).toBe('recording');
+    await ctrl.dispose();
   });
 
   it('dispose during recording still hands off the recording envelope', async () => {

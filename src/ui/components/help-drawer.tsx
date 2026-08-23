@@ -168,6 +168,19 @@ export function HelpDrawer({ open, onClose }: HelpDrawerProps) {
           </Section>
 
           <Section>
+            <SectionHeader kicker="On a bike" title="Hands-free mode" />
+            <Body>
+              You cannot reach the phone mid-pull on a motorcycle, so both steps have a
+              hands-free variant. Start the recording while stopped, put the phone away,
+              and ride. Calibration listens for every steady-speed hold and you pick
+              the right one afterwards; a run session records the whole ride and picks
+              out your pulls. Both stop themselves once you have been stationary for
+              20 seconds, so the analysis is already waiting when you pick the phone
+              back up.
+            </Body>
+          </Section>
+
+          <Section>
             <SectionHeader kicker="A good run" title="What to look for" />
             <Body>
               GPS accuracy matters. Wait for the GPS quality indicator before starting.

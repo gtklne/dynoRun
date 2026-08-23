@@ -8,7 +8,7 @@ import { useToast } from '@/ui/components/toast';
 import { reanalyzeVehicleRuns } from '@/analysis/re-analyze';
 import { formatRelativeTime } from '@/shared/format-time';
 import { PeakTrendChart } from '@/ui/components/peak-trend-chart';
-import type { Vehicle, Calibration, Run, Transmission } from '@/shared/types';
+import type { Vehicle, Calibration, Run, Transmission, VehicleKind } from '@/shared/types';
 import type { NewVehicle } from '@/api/repositories/types';
 import { VehicleForm } from './vehicle-form';
 
@@ -44,6 +44,33 @@ function Stat({ label, value, accent }: { label: string; value: string | number;
       <p className={`text-sm font-semibold mt-1 tabular-nums ${accent ? 'text-amber-400' : 'text-zinc-100'}`}>
         {value}
       </p>
+    </div>
+  );
+}
+
+const PRIMARY_ACTION = 'bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-zinc-950 font-semibold text-xs px-3 py-2 rounded-lg transition-colors whitespace-nowrap text-center';
+const SECONDARY_ACTION = 'border border-zinc-700 hover:border-amber-700 text-zinc-300 hover:text-amber-400 font-semibold text-xs px-3 py-2 rounded-lg transition-colors whitespace-nowrap text-center';
+
+// A rider cannot reach the phone during a pull, so on a motorcycle the
+// hands-free session is the primary action and the tap-to-start run is the
+// fallback. On a car the driver can reach the screen, so the order flips.
+function CalibrationActions({ vehicleId, calibrationId, kind }: {
+  vehicleId: string;
+  calibrationId: string;
+  kind: VehicleKind;
+}) {
+  const actions = [
+    { to: `/vehicles/${vehicleId}/calibrations/${calibrationId}/run`, label: 'New run' },
+    { to: `/vehicles/${vehicleId}/calibrations/${calibrationId}/session`, label: 'Hands-free' },
+  ];
+  if (kind === 'motorcycle') actions.reverse();
+  return (
+    <div className="flex flex-col items-stretch gap-1.5 shrink-0">
+      {actions.map((a, i) => (
+        <Link key={a.to} to={a.to} className={i === 0 ? PRIMARY_ACTION : SECONDARY_ACTION}>
+          {a.label}
+        </Link>
+      ))}
     </div>
   );
 }
@@ -250,20 +277,7 @@ export function VehicleDetail() {
                     {c.rpm.toFixed(0)} RPM @ {c.speed_kmh.toFixed(1)} km/h
                   </p>
                 </div>
-                <div className="flex flex-col items-stretch gap-1.5 shrink-0">
-                  <Link
-                    to={`/vehicles/${vehicle.id}/calibrations/${c.id}/run`}
-                    className="bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-zinc-950 font-semibold text-xs px-3 py-2 rounded-lg transition-colors whitespace-nowrap text-center"
-                  >
-                    New run
-                  </Link>
-                  <Link
-                    to={`/vehicles/${vehicle.id}/calibrations/${c.id}/session`}
-                    className="border border-zinc-700 hover:border-amber-700 text-zinc-300 hover:text-amber-400 font-semibold text-xs px-3 py-2 rounded-lg transition-colors whitespace-nowrap text-center"
-                  >
-                    Hands-free
-                  </Link>
-                </div>
+                <CalibrationActions vehicleId={vehicle.id} calibrationId={c.id} kind={vehicle.kind} />
               </div>
             ))}
           </div>

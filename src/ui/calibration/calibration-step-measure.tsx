@@ -174,6 +174,9 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
 
   const stabilityPct = live ? Math.min(1, live.stability.elapsed_ms / live.stability.window_ms) : 0;
   const deltaOk = live ? live.stability.speed_delta_kmh <= live.stability.max_delta_kmh : false;
+  // Standing still is perfectly stable, so the bar would otherwise fill and
+  // then sit at 100% forever while the detector quietly refuses to capture.
+  const tooSlow = live?.stability.below_min_speed ?? false;
 
   const gpsLocked = isGpsLocked(goodSince, now);
   const showPoorWarning = state.kind === 'idle' && isGpsPoor(goodSince, warmupStartedAt, now);
@@ -261,10 +264,20 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
 
             <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden mb-2">
               <div
-                className={`h-full rounded-full transition-all duration-300 ${deltaOk ? 'bg-amber-500' : 'bg-red-700'}`}
+                className={`h-full rounded-full transition-all duration-300 ${
+                  tooSlow ? 'bg-zinc-600' : deltaOk ? 'bg-amber-500' : 'bg-red-700'
+                }`}
                 style={{ width: `${stabilityPct * 100}%` }}
               />
             </div>
+
+            {tooSlow && (
+              <p className="text-amber-400 text-xs mb-2">
+                Steady, but too slow to calibrate. Get above{' '}
+                {live?.stability.min_speed_kmh.toFixed(0)} km/h in {gear.gear_label} and hold{' '}
+                {gear.user_rpm.toLocaleString()} RPM.
+              </p>
+            )}
 
             <div className="flex items-baseline justify-between">
               <span className="text-zinc-600 text-xs">Speed Δ</span>

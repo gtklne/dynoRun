@@ -1,5 +1,5 @@
 import { Geolocation, type PositionOptions } from '@capacitor/geolocation';
-import type { Capability, GpsPosition, SensorSample, SpeedSource, SpeedValue } from './types';
+import type { Capability, GpsPosition, SensorError, SensorSample, SpeedSource, SpeedValue } from './types';
 import { Subject } from '@/shared/observable';
 import { haversineDistance } from '@/shared/geo';
 
@@ -10,7 +10,7 @@ export class CapacitorGpsSpeedSource implements SpeedSource {
   readonly capabilities: Capability[] = ['speed'];
   readonly samples$ = new Subject<SensorSample<SpeedValue>>();
   readonly rawPosition$ = new Subject<GpsPosition>();
-  readonly errors$ = new Subject<{ message: string }>();
+  readonly errors$ = new Subject<SensorError>();
   private watchId: string | null = null;
   private startMs = 0;
   private lastFix: LastFix | null = null;

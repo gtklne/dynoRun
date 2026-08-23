@@ -36,8 +36,23 @@ export interface SensorSource<T> {
   readonly samples$: Observable<SensorSample<T>>;
 }
 
+/**
+ * A sensor-level failure worth telling the rider about. Flattened to a plain
+ * message because the browser source reports a GeolocationPositionError and the
+ * Capacitor one a bare object, and nothing downstream needs to tell them apart.
+ */
+export interface SensorError {
+  message: string;
+}
+
 export interface SpeedSource extends SensorSource<SpeedValue> {
   readonly rawPosition$?: Observable<GpsPosition>;
+  /**
+   * Optional because recorded/mock sources cannot fail this way. Load-bearing
+   * for hands-free recording: with the phone in a pocket, a revoked permission
+   * or a dead fix is otherwise indistinguishable from a quiet ride.
+   */
+  readonly errors$?: Observable<SensorError>;
 }
 export type RpmSource = SensorSource<RpmValue>;
 export type AccelSource = SensorSource<AccelValue>;

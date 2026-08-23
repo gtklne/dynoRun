@@ -2,6 +2,66 @@
 
 All notable changes to DynoRun. Dates are ISO, newest first.
 
+## Unreleased
+
+### Hands-free motorcycle capture (headline change)
+
+A rider cannot touch the phone mid-pull, so both halves of the workflow now have
+a hands-free variant: start it while stopped, put the phone in a pocket, ride,
+come to a stop. Nothing needs a tap while moving.
+
+- **Hands-free calibration.** New capture mode in the calibration wizard
+  (`CalibrationSessionController` + `src/analysis/plateau-detection.ts`): record
+  the whole ride, then find every steady-speed hold in it afterwards and let the
+  rider pick the one that was their deliberate attempt. Each candidate shows its
+  mean speed, how long it was held, the spread, and the rollout it would imply.
+  A qualifying hold is announced out loud as it happens (`Steady at 90`), so the
+  rider knows it registered without looking. The wizard defaults to this mode
+  when the vehicle is a motorcycle and to the on-screen mode otherwise.
+- **Nothing is captured mid-ride, by design.** The interactive wizard latches on
+  the FIRST steady window it sees, which on any real ride is the cruise out to
+  the test road in the wrong gear. Deferring the choice to a review screen is
+  what makes hands-free capture safe: a wrong-gear plateau becomes one more row
+  to ignore rather than a silently wrong calibration.
+- **Sessions and calibration recordings finish themselves.** `StandstillDetector`
+  ends a recording after roughly 20 s stopped, so detection has already run by
+  the time the phone comes back out. It arms only once the vehicle has actually
+  moved, so a recording started in the garage cannot end itself while the rider
+  puts their gloves on. Riding on cancels the countdown, which is spoken once.
+- The hold-to-finish button stays, for finishing immediately rather than waiting.
+- Vehicle detail now leads with **Hands-free** for a motorcycle and with **New
+  run** for a car, and the help drawer documents the mode.
+
+### Fixed
+
+- **A stationary start captured a calibration of 0 km/h.** Standing still is
+  perfectly stable, so tapping "Start measurement" while parked satisfied the
+  5 s stability window at 0 km/h, latched the wizard to `stable`, and stopped
+  listening. The POST then failed with a 400, because the server rejects
+  `speed_kmh <= 0`. `StabilityWindow.min_speed_kmh` (10 km/h) now floors the
+  capture, and the panel says "too slow to calibrate" instead of showing a
+  progress bar that fills and then sits there.
+- **A hands-free recording could never end if the sensor went silent.** Every
+  way a session ended was driven by an arriving sample, including the
+  30-minute runaway cap, so a revoked permission or a webview suspended after a
+  denied wake lock left it recording forever with a button press as the only
+  escape. `SensorWatchdog` is a wall-clock backstop that closes the recording
+  with what it has and says why.
+- **GPS errors were published and never read.** Both speed sources exposed an
+  `errors$` subject that nothing subscribed to, so a dead fix was
+  indistinguishable from a quiet ride. The two incompatible payload shapes are
+  now one `SensorError`, `SpeedSource` declares the channel, and both hands-free
+  screens surface it as a banner that persists (not a toast, which the rider
+  would never see from a pocket).
+- **Plateau detection could have been fooled by a GPS gap.** `resample`
+  interpolates straight through a dropout with no gap ceiling, and
+  `performance.now()` keeps advancing while the app is suspended, so a
+  suspend/resume would have fabricated a zero-spread plateau that outscored
+  every real hold. Rejected now by a raw-coverage floor plus a max-gap check;
+  the rate floor alone is blind to any hole shorter than half the window.
+  Steadiness is measured on raw samples, never on the smoothed trace, which
+  irons real jitter flat.
+
 ## 1.0.0 - 2026-08-22
 
 First tagged release. DynoRun has been live at https://wasgoht.ch for some

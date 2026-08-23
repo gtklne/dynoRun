@@ -1,9 +1,22 @@
 import { useState } from 'react';
+import { SegmentedControl } from '@/ui/components/segmented-control';
 
 export interface GearInput {
   gear_label: string;
   user_rpm: number;
 }
+
+/**
+ * How the speed gets captured. 'tap' is the original wizard: watch the screen
+ * and confirm when it locks on. 'hands_free' records the whole ride and asks
+ * afterwards, which is the only one that works from a bike.
+ */
+export type MeasureMode = 'tap' | 'hands_free';
+
+const MODE_OPTIONS: ReadonlyArray<{ value: MeasureMode; label: string }> = [
+  { value: 'hands_free', label: 'Hands-free' },
+  { value: 'tap', label: 'On screen' },
+];
 
 const labelClass = 'text-xs font-medium text-zinc-400 uppercase tracking-wider';
 const inputClass = 'w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-500 transition-colors text-sm';
@@ -16,16 +29,22 @@ const GEAR_PRESETS = ['2nd', '3rd', '4th', '5th', '6th'] as const;
 
 type GearMode = 'preset' | 'custom';
 
-export function CalibrationStepGear({ onSubmit }: { onSubmit: (g: GearInput) => void }) {
+interface Props {
+  onSubmit: (g: GearInput, measureMode: MeasureMode) => void;
+  defaultMeasureMode?: MeasureMode;
+}
+
+export function CalibrationStepGear({ onSubmit, defaultMeasureMode = 'tap' }: Props) {
   const [mode, setMode] = useState<GearMode>('preset');
   const [gearLabel, setGearLabel] = useState('3rd');
   const [rpm, setRpm] = useState('3000');
+  const [measureMode, setMeasureMode] = useState<MeasureMode>(defaultMeasureMode);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const r = parseFloat(rpm);
     if (!gearLabel.trim() || !isFinite(r) || r <= 0) return;
-    onSubmit({ gear_label: gearLabel.trim(), user_rpm: r });
+    onSubmit({ gear_label: gearLabel.trim(), user_rpm: r }, measureMode);
   }
 
   function selectPreset(label: string) {
@@ -116,6 +135,21 @@ export function CalibrationStepGear({ onSubmit }: { onSubmit: (g: GearInput) => 
           </div>
           <p className="text-zinc-600 text-xs">You'll hold this RPM steady during calibration.</p>
         </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <span className={labelClass}>How to capture it</span>
+        <SegmentedControl
+          options={MODE_OPTIONS}
+          value={measureMode}
+          onChange={setMeasureMode}
+          ariaLabel="How to capture the calibration"
+        />
+        <p className="text-zinc-600 text-xs">
+          {measureMode === 'hands_free'
+            ? 'Records the whole ride and asks afterwards which steady hold to keep. Nothing to tap while moving, so this is the one for a motorcycle.'
+            : 'Watch the screen and confirm when it locks on. Fine in a car, not on a bike.'}
+        </p>
       </div>
 
       <button

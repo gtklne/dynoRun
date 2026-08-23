@@ -8,6 +8,7 @@ import { derivedCurveRepository } from '@/api/repositories/derived-curve-reposit
 import { recordingRepository } from '@/api/repositories/recording-repository';
 import { SessionController } from '@/run/session-controller';
 import type { SessionState, SessionPull } from '@/run/types';
+import type { StandstillProgress } from '@/run/standstill-detector';
 import { WakeLock } from '@/app/wake-lock';
 import { speak } from '@/app/speech';
 import { pulseStart, pulseStop } from '@/app/haptics';
@@ -53,9 +54,14 @@ export function SessionScreen() {
   const [now, setNow] = useState(() => Date.now());
   const [forceStart, setForceStart] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [standstill, setStandstill] = useState<StandstillProgress | null>(null);
+  const [sensorWarning, setSensorWarning] = useState<string | null>(null);
   const ctrlRef = useRef<SessionController | null>(null);
   const wakeLockRef = useRef(new WakeLock());
   const startedWallRef = useRef<number | null>(null);
+  // Latched per standstill: onStandstillProgress fires on every GPS fix, so an
+  // unlatched speak() would talk over itself about once a second.
+  const countdownSpokenRef = useRef(false);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 250);
@@ -113,6 +119,25 @@ export function SessionScreen() {
           } else {
             setGoodSince(null);
           }
+        },
+        onStandstillProgress: (p) => {
+          if (cancelled) return;
+          setStandstill(p);
+          if (p.armed && p.stopped) {
+            if (!countdownSpokenRef.current) {
+              countdownSpokenRef.current = true;
+              speak(`Stopped. Finishing in ${Math.round(p.remaining_ms / 1000)} seconds unless you ride on.`);
+            }
+          } else if (!p.stopped) {
+            // Moving again, so a later stop in the same session announces afresh.
+            countdownSpokenRef.current = false;
+          }
+        },
+        onSensorWarning: (message) => {
+          if (cancelled) return;
+          // Deliberately not a toast: the phone is in a pocket while this
+          // fires, so the message has to still be there when it comes out.
+          setSensorWarning(message);
         },
         onRecordingFinished: (rec) => {
           setLastRecording(rec);
@@ -216,6 +241,13 @@ export function SessionScreen() {
     <div className="space-y-4 lg:max-w-3xl lg:mx-auto">
       <h1 className="text-2xl font-bold text-zinc-100">Hands-free session</h1>
 
+      {sensorWarning && (isRecording || isDetecting || isReviewing || isSaving) && (
+        <div className="bg-red-950/40 border border-red-800/60 rounded-2xl p-4 space-y-1">
+          <p className="text-red-400 text-xs font-semibold uppercase tracking-widest">Sensor problem</p>
+          <p className="text-zinc-300 text-sm leading-relaxed">{sensorWarning}</p>
+        </div>
+      )}
+
       {isReady && (
         <>
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-2">
@@ -223,7 +255,7 @@ export function SessionScreen() {
             <ol className="text-zinc-400 text-sm space-y-1.5 list-decimal list-inside">
               <li>Start the session here while stopped, then put the phone away.</li>
               <li>Ride normally: shift up into <span className="text-zinc-200 font-medium">{gearLabel}</span>, settle briefly, then make your full pull.</li>
-              <li>Ride back, stop, and hold the finish button. Your pulls are detected automatically.</li>
+              <li>Ride back and stop: the session finishes itself a short while later, or hold the finish button to finish now. Your pulls are detected automatically.</li>
             </ol>
             <p className="text-zinc-600 text-xs pt-1">
               Keep the screen on (it stays awake by itself). You can make several pulls in one session.
@@ -290,6 +322,21 @@ export function SessionScreen() {
               Put the phone away and ride. Everything is recorded, and your pulls are picked out afterwards.
             </p>
           </div>
+          {standstill?.armed && standstill.stopped && (
+            <div className="bg-zinc-900 border border-amber-700/60 rounded-2xl p-4 space-y-1">
+              <div className="flex items-baseline gap-2">
+                <span className="text-amber-400 text-xs font-semibold uppercase tracking-widest">Finishing session</span>
+                <span className="ml-auto tabular-nums text-amber-400 text-3xl font-bold">
+                  {Math.ceil(standstill.remaining_ms / 1000)}
+                </span>
+                <span className="text-zinc-500 text-sm">s</span>
+              </div>
+              <p className="text-zinc-400 text-sm">
+                You've stopped, so the session ends by itself and starts picking out your pulls.
+              </p>
+              <p className="text-zinc-500 text-xs">Riding on cancels the countdown.</p>
+            </div>
+          )}
           <HoldToFinishButton onFinish={finishSession} label="Hold to finish session" />
           <p className="text-zinc-600 text-xs text-center">
             Hold for 1.5 s, so stray pocket touches won't stop the session.
