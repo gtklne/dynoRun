@@ -28,8 +28,11 @@ export interface RunQualityInput {
 }
 
 // Anything above this is unrealistic for a road-legal vehicle and almost
-// always indicates GPS glitch or wheelspin event.
-const PEAK_ACCEL_SUSPICIOUS_MS2 = 12;
+// always indicates GPS glitch or wheelspin event. It sits just above the ~1.1 g
+// a road tyre can deliver, so exceeding it accuses the signal, not the vehicle.
+// Exported because raw-trace.ts flags individual fixes against the same line,
+// and a readout that disagreed with the quality badge would be worse than none.
+export const PEAK_ACCEL_SUSPICIOUS_MS2 = 12;
 
 // Gaps larger than this between raw fixes are treated as a GPS dropout.
 const MAX_ACCEPTABLE_GAP_MS = 500;

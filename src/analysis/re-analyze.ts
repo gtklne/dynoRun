@@ -1,6 +1,6 @@
 import { PIPELINE_VERSION } from './types';
 import { analyzeRun } from './pipeline';
-import type { AnalyzedRun } from './types';
+import type { AnalyzedRun, RawSpeedSample } from './types';
 import { runRepository } from '@/api/repositories/run-repository';
 import { vehicleRepository } from '@/api/repositories/vehicle-repository';
 import { calibrationRepository } from '@/api/repositories/calibration-repository';
@@ -87,26 +87,42 @@ export async function reanalyzeVehicleRuns(
   return target.length;
 }
 
+export interface LoadedRunAnalysis {
+  analyzed: AnalyzedRun;
+  // The raw fixes the analysis ran on. Returned alongside because the review
+  // screen plots them as-measured (see RawTraceCard), and re-fetching them
+  // separately would mean two round-trips for one screen.
+  samples: RawSpeedSample[];
+}
+
 // AnalyzedRun carries the extra accel-times + quality data that DerivedCurve
 // (which is what's persisted) does NOT include. The review screen needs both,
 // so we re-run analyzeRun in-memory from raw samples whenever it's mounted.
-export async function loadAnalyzedRun(runId: string): Promise<AnalyzedRun | null> {
+export async function loadRunAnalysis(runId: string): Promise<LoadedRunAnalysis | null> {
   const run = await runRepository.get(runId);
   if (!run) return null;
   const calibration = await calibrationRepository.get(run.calibration_id);
   if (!calibration) return null;
-  const [vehicle, samples] = await Promise.all([
+  const [vehicle, stored] = await Promise.all([
     vehicleRepository.get(calibration.vehicle_id),
     sampleRepository.listByRun(runId),
   ]);
   if (!vehicle) return null;
-  if (samples.length === 0) return null;
-  return analyzeRun({
-    samples: samples.map((s) => ({ t_ms: s.t_ms, speed_mps: s.speed_mps, altitude_m: s.altitude_m })),
-    mass_kg: vehicle.mass_kg,
-    rollout_m_per_rev: calibration.rollout_m_per_rev,
-    kind: vehicle.kind,
-    drag_coefficient: vehicle.drag_coefficient,
-    frontal_area_m2: vehicle.frontal_area_m2,
-  });
+  if (stored.length === 0) return null;
+  const samples: RawSpeedSample[] = stored.map((s) => ({
+    t_ms: s.t_ms,
+    speed_mps: s.speed_mps,
+    altitude_m: s.altitude_m,
+  }));
+  return {
+    samples,
+    analyzed: analyzeRun({
+      samples,
+      mass_kg: vehicle.mass_kg,
+      rollout_m_per_rev: calibration.rollout_m_per_rev,
+      kind: vehicle.kind,
+      drag_coefficient: vehicle.drag_coefficient,
+      frontal_area_m2: vehicle.frontal_area_m2,
+    }),
+  };
 }

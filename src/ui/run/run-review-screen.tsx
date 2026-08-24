@@ -4,8 +4,8 @@ import { runRepository } from '@/api/repositories/run-repository';
 import { derivedCurveRepository } from '@/api/repositories/derived-curve-repository';
 import { vehicleRepository } from '@/api/repositories/vehicle-repository';
 import { shareRepository } from '@/api/repositories/share-repository';
-import { ensureCurrentCurve, loadAnalyzedRun } from '@/analysis/re-analyze';
-import type { AnalyzedRun } from '@/analysis/types';
+import { ensureCurrentCurve, loadRunAnalysis } from '@/analysis/re-analyze';
+import type { AnalyzedRun, RawSpeedSample } from '@/analysis/types';
 import { PowerCurveChart, type CurveDisplayMode } from '@/ui/components/power-curve-chart';
 import { SegmentedControl } from '@/ui/components/segmented-control';
 import { AccelTimesCard } from '@/ui/components/accel-times-card';
@@ -14,6 +14,7 @@ import { useToast } from '@/ui/components/toast';
 import { ConditionsModal } from '@/ui/run/conditions-modal';
 import { ConditionsChips } from '@/ui/run/conditions-chips';
 import { ExpertView } from '@/ui/run/expert-view';
+import { RawTraceCard } from '@/ui/run/raw-trace-card';
 import { useExpertView } from '@/ui/run/use-expert-view';
 import { ToggleSwitch } from '@/ui/components/toggle-switch';
 import type { Run, DerivedCurve, Vehicle, RunConditions } from '@/shared/types';
@@ -59,6 +60,7 @@ export function RunReviewScreen() {
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [curve, setCurve] = useState<DerivedCurve | null>(null);
   const [analyzed, setAnalyzed] = useState<AnalyzedRun | null>(null);
+  const [rawSamples, setRawSamples] = useState<RawSpeedSample[] | null>(null);
   const [notes, setNotes] = useState('');
   const [title, setTitle] = useState('');
   const [chartMode, setChartMode] = useState<CurveDisplayMode>('power');
@@ -84,8 +86,9 @@ export function RunReviewScreen() {
       }
       // accel-times + quality aren't in the persisted DerivedCurve, so
       // re-run analyzeRun in-memory from raw samples.
-      const a = await loadAnalyzedRun(runId);
-      setAnalyzed(a);
+      const a = await loadRunAnalysis(runId);
+      setAnalyzed(a?.analyzed ?? null);
+      setRawSamples(a?.samples ?? null);
     })();
   }, [runId]);
 
@@ -394,6 +397,8 @@ export function RunReviewScreen() {
           unit={units.unit}
         />
       </div>
+
+      {rawSamples && rawSamples.length > 1 && <RawTraceCard samples={rawSamples} />}
 
       {expert && analyzed && (
         <ExpertView
