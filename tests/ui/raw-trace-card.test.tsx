@@ -33,18 +33,36 @@ describe('RawTraceCard', () => {
 
     expect(getByText(/1 fix repeats the previous speed exactly/i)).toBeInTheDocument();
     expect(getByText(/1 step exceeds 12 m\/s²/i)).toBeInTheDocument();
-    expect(getByText(/GPS delivered 1\.0 fixes per second/i)).toBeInTheDocument();
-    expect(getByText(/this whole run is 12 readings/i)).toBeInTheDocument();
 
     // The clean-bill message must not appear alongside warnings.
     expect(container.textContent).not.toMatch(/supports this curve/i);
   });
 
+  it('states the 1 Hz ceiling as context, never as a warning', () => {
+    // iOS cannot deliver more than about 1 Hz, so every real run trips this.
+    // Filing it as a red warning beside the run-specific defects would cry wolf
+    // on every run forever and bury the two findings a rider can act on.
+    const { getByText, container } = render(<RawTraceCard samples={REAL_RUN} />);
+
+    const note = getByText(/Phone GPS tops out near one fix per second/i);
+    expect(note).toBeInTheDocument();
+    expect(note).toHaveClass('text-zinc-500');
+    expect(note.textContent).toMatch(/That is the ceiling, not a fault/i);
+    expect(note.textContent).toMatch(/this whole run is 12 readings/i);
+
+    // It must not be one of the "!" bullets.
+    const bullets = [...container.querySelectorAll('li')].map((li) => li.textContent ?? '');
+    expect(bullets).toHaveLength(2);
+    expect(bullets.join(' ')).not.toMatch(/tops out near one fix/i);
+  });
+
   it('shows the headline stats with the bad ones called out', () => {
     const { getByText } = render(<RawTraceCard samples={REAL_RUN} />);
 
+    // The fix rate is a platform constant, so it is never painted as a fault.
     const rate = getByText('Fix rate').parentElement!;
-    expect(within(rate).getByText('1.0 Hz')).toHaveClass('text-red-400');
+    expect(within(rate).getByText('1.0 Hz')).toHaveClass('text-zinc-100');
+    expect(within(rate).getByText('platform ceiling')).toBeInTheDocument();
 
     const repeated = getByText('Repeated').parentElement!;
     expect(within(repeated).getByText('1')).toHaveClass('text-red-400');
@@ -56,11 +74,22 @@ describe('RawTraceCard', () => {
     expect(within(getByText('Fixes').parentElement!).getByText('12')).toHaveClass('text-zinc-100');
   });
 
-  it('gives a clean run a clean bill of health', () => {
+  it('gives a dense clean run a clean bill of health', () => {
     const { getByText, container } = render(<RawTraceCard samples={CLEAN_RUN} />);
-    expect(getByText(/No frozen fixes, dropouts, or impossible steps/i)).toBeInTheDocument();
+    expect(getByText(/The speed signal supports this curve/i)).toBeInTheDocument();
     expect(container.textContent).not.toMatch(/repeats the previous speed/i);
-    expect(container.textContent).not.toMatch(/GPS delivered/i);
+    expect(container.textContent).not.toMatch(/tops out near one fix/i);
+  });
+
+  it('does not bless the peak of a clean run that is only 1 Hz', () => {
+    const cleanButCoarse: RawSpeedSample[] = Array.from({ length: 12 }, (_, i) => ({
+      t_ms: i * 1000,
+      speed_mps: 10 + 2.5 * i,
+    }));
+    const { getByText, container } = render(<RawTraceCard samples={cleanButCoarse} />);
+    expect(getByText(/the peak is still a coarse read/i)).toBeInTheDocument();
+    expect(container.querySelectorAll('li')).toHaveLength(0);
+    expect(getByText(/Phone GPS tops out near one fix per second/i)).toBeInTheDocument();
   });
 
   it('says how much of the run the pipeline threw away at the trim', () => {

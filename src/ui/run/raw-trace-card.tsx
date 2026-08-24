@@ -7,13 +7,22 @@ import { RawSpeedChart } from '@/ui/components/raw-speed-chart';
 // Below this the fix rate is too coarse for a derivative to mean much: the
 // smoothing window spans about one real fix, so it filters interpolation
 // rather than data and the curve is the raw difference quotient in disguise.
+//
+// Every phone run sits below it, and that is the point of splitting notes from
+// warnings. iOS CoreLocation delivers standard location updates at about 1 Hz
+// and exposes no way to ask for more (the Capacitor plugin's iOS side takes
+// only `enableHighAccuracy`; `interval` is an Android-only option). So a red
+// alarm on the fix rate would fire on every run forever, for a constraint no
+// rider can act on, and it would sit in the same list as the run-specific
+// defects that they CAN act on by re-riding the pull. Warnings are reserved
+// for what is wrong with this run; sampling reality is a note.
 const MIN_USEFUL_FIX_RATE_HZ = 2;
 
 interface Props {
   samples: RawSpeedSample[];
 }
 
-interface Warning {
+interface Note {
   key: string;
   text: string;
 }
@@ -49,13 +58,18 @@ function Stat({ label, value, sub, tone }: {
 export function RawTraceCard({ samples }: Props) {
   const trace = useMemo(() => buildRawTrace(samples), [samples]);
 
-  const warnings: Warning[] = [];
-  if (trace.points.length > 1 && trace.fix_rate_hz < MIN_USEFUL_FIX_RATE_HZ) {
-    warnings.push({
+  const coarse = trace.points.length > 1 && trace.fix_rate_hz < MIN_USEFUL_FIX_RATE_HZ;
+
+  // Context, not a complaint. Rendered calmly and separately from the warnings.
+  const notes: Note[] = [];
+  if (coarse) {
+    notes.push({
       key: 'rate',
-      text: `GPS delivered ${trace.fix_rate_hz.toFixed(1)} fixes per second, so this whole run is ${trace.points.length} readings. Smoothing cannot recover detail that was never sampled, and the curve is close to the raw fix-to-fix differences.`,
+      text: `Phone GPS tops out near one fix per second and cannot be asked for more, so this whole run is ${trace.points.length} readings. That is the ceiling, not a fault, but it does mean the curve tracks the raw fix-to-fix differences and its top end rests on the last step or two.`,
     });
   }
+
+  const warnings: Note[] = [];
   if (trace.frozen_count > 0) {
     warnings.push({
       key: 'frozen',
@@ -76,7 +90,6 @@ export function RawTraceCard({ samples }: Props) {
   }
 
   const trailing = trace.points.length - 1 - trace.trim_index;
-  const rateWarn = trace.points.length > 1 && trace.fix_rate_hz < MIN_USEFUL_FIX_RATE_HZ;
   const spikeWarn = trace.peak_raw_accel_ms2 > PEAK_ACCEL_SUSPICIOUS_MS2;
 
   return (
@@ -100,8 +113,8 @@ export function RawTraceCard({ samples }: Props) {
           <Stat
             label="Fix rate"
             value={`${trace.fix_rate_hz.toFixed(1)} Hz`}
-            sub={rateWarn ? `below ${MIN_USEFUL_FIX_RATE_HZ} Hz` : undefined}
-            tone={rateWarn ? 'warn' : 'ok'}
+            sub={coarse ? 'platform ceiling' : undefined}
+            tone="ok"
           />
           <Stat
             label="Repeated"
@@ -124,7 +137,7 @@ export function RawTraceCard({ samples }: Props) {
           </p>
         )}
 
-        {warnings.length > 0 ? (
+        {warnings.length > 0 && (
           <ul className="space-y-2 pt-1">
             {warnings.map((w) => (
               <li key={w.key} className="text-xs text-zinc-300 flex gap-2">
@@ -133,11 +146,22 @@ export function RawTraceCard({ samples }: Props) {
               </li>
             ))}
           </ul>
-        ) : (
+        )}
+
+        {warnings.length === 0 && (
+          // At one fix per second a clean signal still cannot pin a peak, so the
+          // all-clear has to say what it actually checked rather than bless the
+          // number. Promising more here would undo the whole point of the card.
           <p className="text-emerald-400 text-xs">
-            No frozen fixes, dropouts, or impossible steps. The speed signal supports this curve.
+            {coarse
+              ? 'No frozen fixes, dropouts, or impossible steps. Nothing in this signal is fabricated, though at this fix rate the peak is still a coarse read.'
+              : 'No frozen fixes, dropouts, or impossible steps. The speed signal supports this curve.'}
           </p>
         )}
+
+        {notes.map((n) => (
+          <p key={n.key} className="text-zinc-500 text-xs">{n.text}</p>
+        ))}
       </div>
     </div>
   );
