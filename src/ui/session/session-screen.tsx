@@ -20,6 +20,7 @@ import { useUnits } from '@/app/units-context';
 import { useToast } from '@/ui/components/toast';
 import { HoldToFinishButton } from './hold-to-finish-button';
 import { PullSparkline } from './pull-sparkline';
+import { assessSignal, type SignalIntegrity } from '@/analysis/signal-integrity';
 
 interface GpsState {
   accuracy_m: number | null;
@@ -226,16 +227,30 @@ export function SessionScreen() {
   const canStart = isReady && (gpsLocked || forceStart);
   const elapsed = startedWallRef.current != null ? now - startedWallRef.current : 0;
 
+  const integrity = useMemo<Array<SignalIntegrity | null>>(
+    () => pulls.map((p) => (p.samples.length > 1 ? assessSignal(p.samples) : null)),
+    [pulls],
+  );
+
+  const corruptSelected = useMemo(
+    () => [...selected].filter((i) => integrity[i]?.verdict === 'corrupt').length,
+    [selected, integrity],
+  );
+
   const bestIndex = useMemo(() => {
     let best = -1;
     let bestKw = -1;
     pulls.forEach((p, i) => {
       if (!p.analysis) return;
+      // A corrupt pull is usually the highest number in the session, because
+      // the artifact that broke it inflates power. Letting it wear the "Best"
+      // badge would point the rider straight at the one pull to throw away.
+      if (integrity[i]?.verdict === 'corrupt') return;
       const kw = peakPowerKw(p);
       if (kw > bestKw) { bestKw = kw; best = i; }
     });
     return best;
-  }, [pulls]);
+  }, [pulls, integrity]);
 
   return (
     <div className="space-y-4 lg:max-w-3xl lg:mx-auto">
@@ -387,13 +402,14 @@ export function SessionScreen() {
               const analyzable = p.analysis != null;
               const checked = selected.has(i);
               const kw = peakPowerKw(p);
+              const corrupt = integrity[i]?.verdict === 'corrupt';
               return (
                 <button
                   key={i}
                   onClick={() => analyzable && toggle(i)}
                   disabled={!analyzable}
                   className={`w-full text-left bg-zinc-900 border rounded-2xl p-4 transition-colors ${
-                    checked ? 'border-amber-500' : 'border-zinc-800'
+                    checked ? 'border-amber-500' : corrupt ? 'border-red-500/40' : 'border-zinc-800'
                   } ${analyzable ? 'hover:border-amber-700' : 'opacity-60 cursor-not-allowed'}`}
                 >
                   <div className="flex items-center gap-3 mb-2">
@@ -409,6 +425,11 @@ export function SessionScreen() {
                       )}
                     </div>
                     <p className="text-zinc-100 font-semibold text-sm">Pull {i + 1}</p>
+                    {corrupt && (
+                      <span className="text-[10px] font-bold uppercase tracking-wider bg-red-500/15 text-red-400 px-2 py-0.5 rounded-full">
+                        GPS drift
+                      </span>
+                    )}
                     {i === bestIndex && (
                       <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-400 px-2 py-0.5 rounded-full">
                         Best
@@ -432,11 +453,25 @@ export function SessionScreen() {
                       <span className="text-red-400">couldn't analyze</span>
                     )}
                   </div>
+                  {corrupt && (
+                    <p className="text-red-400 text-xs mt-2 leading-relaxed">
+                      The GPS lost the speed signal mid-pull and caught up in one step, so this
+                      power figure is the receiver, not the bike. Ride this pull again.
+                    </p>
+                  )}
                 </button>
               );
             })}
           </div>
 
+          {corruptSelected > 0 && (
+            <p className="text-red-400 text-xs" role="alert">
+              {corruptSelected === 1
+                ? 'One selected pull has a corrupt speed signal.'
+                : `${corruptSelected} selected pulls have a corrupt speed signal.`}{' '}
+              Saving will store a power figure the bike never made.
+            </p>
+          )}
           <button
             onClick={saveSelected}
             disabled={selected.size === 0 || isSaving}

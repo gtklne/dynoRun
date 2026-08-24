@@ -15,6 +15,8 @@ import { ConditionsModal } from '@/ui/run/conditions-modal';
 import { ConditionsChips } from '@/ui/run/conditions-chips';
 import { ExpertView } from '@/ui/run/expert-view';
 import { RawTraceCard } from '@/ui/run/raw-trace-card';
+import { SignalVerdictBanner } from '@/ui/components/signal-verdict-banner';
+import { assessSignal } from '@/analysis/signal-integrity';
 import { useExpertView } from '@/ui/run/use-expert-view';
 import { ToggleSwitch } from '@/ui/components/toggle-switch';
 import type { Run, DerivedCurve, Vehicle, RunConditions } from '@/shared/types';
@@ -127,6 +129,11 @@ export function RunReviewScreen() {
       curve.points[0],
     );
   }, [curve]);
+
+  const integrity = useMemo(
+    () => (rawSamples && rawSamples.length > 1 ? assessSignal(rawSamples) : null),
+    [rawSamples],
+  );
 
   const powerBand = useMemo(() => {
     if (!curve || curve.points.length === 0 || !peak) return null;
@@ -285,6 +292,7 @@ export function RunReviewScreen() {
     }
   }
 
+  const corruptRun = integrity?.verdict === 'corrupt';
   const opp = oppositeUnit(units.unit);
   const currentPeakKw = peak?.wheel_power_kw ?? null;
   const isFirstRun = prevBest == null;
@@ -305,6 +313,22 @@ export function RunReviewScreen() {
         <h1 className="text-2xl font-bold text-zinc-100">Run review</h1>
         {analyzed && <RunQualityBadge quality={analyzed.quality} />}
       </div>
+
+      {integrity && integrity.verdict !== 'ok' && (
+        <SignalVerdictBanner
+          integrity={integrity}
+          action={
+            integrity.verdict === 'corrupt' ? (
+              <button
+                onClick={discard}
+                className="w-full bg-red-500 hover:bg-red-400 active:bg-red-600 text-zinc-950 font-semibold py-3 rounded-xl transition-colors text-sm"
+              >
+                Discard and ride it again
+              </button>
+            ) : undefined
+          }
+        />
+      )}
 
       {/* Desktop: data & chart in the wide left column, editable metadata and
           actions in the right rail. Mobile keeps the single-column order. */}
@@ -545,15 +569,27 @@ export function RunReviewScreen() {
       {/* Actions */}
       <div className="space-y-3">
         <div className="flex gap-3">
+          {/* A corrupt run demotes Save to a secondary action rather than
+              removing it: the samples are still the rider's, and there are
+              honest reasons to keep one (comparing artifacts, filing a bug).
+              What it must not stay is the obvious default. */}
           <button
             onClick={save}
-            className="flex-1 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-zinc-950 font-semibold py-3.5 rounded-xl transition-colors"
+            className={`flex-1 font-semibold py-3.5 rounded-xl transition-colors ${
+              corruptRun
+                ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-400 border border-zinc-700'
+                : 'bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-zinc-950'
+            }`}
           >
-            Save run
+            {corruptRun ? 'Save anyway' : 'Save run'}
           </button>
           <button
             onClick={discard}
-            className="flex-1 bg-zinc-800 hover:bg-red-900/60 text-zinc-400 hover:text-red-300 font-medium py-3.5 rounded-xl transition-colors border border-zinc-700"
+            className={`flex-1 font-medium py-3.5 rounded-xl transition-colors ${
+              corruptRun
+                ? 'bg-red-500 hover:bg-red-400 active:bg-red-600 text-zinc-950 font-semibold'
+                : 'bg-zinc-800 hover:bg-red-900/60 text-zinc-400 hover:text-red-300 border border-zinc-700'
+            }`}
           >
             Discard
           </button>
