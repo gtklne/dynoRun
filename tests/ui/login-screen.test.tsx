@@ -6,12 +6,19 @@ const signInEmail = vi.fn();
 const signUpEmail = vi.fn();
 const signInWithSocial = vi.fn();
 const navigate = vi.fn();
+const refresh = vi.fn();
 
 vi.mock('@/auth/auth-client', () => ({
   authClient: {
     signIn: { email: (...args: unknown[]) => signInEmail(...args) },
     signUp: { email: (...args: unknown[]) => signUpEmail(...args) },
   },
+}));
+
+// The provider itself is covered in tests/auth/auth-context.test.tsx; here we
+// only care that the screen re-reads the session before it navigates.
+vi.mock('@/auth/auth-context', () => ({
+  useAuth: () => ({ user: null, isAdmin: false, loading: false, refresh, signOut: vi.fn() }),
 }));
 
 vi.mock('@/auth/social-sign-in', async () => {
@@ -78,6 +85,7 @@ describe('LoginScreen', () => {
     signUpEmail.mockReset().mockResolvedValue({ error: null });
     signInWithSocial.mockReset().mockResolvedValue(undefined);
     navigate.mockReset();
+    refresh.mockReset().mockResolvedValue(undefined);
     mockProviders([]);
     delete (window as { turnstile?: unknown }).turnstile;
   });
@@ -110,6 +118,35 @@ describe('LoginScreen', () => {
       });
     });
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/home', { replace: true }));
+  });
+
+  it('refreshes the auth session before navigating, so RequireAuth lets us in', async () => {
+    // AuthProvider reads getSession once on mount. Navigate without refreshing
+    // and RequireAuth still sees a signed-out user and redirects back here:
+    // sign-in succeeds and the user never leaves the login screen.
+    const order: string[] = [];
+    refresh.mockImplementation(async () => { order.push('refresh'); });
+    navigate.mockImplementation(() => { order.push('navigate'); });
+    render(<LoginScreen />, { wrapper: MemoryRouter });
+
+    fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'a@b.com' } });
+    fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: 'hunter2hunter2' } });
+    fireEvent.click(screen.getByRole('button', { name: /^sign in$/i }));
+
+    await waitFor(() => expect(navigate).toHaveBeenCalled());
+    expect(order).toEqual(['refresh', 'navigate']);
+  });
+
+  it('does not refresh the session when sign-in was rejected', async () => {
+    signInEmail.mockResolvedValue({ error: { message: 'Invalid email or password' } });
+    render(<LoginScreen />, { wrapper: MemoryRouter });
+
+    fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'a@b.com' } });
+    fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: 'wrongpassword' } });
+    fireEvent.click(screen.getByRole('button', { name: /^sign in$/i }));
+
+    await screen.findByRole('alert');
+    expect(refresh).not.toHaveBeenCalled();
   });
 
   it('surfaces a rejected sign-in instead of navigating', async () => {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { authClient } from '@/auth/auth-client';
+import { useAuth } from '@/auth/auth-context';
 import {
   listenForNativeAuthCallback,
   signInWithSocial,
@@ -26,6 +27,7 @@ type Mode = 'signin' | 'signup';
 export function LoginScreen() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { refresh } = useAuth();
   const [mode, setMode] = useState<Mode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -108,6 +110,11 @@ export function LoginScreen() {
         if (needsCaptcha) resetCaptcha();
         return;
       }
+      // AuthProvider reads the session once on mount, so it still holds
+      // `user === null` here. Navigating first makes RequireAuth bounce us
+      // straight back to this screen, which looks like the sign-in silently
+      // failed even though it succeeded.
+      await refresh();
       navigate(callbackURL, { replace: true });
     } catch {
       setError('Could not reach the server. Check your connection and try again.');

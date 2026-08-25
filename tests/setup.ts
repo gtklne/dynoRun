@@ -1,5 +1,27 @@
 import '@testing-library/jest-dom/vitest';
 
+// This jsdom build exposes no localStorage (and Node 26's own global is inert
+// without --localstorage-file), so every storage-backed test and the native
+// token store read undefined. Install a plain in-memory Storage instead.
+if (typeof window !== 'undefined' && !window.localStorage) {
+  const store = new Map<string, string>();
+  const memoryStorage: Storage = {
+    get length() { return store.size; },
+    key: (i: number) => Array.from(store.keys())[i] ?? null,
+    getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
+    setItem: (k: string, v: string) => { store.set(k, String(v)); },
+    removeItem: (k: string) => { store.delete(k); },
+    clear: () => { store.clear(); },
+  };
+  for (const target of [window, globalThis]) {
+    Object.defineProperty(target, 'localStorage', {
+      configurable: true,
+      writable: true,
+      value: memoryStorage,
+    });
+  }
+}
+
 // jsdom doesn't implement matchMedia; uPlot calls it at module load.
 if (typeof window !== 'undefined' && !window.matchMedia) {
   Object.defineProperty(window, 'matchMedia', {

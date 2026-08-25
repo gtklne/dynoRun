@@ -17,12 +17,13 @@ import { AuthProvider, useAuth } from '@/auth/auth-context';
 import { getNativeToken, setNativeToken } from '@/auth/native-token';
 
 function Probe() {
-  const { user, isAdmin, loading, signOut } = useAuth();
+  const { user, isAdmin, loading, refresh, signOut } = useAuth();
   if (loading) return <p>loading</p>;
   return (
     <div>
       <span data-testid="email">{user?.email ?? 'anonymous'}</span>
       <span data-testid="admin">{String(isAdmin)}</span>
+      <button onClick={() => { void refresh(); }}>refresh</button>
       <button onClick={() => { void signOut(); }}>sign out</button>
     </div>
   );
@@ -50,6 +51,19 @@ describe('AuthProvider', () => {
     render(<AuthProvider><Probe /></AuthProvider>);
 
     expect(await screen.findByTestId('email')).toHaveTextContent('anonymous');
+  });
+
+  it('picks up a session created after mount when refreshed', async () => {
+    // A sign-in inside the app leaves this provider holding the pre-sign-in
+    // answer, and RequireAuth then bounces the user back to /login.
+    getSession.mockResolvedValueOnce({ data: null });
+    render(<AuthProvider><Probe /></AuthProvider>);
+    expect(await screen.findByTestId('email')).toHaveTextContent('anonymous');
+
+    getSession.mockResolvedValueOnce({ data: { user: { id: 'u1', email: 'a@b.com' } } });
+    await act(async () => { screen.getByRole('button', { name: 'refresh' }).click(); });
+
+    await waitFor(() => expect(screen.getByTestId('email')).toHaveTextContent('a@b.com'));
   });
 
   it('clears the native bearer token on sign out', async () => {

@@ -15,6 +15,11 @@ interface AuthContextValue {
   user: AuthUser | null;
   isAdmin: boolean;
   loading: boolean;
+  /** Re-reads the session from the server. An in-app sign-in creates a session
+   *  the provider has no other way of learning about: it reads getSession once
+   *  on mount, so without this the login screen navigates to /home, RequireAuth
+   *  still sees `user === null` and bounces straight back to /login. */
+  refresh: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -25,14 +30,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    authClient.getSession().then((res) => {
-      setUser(res.data?.user ?? null);
-    }).catch(() => {
-      setUser(null);
-    }).finally(() => {
-      setLoading(false);
-    });
+    void load();
   }, []);
+
+  async function load() {
+    try {
+      const res = await authClient.getSession();
+      setUser(res.data?.user ?? null);
+    } catch {
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function signOut() {
     await authClient.signOut();
@@ -44,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, isAdmin: user?.role === 'admin', loading, signOut }}>
+    <AuthContext.Provider value={{ user, isAdmin: user?.role === 'admin', loading, refresh: load, signOut }}>
       {children}
     </AuthContext.Provider>
   );
