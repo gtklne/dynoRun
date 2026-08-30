@@ -1,0 +1,611 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-30T11:34:10.853Z",
+  "title": "Design System: wasgoht",
+  "extensions": {
+    "colorMeta": {
+      "sheet": {
+        "role": "neutral",
+        "displayName": "Chart Sheet",
+        "canonical": "#ffffff",
+        "nightPlate": "#101316",
+        "purpose": "The page itself. Every surface starts here.",
+        "tonalRamp": [
+          "#262626",
+          "#424242",
+          "#5e5e5e",
+          "#7a7a7a",
+          "#999999",
+          "#b8b8b8",
+          "#d6d6d6",
+          "#f2f2f2"
+        ]
+      },
+      "sunk": {
+        "role": "neutral",
+        "displayName": "Sunk Panel",
+        "canonical": "#f1f3f5",
+        "nightPlate": "#181c20",
+        "purpose": "The one recessed tone: notes boxes, row hover, disabled fields.",
+        "tonalRamp": [
+          "#20262d",
+          "#37424d",
+          "#4f5e6e",
+          "#667a8f",
+          "#8899aa",
+          "#acb8c4",
+          "#cfd6dd",
+          "#f0f2f4"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Plate Ink",
+        "canonical": "#14161a",
+        "nightPlate": "#e8ecef",
+        "purpose": "Body at full strength, headline figures, frames, inverted active fills.",
+        "tonalRamp": [
+          "#21252b",
+          "#3a3f4b",
+          "#525a6b",
+          "#6a758a",
+          "#8c95a6",
+          "#aeb4c1",
+          "#d1d4dc",
+          "#f1f2f4"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Ink Two",
+        "canonical": "#4c5560",
+        "nightPlate": "#a8b2bb",
+        "purpose": "Running prose and secondary values.",
+        "tonalRamp": [
+          "#22262b",
+          "#3b424a",
+          "#535d69",
+          "#6c7989",
+          "#8d98a5",
+          "#afb7c0",
+          "#d1d6db",
+          "#f1f2f4"
+        ]
+      },
+      "ink-3": {
+        "role": "neutral",
+        "displayName": "Ink Three",
+        "canonical": "#66707b",
+        "nightPlate": "#7e8892",
+        "purpose": "The annotation register: units, placeholders, n/a, chevrons.",
+        "tonalRamp": [
+          "#23262a",
+          "#3c4248",
+          "#565e67",
+          "#6f7a86",
+          "#8f99a3",
+          "#b1b7be",
+          "#d2d6da",
+          "#f1f2f3"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Rule",
+        "canonical": "#c3cbd2",
+        "nightPlate": "#2c3339",
+        "purpose": "The hairline that separates cells and boxes.",
+        "tonalRamp": [
+          "#21272c",
+          "#39434c",
+          "#515f6c",
+          "#697c8c",
+          "#8a9aa8",
+          "#adb8c2",
+          "#d0d7dc",
+          "#f0f2f4"
+        ]
+      },
+      "rule-faint": {
+        "role": "neutral",
+        "displayName": "Rule Faint",
+        "canonical": "#e3e8ec",
+        "nightPlate": "#1e2429",
+        "purpose": "Table row dividers and chart gridlines.",
+        "tonalRamp": [
+          "#1f272e",
+          "#36444f",
+          "#4c6070",
+          "#637d92",
+          "#859bad",
+          "#aab9c5",
+          "#ced7de",
+          "#f0f3f5"
+        ]
+      },
+      "terrain": {
+        "role": "neutral",
+        "displayName": "Blue-Grey Terrain",
+        "canonical": "#92a4b0",
+        "nightPlate": "#5c6e7a",
+        "purpose": "Context rather than content: track outside the read section, link underlines, low end of the demand ramp. Never text.",
+        "tonalRamp": [
+          "#20272c",
+          "#38444d",
+          "#4f616d",
+          "#677e8e",
+          "#899ca9",
+          "#acbac3",
+          "#d0d8dd",
+          "#f0f3f4"
+        ]
+      },
+      "terrain-tint": {
+        "role": "neutral",
+        "displayName": "Terrain Tint",
+        "canonical": "#dce3e8",
+        "nightPlate": "#232b31",
+        "purpose": "The terrain wash behind context geometry.",
+        "tonalRamp": [
+          "#1e282e",
+          "#354550",
+          "#4b6272",
+          "#617f94",
+          "#849dae",
+          "#a9bac6",
+          "#ced8df",
+          "#f0f3f5"
+        ]
+      },
+      "procedure": {
+        "role": "primary",
+        "displayName": "Procedure Magenta",
+        "canonical": "#c6188e",
+        "nightPlate": "#ff3fb0",
+        "purpose": "The subject and only the subject: this run, this lap, the cursor, the selected row, the commit action, focus and selection.",
+        "tonalRamp": [
+          "#440831",
+          "#760e55",
+          "#a81479",
+          "#da1a9d",
+          "#e949b5",
+          "#f080cc",
+          "#f6b6e2",
+          "#fce8f6"
+        ]
+      },
+      "procedure-tint": {
+        "role": "primary",
+        "displayName": "Procedure Tint",
+        "canonical": "#fbe7f4",
+        "nightPlate": "#2b1122",
+        "purpose": "The wash behind a selected minima row and a drag-select region.",
+        "tonalRamp": [
+          "#420b2e",
+          "#721351",
+          "#a21b73",
+          "#d22395",
+          "#e250af",
+          "#eb85c7",
+          "#f3b9df",
+          "#fbe9f5"
+        ]
+      },
+      "caution": {
+        "role": "secondary",
+        "displayName": "Advisory Amber",
+        "canonical": "#a85d00",
+        "nightPlate": "#e39a2b",
+        "purpose": "Advisories you must read before trusting the sheet, and the mid-stop of the grip demand ramp. Nothing else.",
+        "tonalRamp": [
+          "#4d2a00",
+          "#854900",
+          "#bd6800",
+          "#f58800",
+          "#ffa433",
+          "#ffbf70",
+          "#ffdbad",
+          "#fff4e5"
+        ]
+      },
+      "caution-tint": {
+        "role": "secondary",
+        "displayName": "Advisory Tint",
+        "canonical": "#fbf0dd",
+        "nightPlate": "#2a2013",
+        "purpose": "The advisory box fill, paired with a hairline amber frame.",
+        "tonalRamp": [
+          "#442e08",
+          "#77500e",
+          "#a97214",
+          "#db941a",
+          "#eaae48",
+          "#f0c77f",
+          "#f6dfb6",
+          "#fcf5e8"
+        ]
+      },
+      "gain": {
+        "role": "tertiary",
+        "displayName": "Gain Teal",
+        "canonical": "#007f86",
+        "nightPlate": "#3fd0d8",
+        "purpose": "Time or grip gained: the negative half of the diverging delta ramp, the load-transfer rate ramp, series 3.",
+        "tonalRamp": [
+          "#00494d",
+          "#007e85",
+          "#00b3bd",
+          "#00e8f5",
+          "#33f4ff",
+          "#70f8ff",
+          "#adfbff",
+          "#e5feff"
+        ]
+      },
+      "gain-tint": {
+        "role": "tertiary",
+        "displayName": "Gain Tint",
+        "canonical": "#dff0f1",
+        "nightPlate": "#10262a",
+        "purpose": "The corresponding wash.",
+        "tonalRamp": [
+          "#173435",
+          "#28595c",
+          "#397f83",
+          "#4ba5aa",
+          "#71bcc1",
+          "#9cd0d4",
+          "#c6e4e6",
+          "#edf7f7"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The one statement line on a marketing surface. Balanced wrapping, size set by the surface, capped at 6rem."
+      },
+      "readout-xl": {
+        "displayName": "Readout XL",
+        "purpose": "The single headline measurement on a capture or review plate."
+      },
+      "readout": {
+        "displayName": "Readout",
+        "purpose": "A primary reading. Dwarfs its own label because the number is read at arm’s length through a visor."
+      },
+      "plate-title": {
+        "displayName": "Plate Title",
+        "purpose": "The h1 in a title block. One per plate."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Zone headings, channel names, row names, nav tabs."
+      },
+      "annotation": {
+        "displayName": "Annotation",
+        "purpose": "The marginal register: idents, units, scale statements, table headers, provenance, hints, n/a."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running prose. Measure capped at 68ch inside the register itself."
+      },
+      "data": {
+        "displayName": "Data",
+        "purpose": "Any value read inline, in a row, a legend or a cross-reference readout. Always tabular."
+      },
+      "control": {
+        "displayName": "Control",
+        "purpose": "Every button, tab and segmented cell. Promoted to 18px at width 100% for trackside actions."
+      }
+    },
+    "shadows": [],
+    "rules": [
+      {
+        "name": "rule-hair",
+        "value": "1px",
+        "purpose": "The default divider: cells, rows, boxes."
+      },
+      {
+        "name": "rule-frame",
+        "value": "1.5px",
+        "purpose": "The boundary of one object: plate, framed zone, plan view, control."
+      },
+      {
+        "name": "rule-section",
+        "value": "2px",
+        "purpose": "Cuts the sheet into major blocks and rules off the revision bar."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-plate",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "The only easing in the system."
+      },
+      {
+        "name": "plate-issue",
+        "value": "420ms ease-plate, from opacity 0.55 and translateY(6px)",
+        "purpose": "The one authored moment: the sheet settles once on mount, from an already-visible default."
+      },
+      {
+        "name": "control-state",
+        "value": "120ms ease-plate on background-color and color",
+        "purpose": "Control hover and active. Under the threshold where a dragged cursor feels detached."
+      },
+      {
+        "name": "gauge-fill",
+        "value": "160ms linear on transform",
+        "purpose": "A gauge tracking a live reading; linear so it does not lie about rate."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "animation and transition duration forced to 0.01ms",
+        "purpose": "prefers-reduced-motion neutralises everything above."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      }
+    ],
+    "seriesIdentity": {
+      "inks": [
+        "procedure",
+        "ink",
+        "gain",
+        "caution",
+        "terrain",
+        "ink-3"
+      ],
+      "dashes": [
+        [],
+        [
+          7,
+          3
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          10,
+          3,
+          2,
+          3
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          14,
+          4
+        ]
+      ],
+      "purpose": "Overlaid runs and laps are separated by colour AND dash together, never hue alone. Series 0 is the subject and takes procedure magenta. Six is the compare screen cap."
+    },
+    "hatch": {
+      "value": "repeating-linear-gradient(45deg, transparent, transparent 4px, var(--color-rule) 4px, var(--color-rule) 5px)",
+      "purpose": "Missing, masked or unmeasured data. The canvas half (hatchPattern) must hold the same angle and pitch."
+    }
+  },
+  "components": [
+    {
+      "name": "Outline Control",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "The default control: a ruled plate, square, uppercase, 44px minimum.",
+      "html": "<button class=\"ds-ctl\">Save run</button>",
+      "css": ".ds-ctl { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; border: 1.5px solid var(--color-ink, #14161a); background: var(--color-sheet, #ffffff); color: var(--color-ink, #14161a); font-family: Archivo, system-ui, -apple-system, BlinkMacSystemFont, sans-serif; font-stretch: 87%; font-weight: 700; font-size: 0.8125rem; letter-spacing: 0.07em; text-transform: uppercase; padding: 0.625rem 1rem; min-height: 44px; border-radius: 0; cursor: pointer; transition: background-color 120ms cubic-bezier(0.16,1,0.3,1), color 120ms cubic-bezier(0.16,1,0.3,1); } .ds-ctl:hover:not(:disabled) { background: var(--color-sunk, #f1f3f5); } .ds-ctl:focus-visible { outline: 2px solid var(--color-procedure, #c6188e); outline-offset: 2px; } .ds-ctl:disabled { border-color: var(--color-rule, #c3cbd2); color: var(--color-ink-3, #66707b); background: var(--color-sunk, #f1f3f5); cursor: not-allowed; }"
+    },
+    {
+      "name": "Procedure Control",
+      "kind": "button",
+      "refersTo": "button-procedure",
+      "description": "The one action that is yours: recording, arming, committing. Shown here at the trackside major size.",
+      "html": "<button class=\"ds-ctl-procedure ds-ctl-major\">Start run</button>",
+      "css": ".ds-ctl-procedure { display: inline-flex; align-items: center; justify-content: center; border: 1.5px solid var(--color-procedure, #c6188e); background: var(--color-procedure, #c6188e); color: #ffffff; font-family: Archivo, system-ui, -apple-system, BlinkMacSystemFont, sans-serif; font-stretch: 87%; font-weight: 700; font-size: 0.8125rem; letter-spacing: 0.07em; text-transform: uppercase; padding: 0.625rem 1rem; min-height: 44px; border-radius: 0; cursor: pointer; transition: background-color 120ms cubic-bezier(0.16,1,0.3,1); } .ds-ctl-procedure:hover { background: var(--color-ink, #14161a); border-color: var(--color-ink, #14161a); color: var(--color-sheet, #ffffff); } .ds-ctl-procedure:focus-visible { outline: 2px solid var(--color-procedure, #c6188e); outline-offset: 2px; } .ds-ctl-major { width: 100%; min-height: 76px; font-size: 1.125rem; font-stretch: 100%; letter-spacing: 0.1em; }"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "chip",
+      "refersTo": "button-solid",
+      "description": "One ink frame, hairline dividers, the selected cell inverted to solid ink. Replaces every ad-hoc tab row and toggle group.",
+      "html": "<div class=\"ds-seg\" role=\"radiogroup\" aria-label=\"Power unit\"><button class=\"ds-seg-cell\" role=\"radio\" aria-checked=\"true\" data-active=\"true\">kW</button><button class=\"ds-seg-cell\" role=\"radio\" aria-checked=\"false\">hp</button><button class=\"ds-seg-cell\" role=\"radio\" aria-checked=\"false\">ps</button></div>",
+      "css": ".ds-seg { display: inline-flex; border: 1.5px solid var(--color-ink, #14161a); background: var(--color-sheet, #ffffff); border-radius: 0; isolation: isolate; } .ds-seg-cell { border: 0; background: transparent; color: var(--color-ink, #14161a); font-family: Archivo, system-ui, -apple-system, BlinkMacSystemFont, sans-serif; font-stretch: 87%; font-weight: 700; font-size: 0.8125rem; letter-spacing: 0.07em; text-transform: uppercase; padding: 0.625rem 1rem; min-height: 40px; cursor: pointer; transition: background-color 120ms cubic-bezier(0.16,1,0.3,1), color 120ms cubic-bezier(0.16,1,0.3,1); } .ds-seg-cell + .ds-seg-cell { border-left: 1px solid var(--color-rule, #c3cbd2); } .ds-seg-cell:hover { background: var(--color-sunk, #f1f3f5); } .ds-seg-cell[data-active=\"true\"] { background: var(--color-ink, #14161a); color: var(--color-sheet, #ffffff); } .ds-seg-cell:focus-visible { outline: 2px solid var(--color-procedure, #c6188e); outline-offset: 2px; }"
+    },
+    {
+      "name": "Labelled Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "The label is always present and always in the annotation register; a placeholder-only field loses its name the moment it is filled.",
+      "html": "<div class=\"ds-field-wrap\"><label class=\"ds-field-label\" for=\"ds-mass\">Vehicle mass</label><input class=\"ds-field\" id=\"ds-mass\" type=\"text\" value=\"1420\" /><p class=\"ds-field-hint\">Kerb weight plus driver, in kilograms</p></div>",
+      "css": ".ds-field-label, .ds-field-hint { display: block; font-family: Archivo, system-ui, -apple-system, BlinkMacSystemFont, sans-serif; font-stretch: 75%; font-weight: 600; font-size: 0.6875rem; line-height: 1.1; letter-spacing: 0.09em; text-transform: uppercase; color: var(--color-ink-3, #66707b); } .ds-field-label { margin-bottom: 0.375rem; } .ds-field-hint { margin: 0.375rem 0 0; } .ds-field { width: 100%; border: 1px solid var(--color-rule, #c3cbd2); border-radius: 0; background: var(--color-sheet, #ffffff); color: var(--color-ink, #14161a); padding: 0.625rem 0.75rem; min-height: 44px; font-family: Archivo, system-ui, -apple-system, BlinkMacSystemFont, sans-serif; font-size: 16px; font-variant-numeric: tabular-nums; } .ds-field:focus { border-color: var(--color-ink, #14161a); outline: none; box-shadow: inset 0 0 0 1px var(--color-ink, #14161a); } .ds-field::placeholder { color: var(--color-ink-3, #66707b); opacity: 1; } .ds-field:disabled { background: var(--color-sunk, #f1f3f5); color: var(--color-ink-3, #66707b); }"
+    },
+    {
+      "name": "Minima Table",
+      "kind": "card",
+      "refersTo": "table-row",
+      "description": "The boxed decision table: corner tables, run lists, calibration candidates and lap pickers are all this one component.",
+      "html": "<div class=\"ds-minima-frame\"><table class=\"ds-minima\"><thead><tr><th>Turn</th><th class=\"ds-num\">Apex</th><th class=\"ds-num\">Score</th></tr></thead><tbody><tr><td>T1</td><td class=\"ds-num\">78 km/h</td><td class=\"ds-num\">112</td></tr><tr data-selected=\"true\"><td>T2</td><td class=\"ds-num\">94 km/h</td><td class=\"ds-num\">126</td></tr><tr><td>T3</td><td class=\"ds-num\">61 km/h</td><td class=\"ds-num\"><span class=\"ds-na\">n/a</span></td></tr></tbody></table></div>",
+      "css": ".ds-minima-frame { border: 1.5px solid var(--color-ink, #14161a); background: var(--color-sheet, #ffffff); overflow-x: auto; } .ds-minima { width: 100%; border-collapse: collapse; font-family: Archivo, system-ui, -apple-system, BlinkMacSystemFont, sans-serif; font-variant-numeric: tabular-nums; } .ds-minima th { text-align: left; font-stretch: 75%; font-weight: 700; font-size: 0.6875rem; letter-spacing: 0.09em; text-transform: uppercase; color: var(--color-ink-3, #66707b); padding: 0.4rem 0.625rem; border-bottom: 1.5px solid var(--color-ink, #14161a); white-space: nowrap; } .ds-minima td { padding: 0.5rem 0.625rem; border-bottom: 1px solid var(--color-rule-faint, #e3e8ec); color: var(--color-ink, #14161a); font-weight: 500; font-size: 0.875rem; } .ds-minima tbody tr:hover td { background: var(--color-sunk, #f1f3f5); } .ds-minima tbody tr[data-selected=\"true\"] td { background: var(--color-procedure-tint, #fbe7f4); } .ds-minima .ds-num { text-align: right; } .ds-na { color: var(--color-ink-3, #66707b); font-stretch: 75%; font-weight: 600; letter-spacing: 0.06em; }"
+    },
+    {
+      "name": "Title Block",
+      "kind": "nav",
+      "refersTo": "plate-frame",
+      "description": "Every plate carries one. Ident names the subject, title names the procedure, the marginal cells carry the apparatus.",
+      "html": "<header class=\"ds-titleblock\"><div class=\"ds-titleblock-head\"><p class=\"ds-ident\">Yamaha MT-09</p><h1 class=\"ds-plate-title\">Run review</h1></div><dl class=\"ds-meta\"><div class=\"ds-meta-cell\"><dt class=\"ds-ident\">Gear</dt><dd class=\"ds-data\">4th</dd></div><div class=\"ds-meta-cell\"><dt class=\"ds-ident\">Mass</dt><dd class=\"ds-data\">238 kg</dd></div><div class=\"ds-meta-cell\"><dt class=\"ds-ident\">Rollout</dt><dd class=\"ds-data\">0.49 m/rev</dd></div><div class=\"ds-meta-cell\"><dt class=\"ds-ident\">Samples</dt><dd class=\"ds-data\">3 204</dd></div></dl></header>",
+      "css": ".ds-titleblock { border: 1.5px solid var(--color-ink, #14161a); background: var(--color-sheet, #ffffff); font-family: Archivo, system-ui, -apple-system, BlinkMacSystemFont, sans-serif; } .ds-titleblock-head { padding: 0.625rem 1rem; } .ds-ident { margin: 0; font-stretch: 75%; font-weight: 600; font-size: 0.6875rem; line-height: 1.1; letter-spacing: 0.09em; text-transform: uppercase; color: var(--color-ink-3, #66707b); } .ds-plate-title { margin: 0.25rem 0 0; font-stretch: 87%; font-weight: 800; font-size: 1.0625rem; line-height: 1.05; letter-spacing: 0.02em; text-transform: uppercase; color: var(--color-ink, #14161a); } .ds-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; border-top: 1px solid var(--color-rule, #c3cbd2); } .ds-meta-cell { padding: 0.5rem 1rem; } .ds-meta-cell + .ds-meta-cell { border-left: 1px solid var(--color-rule, #c3cbd2); } .ds-meta-cell:nth-child(n+3) { border-top: 1px solid var(--color-rule, #c3cbd2); } .ds-meta-cell:nth-child(odd):not(:first-child) { border-left: 0; } .ds-data { margin: 0.25rem 0 0; font-weight: 550; font-size: 0.875rem; font-variant-numeric: tabular-nums; color: var(--color-ink, #14161a); } @media (min-width: 640px) { .ds-meta { grid-template-columns: repeat(4, minmax(0, 1fr)); } .ds-meta-cell:nth-child(n+3) { border-top: 0; } .ds-meta-cell:nth-child(odd):not(:first-child) { border-left: 1px solid var(--color-rule, #c3cbd2); } }"
+    },
+    {
+      "name": "Readout",
+      "kind": "custom",
+      "refersTo": "plate-frame",
+      "description": "The primary reading, and deliberately not a stat card: no box, no icon, no shadow, no equal-sized siblings filling a grid.",
+      "html": "<div class=\"ds-readout-wrap\"><p class=\"ds-ident\">Peak wheel power</p><p class=\"ds-readout\">112.4<span class=\"ds-unit\">kW</span></p><p class=\"ds-ident\">at 6 100 RPM, pipeline v1</p></div>",
+      "css": ".ds-readout-wrap { font-family: Archivo, system-ui, -apple-system, BlinkMacSystemFont, sans-serif; } .ds-readout { margin: 0.375rem 0; font-stretch: 112%; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.025em; line-height: 0.86; font-size: clamp(2.25rem, 6vw, 4rem); color: var(--color-ink, #14161a); } .ds-unit { margin-left: 0.375rem; font-size: 0.28em; font-stretch: 75%; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--color-ink-3, #66707b); vertical-align: baseline; }"
+    },
+    {
+      "name": "Advisory",
+      "kind": "custom",
+      "refersTo": "advisory",
+      "description": "An advisory you have to read before trusting the sheet. Amber is spent here and nowhere else, and on trackside screens it is a persistent banner, never a toast.",
+      "html": "<div class=\"ds-advisory\" role=\"status\"><span class=\"ds-advisory-mark\" aria-hidden=\"true\"></span><p class=\"ds-advisory-text\">GPS accuracy is 22 m. Readings taken now will not be comparable. Wait for the lock to tighten or override below.</p></div>",
+      "css": ".ds-advisory { display: flex; align-items: flex-start; gap: 0.75rem; border: 1px solid var(--color-caution, #a85d00); background: var(--color-caution-tint, #fbf0dd); border-radius: 0; padding: 0.625rem 0.75rem; } .ds-advisory-mark { width: 0.875rem; height: 0.875rem; flex: 0 0 auto; margin-top: 0.125rem; background: var(--color-caution, #a85d00); } .ds-advisory-text { margin: 0; font-family: Archivo, system-ui, -apple-system, BlinkMacSystemFont, sans-serif; font-size: 0.8125rem; line-height: 1.5; color: var(--color-ink, #14161a); max-width: 68ch; }"
+    },
+    {
+      "name": "Gauge",
+      "kind": "custom",
+      "refersTo": "gauge-track",
+      "description": "A bounded reading against its limit: GPS lock, a stability window, a hold countdown. Ink fill so it reads in sunlight; magenta only once the threshold is reached; amber when the reading is blocked.",
+      "html": "<div class=\"ds-gauge-wrap\"><div class=\"ds-gauge-head\"><span class=\"ds-ident\">Signal lock</span><span class=\"ds-gauge-value\">6.4<span class=\"ds-gauge-unit\">m</span></span></div><div class=\"ds-gauge\" data-reached=\"true\"><span class=\"ds-gauge-fill\" style=\"transform: scaleX(0.78)\"></span></div><p class=\"ds-ident ds-gauge-note\">Accuracy held under 10 m for 2 s</p></div>",
+      "css": ".ds-gauge-wrap { font-family: Archivo, system-ui, -apple-system, BlinkMacSystemFont, sans-serif; } .ds-gauge-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.375rem; } .ds-gauge-value { font-weight: 550; font-size: 0.875rem; font-variant-numeric: tabular-nums; color: var(--color-ink, #14161a); } .ds-gauge-unit { margin-left: 0.25rem; font-stretch: 75%; font-weight: 600; font-size: 0.6875rem; letter-spacing: 0.09em; text-transform: uppercase; color: var(--color-ink-3, #66707b); } .ds-gauge { position: relative; height: 10px; border: 1px solid var(--color-ink, #14161a); background: var(--color-sheet, #ffffff); border-radius: 0; overflow: hidden; } .ds-gauge-fill { position: absolute; inset: 0; transform-origin: left center; background: var(--color-ink, #14161a); transition: transform 160ms linear; } .ds-gauge[data-reached=\"true\"] .ds-gauge-fill { background: var(--color-procedure, #c6188e); } .ds-gauge[data-blocked=\"true\"] { border-color: var(--color-caution, #a85d00); } .ds-gauge[data-blocked=\"true\"] .ds-gauge-fill { background: var(--color-caution, #a85d00); } .ds-gauge-note { margin: 0.375rem 0 0; }"
+    },
+    {
+      "name": "Channel Strip",
+      "kind": "custom",
+      "refersTo": "nav-tab",
+      "description": "The swatch, name, unit and current value of one series. Shared by every chart legend, so a lap, a run and a sensor channel are identified the same way. Colour and dash together, never hue alone.",
+      "html": "<div class=\"ds-strip\"><svg width=\"22\" height=\"10\" viewBox=\"0 0 22 10\" aria-hidden=\"true\"><line x1=\"0\" y1=\"5\" x2=\"22\" y2=\"5\" stroke=\"var(--color-procedure, #c6188e)\" stroke-width=\"2.5\"></line></svg><span class=\"ds-strip-name\">Lap 4</span><span class=\"ds-strip-value\">1:32.18</span></div><div class=\"ds-strip\"><svg width=\"22\" height=\"10\" viewBox=\"0 0 22 10\" aria-hidden=\"true\"><line x1=\"0\" y1=\"5\" x2=\"22\" y2=\"5\" stroke=\"var(--color-ink, #14161a)\" stroke-width=\"2.5\" stroke-dasharray=\"7 3\"></line></svg><span class=\"ds-strip-name\">Lap 7 (reference)</span><span class=\"ds-strip-value\">1:32.94</span></div>",
+      "css": ".ds-strip { display: flex; align-items: center; gap: 0.625rem; padding: 0.5rem 0.75rem; font-family: Archivo, system-ui, -apple-system, BlinkMacSystemFont, sans-serif; } .ds-strip + .ds-strip { border-top: 1px solid var(--color-rule-faint, #e3e8ec); } .ds-strip-name { flex: 1 1 auto; min-width: 0; font-stretch: 87%; font-weight: 700; font-size: 0.75rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--color-ink, #14161a); } .ds-strip-value { flex: 0 0 auto; font-weight: 550; font-size: 0.875rem; font-variant-numeric: tabular-nums; color: var(--color-ink, #14161a); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Instrument Approach Plate",
+    "overview": "Every screen in this product is one sheet that has to be read correctly under stress. The apparatus is fixed and named: a title block, a plan view, a profile view sharing the plan’s axis, a boxed minima table, a notes box, a revision bar at the foot. DynoRun and Grip are not two products sharing a repository; they are the same document type carrying different content, and a reader who learns one sheet can read every other one. The landing page is the same document type too, drawing real pipeline output rather than a screenshot.\n\nThe material is paper and ink, not glass and plastic. Structure is made of hairline rules and boxed frames. There are no cards, no radii, no shadows, no tonal elevation, and no gradient anywhere in the product. Hierarchy comes from one variable typeface worked across width, weight, case and rule, so the whole sheet survives being printed in a single ink. Colour is spent only where it changes a decision: procedure magenta means \"the line you actually flew\", amber means an advisory you must read, and everything else is ink and blue-grey terrain. Hatching marks the regions where nothing was measured, because a blank region reads as \"nothing happened\" and a hatched one reads as \"not measured here\", which is the honest statement and this product’s whole position.\n\nTwo plates ship, and both are first class. The day plate is the default because the real scene is a phone in a gloved hand in direct sun, where a dark interface is a mirror. The night plate inverts the sheet and is a genuine variant of the same world, never a bolted-on dark mode. The confirmed anti-reference is the dark telemetry dashboard of rounded stat cards: no card grid, no hero-metric tile, no per-tool brand hue, no glow.",
+    "keyCharacteristics": [
+      "One sheet per screen, composed only from named plate slots",
+      "Hairline rules and boxed frames; zero radius, zero shadow, zero card",
+      "One family (Archivo variable) across eight fixed type registers",
+      "Colour spent only where it changes a decision; magenta for the subject, amber for advisories",
+      "Missing data is hatched or printed n/a, never blank and never zero",
+      "Day plate by default, night plate as a real variant, both driven by one token block",
+      "Every numeral tabular, every axis a bare integer"
+    ],
+    "rules": [
+      {
+        "name": "The Spent Colour Rule",
+        "body": "Colour appears only where it changes a decision. If removing a hue would not change what a reader does next, it should not be there; ink and terrain carry everything else.",
+        "section": "colors"
+      },
+      {
+        "name": "The Subject Magenta Rule",
+        "body": "Series 0 is the subject (this run, this lap, the line you actually flew) and takes procedure magenta; everything it is measured against falls back to ink and the remaining series inks. Ordering ink first inverts the world: a single-series run curve draws near-black and the only magenta left on a measurement screen is a button.",
+        "section": "colors"
+      },
+      {
+        "name": "The No Brand Hue Rule",
+        "body": "DynoRun and Grip have no colour of their own. The abolished amber-DynoRun and blue-Grip accents both competed with the data plotted beside them. The two tools are told apart by their glyph and by the title block.",
+        "section": "colors"
+      },
+      {
+        "name": "The Graphic Ink Rule",
+        "body": "terrain, rule, rule-faint and every tint are graphic inks and never carry text. Text uses ink, ink-2 or ink-3 only; those three clear 4.5:1 against the sheet on both plates, and terrain does not.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two Plates Rule",
+        "body": "Every colour is a --color-* custom property and nothing resolves a literal hex, in CSS or in canvas code. The night plate redefines the same fifteen properties in one block under :root[data-plate=\"night\"] and again under prefers-color-scheme: dark guarded as :root:not([data-plate=\"day\"]).",
+        "section": "colors"
+      },
+      {
+        "name": "The Same Ink Both Halves Rule",
+        "body": "Canvas cannot read a custom property, so charts resolve the plate’s inks through usePlateInk(), which watches both the data-plate attribute and the OS preference. A chart that watched only one keeps drawing day ink on a night sheet.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Family Rule",
+        "body": "Archivo is the only face in the product. A new hierarchy level is a new combination of width, weight, case and rule, never a second typeface and never a system display face.",
+        "section": "typography"
+      },
+      {
+        "name": "The Register Rule",
+        "body": "Type is applied by register class, not by ad-hoc font-size. A surface that needs a size the registers do not have is a gap in the system.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Rule",
+        "body": "Every numeral in this product is a measurement, so tabular figures are set on body and reasserted on tables and readouts. Figures never reflow as they tick.",
+        "section": "typography"
+      },
+      {
+        "name": "The n/a Rule",
+        "body": "A measurement that could not be taken prints n/a in the annotation register, so it can never be scanned as a value. Never a zero, never blank, and never a dash glyph.",
+        "section": "typography"
+      },
+      {
+        "name": "The No Dash Rule",
+        "body": "No en or em dashes anywhere: UI copy, labels, chart titles, alt text. Numeric ranges take a hyphen. The U+2212 minus in a signed delta is a maths operator and stays.",
+        "section": "typography"
+      },
+      {
+        "name": "The Named Zone Rule",
+        "body": "Zone requires a label. No region of a plate goes unnamed, so wayfinding is reading rather than guessing.",
+        "section": "layout"
+      },
+      {
+        "name": "The Layered Cascade Rule",
+        "body": "Base and component CSS live inside @layer base and @layer components, and the rule dividers are registered with @utility. An unlayered rule beats every Tailwind utility regardless of specificity, and a divider written as a plain class silently compiles no responsive variant.",
+        "section": "layout"
+      },
+      {
+        "name": "The Two Renditions Rule",
+        "body": "The prerendered landing plots ship at two viewBox widths and CSS picks the one whose column it was drawn for. SVG text is measured in viewBox units, so one frame cannot serve a phone column and a desktop column, and the landing page is hook-free by contract.",
+        "section": "layout"
+      },
+      {
+        "name": "The No-Card Rule",
+        "body": "A frame is the plate’s only container. Anything that needs separating gets a rule, not a card, and never a nested one.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Flat State Rule",
+        "body": "State changes tone or rule, never depth. The active state everywhere inverts to solid ink, so it survives sunlight, gloves and a colour-blind reader.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Hatch Rule",
+        "body": "Missing, masked or unmeasured data is hatched at 45 degrees, 4px transparent to 1px rule, never left blank and never filled with zero. The DOM half and the canvas half must stay at the same angle and pitch.",
+        "section": "shapes"
+      },
+      {
+        "name": "The Empty Table Rule",
+        "body": "A table with no rows renders a hatched block carrying a sentence, not an illustration and not whitespace.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do compose every screen from the plate slots (TitleBlock, PlanView, ProfileView, MinimaTable, NotesBox, Advisory, RevisionBar, Zone, PlateRow). If a screen needs something the system lacks, add it to src/ui/plate/ so all surfaces get it.",
+      "Do resolve every colour through a --color-* custom property, and in canvas through usePlateInk(), so both plates switch together.",
+      "Do give every overlaid series a colour and a dash (seriesInk + SERIES_DASH), with series 0 as the subject in procedure magenta.",
+      "Do print n/a in the annotation register for anything unmeasured, and hatch any masked or unmeasured region.",
+      "Do state what a measurement is worth on the sheet, in a NotesBox, next to the number it qualifies.",
+      "Do keep every control at 44px minimum height, and use ctl-major (76px, full width) for anything a rider touches at the track.",
+      "Do author new CSS inside @layer base / @layer components, and any new divider with @utility.",
+      "Do write axis ticks as bare round integers with the unit stated once in the plot corner."
+    ],
+    "donts": [
+      "Don’t add a card, a radius, a shadow, a gradient, a glass blur, or a tonal elevation. A frame and a rule are the only containers.",
+      "Don’t reintroduce a per-tool brand colour, or spend a hue anywhere it does not change a decision.",
+      "Don’t use terrain, rule, rule-faint or any tint for text.",
+      "Don’t signal state by hue alone: the active state inverts to solid ink.",
+      "Don’t hardcode a hex in CSS or in chart code.",
+      "Don’t introduce a second typeface, a system display face, or monospace as a costume for \"technical\".",
+      "Don’t set an ad-hoc font-size in place of a type register.",
+      "Don’t place a small uppercase line above a heading as decoration. The title block’s ident is the subject of the sheet, which is data; a kicker or eyebrow is not available in this world.",
+      "Don’t print a zero, a blank, or a dash glyph for a value that could not be measured, and don’t use an en or em dash anywhere in the repo.",
+      "Don’t stand a progress ring, a sparkline or a soft rounded rectangle in for content, and don’t use a Unicode glyph or emoji in place of a drawn icon.",
+      "Don’t surface a trackside advisory as a toast; it must still be on screen when the rider pulls the phone out of a pocket."
+    ]
+  }
+}
