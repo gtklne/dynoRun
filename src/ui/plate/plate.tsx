@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
 /**
@@ -39,25 +39,33 @@ export function TitleBlock({
           {ident && <p className="t-annotation mb-1 truncate">{ident}</p>}
           <h1 className="t-plate-title">{title}</h1>
         </div>
+        {meta && meta.length === 1 && (
+          <div className="min-w-0">
+            <p className="t-annotation">{meta[0].label}</p>
+            <p className="t-data mt-1 text-sm">{meta[0].value}</p>
+          </div>
+        )}
         {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
       </div>
-      {meta && meta.length > 0 && (
+      {meta && meta.length > 1 && (
         <dl
-          className="rule-t grid grid-cols-2"
-          style={{
-            // Track sized to the cells present. A fixed four-column grid put
-            // two cells at a quarter of a narrow column each, so both wrapped
-            // inside a row that was mostly blank sheet.
-            gridTemplateColumns: `repeat(${Math.min(meta.length, 4)}, minmax(0, 1fr))`,
-          }}
+          className="rule-t meta-grid"
+          style={
+            {
+              // The track is sized to the cells present, at each breakpoint, and
+              // it has to come through custom properties rather than an inline
+              // grid-template: an inline template beats the responsive class and
+              // held four cells four-across on a phone, which pushed the last
+              // cell's control straight through the frame's right hairline.
+              '--meta-cols': Math.min(meta.length, 4),
+              '--meta-cols-narrow': Math.min(meta.length, 2),
+            } as CSSProperties
+          }
         >
-          {meta.map((m, i) => (
-            <div
-              key={m.label}
-              className={`px-3 py-2 sm:px-4 ${i > 0 ? 'rule-l' : ''} ${i >= 2 ? 'rule-t sm:border-t-0' : ''}`}
-            >
+          {meta.map((m) => (
+            <div key={m.label} className="meta-cell px-3 py-2 sm:px-4">
               <dt className="t-annotation">{m.label}</dt>
-              <dd className="t-data mt-1 text-sm">{m.value}</dd>
+              <dd className="t-data mt-1 min-w-0 text-sm">{m.value}</dd>
             </div>
           ))}
         </dl>

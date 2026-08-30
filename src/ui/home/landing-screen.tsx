@@ -936,7 +936,7 @@ export function LandingScreen() {
           </section>
 
           <Zone label="Notes" note="What these measurements are worth">
-            <div className="grid lg:grid-cols-3">
+            <div className="grid">
               {[
                 {
                   head: 'Wheel power',
@@ -953,10 +953,10 @@ export function LandingScreen() {
               ].map((n, i) => (
                 <div
                   key={n.head}
-                  className={`border-rule px-4 py-4 ${i > 0 ? 'border-t lg:border-l lg:border-t-0' : ''}`}
+                  className={`grid gap-x-6 gap-y-1 px-4 py-4 sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)] ${i > 0 ? 'rule-t' : ''}`}
                 >
                   <p className="t-label">{n.head}</p>
-                  <p className="t-body mt-2 text-[0.8125rem] leading-6">{n.body}</p>
+                  <p className="t-body text-[0.8125rem] leading-6">{n.body}</p>
                 </div>
               ))}
             </div>
@@ -995,18 +995,15 @@ export function LandingScreen() {
             {/* A ruled strip, not a third right-hand column: the two tool
                 sections above already own that shape, and repeating it a third
                 time turns the page into a template. */}
-            <dl className="rule-t grid sm:grid-cols-3">
+            <dl className="rule-t flex flex-wrap gap-x-10 gap-y-2 px-4 py-3 sm:px-8">
               {[
-                { term: 'What it costs', def: 'Nothing. There is no paid plan today.' },
-                { term: 'What you need', def: 'A phone with GPS. No rollers, no dongle, no drum.' },
-                { term: 'What we store', def: 'Your vehicles, runs and sessions. One session cookie, no analytics.' },
-              ].map((row, i) => (
-                <div
-                  key={row.term}
-                  className={`border-rule px-4 py-4 sm:px-6 ${i > 0 ? 'border-t sm:border-l sm:border-t-0' : ''}`}
-                >
+                { term: 'Costs', def: 'Nothing today' },
+                { term: 'Needs', def: 'A phone with GPS' },
+                { term: 'Stores', def: 'Your runs, one session cookie' },
+              ].map((row) => (
+                <div key={row.term} className="flex items-baseline gap-2">
                   <dt className="t-annotation">{row.term}</dt>
-                  <dd className="t-body mt-1.5 text-[0.8125rem] leading-6">{row.def}</dd>
+                  <dd className="t-data text-[0.8125rem]">{row.def}</dd>
                 </div>
               ))}
             </dl>

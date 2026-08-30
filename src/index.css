@@ -258,6 +258,42 @@
 }
 
 @layer components {
+  /* ----------------------------------------------------------- meta grid --- */
+  /* The title block's marginal cells. Counts arrive as custom properties so the
+     breakpoint can live here: an inline grid-template on the element beat the
+     responsive class and kept four cells four-across on a phone. */
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(var(--meta-cols-narrow, 2), minmax(0, 1fr));
+  }
+
+  .meta-cell + .meta-cell {
+    border-left: var(--rule-hair) solid var(--color-rule);
+  }
+
+  /* Every cell that starts a new row takes a top rule instead of a left one. */
+  .meta-grid > .meta-cell:nth-child(n + 3) {
+    border-top: var(--rule-hair) solid var(--color-rule);
+  }
+
+  .meta-grid > .meta-cell:nth-child(odd):not(:first-child) {
+    border-left: 0;
+  }
+
+  @media (min-width: 640px) {
+    .meta-grid {
+      grid-template-columns: repeat(var(--meta-cols, 4), minmax(0, 1fr));
+    }
+
+    .meta-grid > .meta-cell:nth-child(n + 3) {
+      border-top: 0;
+    }
+
+    .meta-grid > .meta-cell:nth-child(odd):not(:first-child) {
+      border-left: var(--rule-hair) solid var(--color-rule);
+    }
+  }
+
   /* ---------------------------------------------------------------- uplot --- */
   /* uPlot ships its own legend, cursor and axis chrome. Left alone it renders a
      centred "Value:" row with a default marker box, which is exactly the

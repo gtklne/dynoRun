@@ -12,8 +12,10 @@ import { readPlateInk, seriesInk, SERIES_DASH, type PlateInk } from '@/ui/plate/
 
 const FAMILY = 'Archivo, system-ui, -apple-system, sans-serif';
 
-export const CHART_FONT = `500 11px ${FAMILY}`;
-export const CHART_LABEL_FONT = `700 11px ${FAMILY}`;
+// 10px matches the hand-drawn landing plots' tick target exactly, so the
+// two renditions of the same instrument do not read at different sizes.
+export const CHART_FONT = `600 10px ${FAMILY}`;
+export const CHART_LABEL_FONT = `700 10px ${FAMILY}`;
 export const HOVER_POINT_SIZE = 9;
 
 const MOBILE_BREAKPOINT = 640;
@@ -93,7 +95,11 @@ export function themedAxis(opts: ThemedAxisOptions = {}): uPlot.Axis {
     font: CHART_FONT,
     labelFont: CHART_LABEL_FONT,
     grid: { stroke: ink.ruleFaint, width: 1, show: opts.showGrid !== false },
-    ticks: { stroke: ink.rule, width: 1 },
+    // No tick dashes, and an ink spine: the landing plots draw a heavy axis
+    // line with unmarked ticks, and two plots of the same instrument cannot
+    // draw their axis furniture two different ways.
+    ticks: { show: false },
+    border: { show: true, stroke: ink.ink, width: 1.5 },
   };
   if (opts.label !== undefined) axis.label = opts.label;
   if (opts.scale !== undefined) axis.scale = opts.scale;
