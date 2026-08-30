@@ -3,8 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#09090b" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#101316" media="(prefers-color-scheme: dark)" />
     <meta name="description" content="Measure GPS-derived wheel power, compare runs, and analyze RaceBox grip and corners in one focused browser toolkit for drivers." />
+    <link rel="preload" href="/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/favicon.svg" />
@@ -27,6 +29,26 @@
     <title>wasgoht | GPS dyno and grip analysis for drivers.</title>
   </head>
   <body>
+    <!--
+      DIRECTION CONTRACT (impeccable, seed fc19f008)
+
+      THESIS: Every screen is an instrument approach plate, one sheet read correctly
+      under stress. It refuses the dark dashboard of rounded stat cards.
+      OWN-WORLD: White chart sheet, near-black ink, blue-grey terrain, magenta only on
+      the line you actually flew, amber only for advisories. Hairline rules and boxed
+      frames, never cards or shadows. One family, Archivo variable: hierarchy comes from
+      width, weight, case and rule. Hatching marks missing data; nothing is blank. The
+      night plate inverts the sheet.
+      STORY: A rider sees a measurement they can defend, understands what it is worth,
+      and decides whether the change stays.
+      FIRST VIEWPORT: Title block across the top; plan view left; marginal legend right;
+      profile view beneath, sharing the plan axis; boxed minima table beside it; revision
+      bar at the foot. The primary action is a solid ink plate in the legend column.
+      FORM: Approach Plate, position 1 of 7 on the ordered list, taken as the pick card
+      against assigned index 7; seed key fc19f008.
+      FINISH: unreviewed and undocumented is unfinished; this build ends with the finish
+      review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+    -->
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
