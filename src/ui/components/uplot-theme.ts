@@ -99,10 +99,10 @@ export function themedAxis(opts: ThemedAxisOptions = {}): uPlot.Axis {
   if (opts.scale !== undefined) axis.scale = opts.scale;
   if (opts.side !== undefined) axis.side = opts.side;
   if (opts.labelSize !== undefined) axis.labelSize = opts.labelSize;
-  if (opts.decimals !== undefined) {
-    const d = opts.decimals;
-    axis.values = (_u: uPlot, splits: number[]) => splits.map((v) => v.toFixed(d));
-  }
+  // Bare integers, never grouped thousands: the plate writes 2000 RPM, not
+  // 1,000, and the landing plots and the app plots have to agree.
+  const decimals = opts.decimals ?? 0;
+  axis.values = (_u: uPlot, splits: number[]) => splits.map((v) => v.toFixed(decimals));
   return axis;
 }
 

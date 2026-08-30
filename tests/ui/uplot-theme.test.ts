@@ -42,7 +42,12 @@ describe('themedAxis decimals', () => {
     expect(fmt(u, [-4, 0, 4])).toEqual(['-4.0', '0.0', '4.0']);
   });
 
-  it('leaves ticks to uPlot when decimals is unset', () => {
-    expect(themedAxis({ label: 'RPM' }).values).toBeUndefined();
+  it('writes bare integers rather than uPlot\u2019s grouped thousands', () => {
+    // One annotation grammar across the product: the hand-drawn landing plots
+    // and the uPlot app charts both write 2000, never 1,000. Leaving ticks to
+    // uPlot here is what let two label languages ship on one document type.
+    const values = themedAxis({}).values as (u: unknown, splits: number[]) => string[];
+    expect(values).toBeTypeOf('function');
+    expect(values(null, [1000, 2000, 6500])).toEqual(['1000', '2000', '6500']);
   });
 });

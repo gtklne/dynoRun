@@ -91,7 +91,7 @@ export function DemoRunScreen() {
               { label: 'Signal', value: <RunQualityBadge quality={analyzed.quality} /> },
             ]}
             actions={
-              <Link to="/login" className="ctl ctl-procedure no-underline">
+              <Link to="/login" className="ctl ctl-solid no-underline">
                 Sign in to record your own
               </Link>
             }

@@ -17,8 +17,12 @@ export function BrandHeader({ title, subtitle }: { title?: string; subtitle?: st
       ident="wasgoht"
       title={title ?? 'Sign in'}
       meta={[
-        { label: 'Procedure', value: subtitle ?? 'Account access' },
-        { label: 'Account', value: 'One account, both tools' },
+        // "Procedure / Account access" restated the title directly above it and
+        // "One account, both tools" restated the briefing column beside it, so
+        // both cells cost a line and told the reader nothing. A subtitle a
+        // screen actually supplies is real information and keeps its cell.
+        ...(subtitle ? [{ label: 'Procedure', value: subtitle }] : []),
+        { label: 'Tools', value: 'DynoRun and Grip' },
       ]}
     />
   );

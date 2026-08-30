@@ -79,8 +79,13 @@ describe('compare colours', () => {
   // ink: the same source the components read, never a second hardcoded copy.
   const ink = readPlateInk();
 
-  it('gives the reference the baseline ink and cycles the rest', () => {
-    expect(seriesColor(ink, 0)).toBe(ink.ink);
+  it('gives the subject procedure magenta and everything measured against it ink', () => {
+    // The world spends magenta on "the line you actually flew", so series 0,
+    // the lap or run under examination, takes it and the comparisons fall back
+    // to ink. Ordering ink first inverted the rule: a single-series run curve
+    // drew near-black and the only magenta on the screen was a button.
+    expect(seriesColor(ink, 0)).toBe(ink.procedure);
+    expect(seriesColor(ink, 1)).toBe(ink.ink);
     expect(seriesColor(ink, MAX_COMPARE_LAPS)).toBe(seriesColor(ink, 0));
     expect(seriesDash(MAX_COMPARE_LAPS)).toEqual(seriesDash(0));
   });

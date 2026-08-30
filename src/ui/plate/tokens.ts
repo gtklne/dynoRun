@@ -108,7 +108,12 @@ export function usePlateInk(): PlateInk {
  * reader and a phone screen in direct sun. Six is the compare screen's cap.
  */
 export function seriesInk(ink: PlateInk): string[] {
-  return [ink.ink, ink.procedure, ink.gain, ink.caution, ink.terrain, ink.ink3];
+  // Series 0 is the subject: this run, this lap, the line you actually flew.
+  // It takes procedure magenta, and everything it is measured against falls
+  // back to ink. Ordering ink first inverted the world's one colour rule, so a
+  // single-series run curve drew near-black while a marketing chart drew
+  // magenta, and the only magenta left on a measurement screen was a button.
+  return [ink.procedure, ink.ink, ink.gain, ink.caution, ink.terrain, ink.ink3];
 }
 
 export const SERIES_DASH: number[][] = [[], [7, 3], [2, 3], [10, 3, 2, 3], [1, 3], [14, 4]];

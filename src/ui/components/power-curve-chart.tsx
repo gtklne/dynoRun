@@ -69,8 +69,6 @@ export function PowerCurveChart({
     for (const s of series) for (const p of s.points) rpmSet.add(p.rpm);
     const xs = [...rpmSet].sort((a, b) => a - b);
 
-    const powerLabel = `Power (${unit})`;
-    const torqueLabel = 'Torque (Nm)';
 
     // Legend hover values: round + carry a unit (hp/PS read as whole numbers to
     // match the headline peak stats; kW keeps one decimal).
@@ -164,9 +162,9 @@ export function PowerCurveChart({
         height: computedHeight,
         scales: { x: { time: false }, power: {}, torque: {} },
         axes: [
-          themedAxis({ label: 'RPM', ink }),
-          themedAxis({ label: powerLabel, scale: 'power', decimals: 0, ink }),
-          themedAxis({ label: torqueLabel, scale: 'torque', side: 1, showGrid: false, decimals: 0, ink }),
+          themedAxis({ ink }),
+          themedAxis({ scale: 'power', decimals: 0, ink }),
+          themedAxis({ scale: 'torque', side: 1, showGrid: false, decimals: 0, ink }),
         ],
         series: plotSeries,
         legend: { show: true },
@@ -184,8 +182,8 @@ export function PowerCurveChart({
         height: computedHeight,
         scales: { x: { time: false } },
         axes: [
-          themedAxis({ label: 'RPM', ink }),
-          themedAxis({ label: useTorque ? torqueLabel : powerLabel, decimals: 0, ink }),
+          themedAxis({ ink }),
+          themedAxis({ decimals: 0, ink }),
         ],
         series: [
           { label: 'RPM', value: rpmValue },
@@ -218,5 +216,16 @@ export function PowerCurveChart({
   }, [series, mode, palette, unit, highlightLabel, height, ink]);
 
   if (series.length === 0) return <p className="t-annotation px-3 py-6 text-center">No data.</p>;
-  return <div ref={containerRef} data-plate-figures />;
+
+  // Units sit in the plot's corners, the way a chart sheet writes them, rather
+  // than as uPlot's rotated axis title. One grammar for every plot in the
+  // product, hand-drawn or uPlot, and it costs no width on a phone.
+  const yUnit = mode === 'both' ? `${unit} / Nm` : mode === 'torque' ? 'Nm' : unit;
+  return (
+    <div className="relative">
+      <span className="t-annotation absolute left-1 top-0 z-10">{yUnit}</span>
+      <span className="t-annotation absolute bottom-0 right-1 z-10">RPM</span>
+      <div ref={containerRef} data-plate-figures />
+    </div>
+  );
 }

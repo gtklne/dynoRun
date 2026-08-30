@@ -4,7 +4,6 @@ import { SuiteMark, Wordmark, GripMark } from '@/ui/components/brand-wordmark';
 import { BrandLogo } from '@/ui/components/brand-logo';
 import {
   MinimaTable,
-  NotesBox,
   PlanView,
   Plate,
   PlateAnchor,
@@ -220,6 +219,15 @@ const TURN_READINGS: TurnReading[] = TURN_SHAPES.map((shape) => {
 /* ----------------------------------------------------------------- plots --- */
 
 const PLAN_W = 680;
+/**
+ * Type inside these plots is specified in viewBox units, and the viewBox is
+ * scaled down hard on a phone (680 units into roughly a 326 px column, about
+ * 0.48x). A 10-unit label lands near 4.8 CSS px there, so annotation sizes are
+ * declared at their intended CSS size and multiplied up. Kept as one constant
+ * so a later plot cannot quietly reintroduce raw unit sizes.
+ */
+const TYPE_SCALE = 2.1;
+const tSize = (cssPx: number) => cssPx * TYPE_SCALE;
 const PLAN_H = 300;
 const PROFILE_H = 150;
 const PAD_L = 52;
@@ -278,7 +286,7 @@ function PowerPlot() {
             y={yAt(t, POWER_MAX, PLAN_H) + 3.5}
             textAnchor="end"
             className="fill-ink-3"
-            style={{ fontSize: 10, fontStretch: '75%', fontWeight: 600 }}
+            style={{ fontSize: tSize(5.0), fontStretch: '75%', fontWeight: 600 }}
           >
             {t}
           </text>
@@ -299,7 +307,7 @@ function PowerPlot() {
             y={PLAN_H - PAD_B + 15}
             textAnchor="middle"
             className="fill-ink-3"
-            style={{ fontSize: 10, fontStretch: '75%', fontWeight: 600 }}
+            style={{ fontSize: tSize(5.0), fontStretch: '75%', fontWeight: 600 }}
           >
             {r}
           </text>
@@ -344,7 +352,7 @@ function PowerPlot() {
           y={peakY - 8}
           textAnchor="end"
           className="fill-ink"
-          style={{ fontSize: 12, fontStretch: '87%', fontWeight: 700 }}
+          style={{ fontSize: tSize(6.0), fontStretch: '87%', fontWeight: 700 }}
         >
           {PEAK_POWER.wheel_power_kw.toFixed(0)} kW at {PEAK_POWER.rpm.toFixed(0)} RPM
         </text>
@@ -353,7 +361,7 @@ function PowerPlot() {
         x={PAD_L}
         y={11}
         className="fill-ink-3"
-        style={{ fontSize: 9, fontStretch: '75%', fontWeight: 700, letterSpacing: '0.09em' }}
+        style={{ fontSize: tSize(4.6), fontStretch: '75%', fontWeight: 700, letterSpacing: '0.09em' }}
       >
         KW
       </text>
@@ -362,7 +370,7 @@ function PowerPlot() {
         y={11}
         textAnchor="end"
         className="fill-ink-3"
-        style={{ fontSize: 9, fontStretch: '75%', fontWeight: 700, letterSpacing: '0.09em' }}
+        style={{ fontSize: tSize(4.6), fontStretch: '75%', fontWeight: 700, letterSpacing: '0.09em' }}
       >
         RPM
       </text>
@@ -394,7 +402,7 @@ function TorquePlot() {
             y={yAt(t, TORQUE_MAX, PROFILE_H) + 3.5}
             textAnchor="end"
             className="fill-ink-3"
-            style={{ fontSize: 10, fontStretch: '75%', fontWeight: 600 }}
+            style={{ fontSize: tSize(5.0), fontStretch: '75%', fontWeight: 600 }}
           >
             {t}
           </text>
@@ -430,7 +438,7 @@ function TorquePlot() {
         x={PAD_L}
         y={11}
         className="fill-ink-3"
-        style={{ fontSize: 9, fontStretch: '75%', fontWeight: 700, letterSpacing: '0.09em' }}
+        style={{ fontSize: tSize(4.6), fontStretch: '75%', fontWeight: 700, letterSpacing: '0.09em' }}
       >
         NM
       </text>
@@ -441,7 +449,7 @@ function TorquePlot() {
           y={PROFILE_H - PAD_B + 15}
           textAnchor="middle"
           className="fill-ink-3"
-          style={{ fontSize: 10, fontStretch: '75%', fontWeight: 600 }}
+          style={{ fontSize: tSize(5.0), fontStretch: '75%', fontWeight: 600 }}
         >
           {r}
         </text>
@@ -492,7 +500,7 @@ function TractionCircle() {
             y={CIRCLE_C - 5}
             textAnchor="end"
             className="fill-ink-3"
-            style={{ fontSize: 9, fontStretch: '75%', fontWeight: 700, letterSpacing: '0.08em' }}
+            style={{ fontSize: tSize(4.6), fontStretch: '75%', fontWeight: 700, letterSpacing: '0.08em' }}
           >
             {g.toFixed(1)} G
           </text>
@@ -533,7 +541,7 @@ function TractionCircle() {
         y={13}
         textAnchor="middle"
         className="fill-ink-3"
-        style={{ fontSize: 9, fontStretch: '75%', fontWeight: 700, letterSpacing: '0.09em' }}
+        style={{ fontSize: tSize(4.6), fontStretch: '75%', fontWeight: 700, letterSpacing: '0.09em' }}
       >
         DRIVE
       </text>
@@ -542,7 +550,7 @@ function TractionCircle() {
         y={CIRCLE_SIZE - 4}
         textAnchor="middle"
         className="fill-ink-3"
-        style={{ fontSize: 9, fontStretch: '75%', fontWeight: 700, letterSpacing: '0.09em' }}
+        style={{ fontSize: tSize(4.6), fontStretch: '75%', fontWeight: 700, letterSpacing: '0.09em' }}
       >
         BRAKE
       </text>
@@ -691,7 +699,10 @@ export function LandingScreen() {
           />
 
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] lg:items-start lg:gap-10">
-            <div className="flex flex-col gap-3">
+            {/* Source order puts the statement first so a phone reads what this
+                is before meeting two instruments; the desktop grid puts the
+                plates back on the left with an explicit column. */}
+            <div className="flex flex-col gap-3 lg:col-start-1 lg:row-start-1">
               <PlanView
                 label="Wheel power vs RPM"
                 scale={`${DEMO_GEAR}, ${DEMO_MASS_KG} kg, rollout ${DEMO_ROLLOUT_M_PER_REV} m/rev`}
@@ -716,7 +727,7 @@ export function LandingScreen() {
 
             {/* Named by its own heading rather than by a Zone label: a label set
                 above a display line reads as an eyebrow, and this world has none. */}
-            <section aria-labelledby="landing-thesis">
+            <section aria-labelledby="landing-thesis" className="order-first lg:order-none lg:col-start-2 lg:row-start-1">
               <h2 id="landing-thesis" className="t-display text-[clamp(2.4rem,5vw,3.6rem)]">
                 Change one thing.
                 <br />
@@ -762,10 +773,6 @@ export function LandingScreen() {
           </Zone>
 
           <section id="dynorun" aria-labelledby="dynorun-title">
-            <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-              <BrandLogo size={22} />
-              <Wordmark brand="dynorun" className="text-sm" />
-            </div>
             <div className="box-frame grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
               <div className="px-4 py-5 lg:px-5">
                 <h2 id="dynorun-title" className="t-display text-[clamp(1.9rem,3.6vw,2.7rem)]">
@@ -799,21 +806,39 @@ export function LandingScreen() {
           </section>
 
           <section id="grip" aria-labelledby="grip-title">
-            <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-              <GripMark size={22} />
-              <Wordmark brand="grip" className="text-sm" />
+            {/* Same composition as the DynoRun section above: two parallel
+                domains presented two different ways was the arbitrary
+                placement this redesign exists to remove. */}
+            <div className="box-frame grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+              <div className="px-4 py-5 lg:px-5">
+                <h2 id="grip-title" className="t-display text-[clamp(1.9rem,3.6vw,2.7rem)]">
+                  Find the grip you left on track.
+                </h2>
+                <p className="t-body mt-4">
+                  Import a RaceBox CSV to see the traction circle you actually used, then
+                  compare the same turn across laps. Every headline figure is an absolute
+                  score, measured g demand times one hundred, so it is comparable across
+                  laps, sessions, bikes and riders instead of flattering your own best lap.
+                </p>
+                <div className="mt-6">
+                  <StartAction />
+                </div>
+              </div>
+              <dl className="border-rule border-t lg:border-l lg:border-t-0">
+                {[
+                  { term: 'Envelope', def: 'The traction boundary you actually reached, per angular bin, from your timed laps only. It describes what you did; it is never used as a divisor.' },
+                  { term: 'Turns', def: 'Apexes are matched to a track turn across every lap, so T4 means the same bend on lap 1 and lap 9.' },
+                  { term: 'Compare', def: 'Up to six laps on one spatial axis, with the stretch outside their common section hatched rather than guessed.' },
+                ].map((row, i) => (
+                  <div key={row.term} className={`px-4 py-4 lg:px-5 ${i > 0 ? 'rule-t' : ''}`}>
+                    <dt className="t-label">{row.term}</dt>
+                    <dd className="t-body mt-1.5 text-[0.8125rem] leading-6">{row.def}</dd>
+                  </div>
+                ))}
+              </dl>
             </div>
-            <h2 id="grip-title" className="t-display text-[clamp(1.9rem,3.6vw,2.7rem)]">
-              Find the grip you left on track.
-            </h2>
-            <p className="t-body mt-4">
-              Import a RaceBox CSV to see the traction circle you actually used, then compare
-              the same turn across laps. Every headline figure is an absolute score, measured
-              g demand times one hundred, so it is comparable across laps, sessions, bikes and
-              riders instead of flattering your own best lap.
-            </p>
 
-            <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:items-start">
+            <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:items-start">
               <PlanView
                 label="Traction circle"
                 scale={`${GRIP_SAMPLES.length} samples, 4 laps`}
@@ -862,24 +887,32 @@ export function LandingScreen() {
             </div>
           </section>
 
-          <NotesBox title="Notes: what these measurements are worth">
-            <p>
-              Wheel power is estimated from GPS acceleration, vehicle mass, gearing, and
-              road-load assumptions. It is not a replacement for a calibrated rolling-road
-              dyno. Treat it as a comparative measurement: the same car, the same road, before
-              and after a change.
-            </p>
-            <p className="mt-3">
-              Grip analysis reflects GPS and IMU quality, tyre conditions, driver inputs, and
-              the settings you choose. It does not measure the tyre&apos;s absolute limit. The
-              traction envelope describes what you reached, and is never used as a divisor.
-            </p>
-            <p className="mt-3">
-              The curve, the circle and both tables on this page are computed live from
-              synthetic input by the same code that runs on your data. No vehicle was driven
-              to produce them.
-            </p>
-          </NotesBox>
+          <Zone label="Notes" note="What these measurements are worth">
+            <div className="grid lg:grid-cols-3">
+              {[
+                {
+                  head: 'Wheel power',
+                  body: 'Estimated from GPS acceleration, vehicle mass, gearing, and road-load assumptions. It is not a replacement for a calibrated rolling-road dyno. Treat it as a comparative measurement: the same vehicle, the same road, before and after a change.',
+                },
+                {
+                  head: 'Grip',
+                  body: 'Reflects GPS and IMU quality, tyre conditions, rider inputs, and the settings you choose. It does not measure the tyre\'s absolute limit. The traction envelope describes what you reached, and is never used as a divisor.',
+                },
+                {
+                  head: 'This page',
+                  body: 'The curve, the circle and both tables are computed live from synthetic input by the same code that runs on your data. No vehicle was driven to produce them.',
+                },
+              ].map((n, i) => (
+                <div
+                  key={n.head}
+                  className={`border-rule px-4 py-4 ${i > 0 ? 'border-t lg:border-l lg:border-t-0' : ''}`}
+                >
+                  <p className="t-label">{n.head}</p>
+                  <p className="t-body mt-2 text-[0.8125rem] leading-6">{n.body}</p>
+                </div>
+              ))}
+            </div>
+          </Zone>
 
           <Zone label="Procedure" note="Record. Compare. Decide.">
             <ol className="grid lg:grid-cols-3">
@@ -896,19 +929,38 @@ export function LandingScreen() {
             </ol>
           </Zone>
 
-          <section aria-labelledby="closing-title" className="box-frame px-4 py-8 sm:px-8 sm:py-10">
-            <h2 id="closing-title" className="t-display text-[clamp(2.2rem,4.6vw,3.4rem)]">
-              Make the next change count.
-            </h2>
-            <p className="t-body mt-5">
-              Test one variable, keep the evidence, and make the next decision against a
-              baseline you can defend. Sign-up takes an email address, and the demo takes
-              nothing at all.
-            </p>
-            <div className="mt-7 flex flex-wrap items-center gap-2.5">
-              <StartAction />
-              <DemoAction />
+          <section
+            aria-labelledby="closing-title"
+            className="box-frame grid lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]"
+          >
+            <div className="px-4 py-8 sm:px-8 sm:py-10">
+              <h2 id="closing-title" className="t-display text-[clamp(2.2rem,4.6vw,3.4rem)]">
+                Make the next change count.
+              </h2>
+              <p className="t-body mt-5">
+                Test one variable, keep the evidence, and make the next decision against a
+                baseline you can defend. Sign-up takes an email address, and the demo takes
+                nothing at all.
+              </p>
+              <div className="mt-7 flex flex-wrap items-center gap-2.5">
+                <StartAction />
+                <DemoAction />
+              </div>
             </div>
+            {/* The empty half of this frame now carries marginal apparatus, the
+                way a chart sheet's margin does, rather than blank sheet. */}
+            <dl className="border-rule border-t lg:border-l lg:border-t-0">
+              {[
+                { term: 'What it costs', def: 'Nothing. There is no paid plan today.' },
+                { term: 'What you need', def: 'A phone with GPS. No rollers, no dongle, no drum. A RaceBox CSV for the grip half.' },
+                { term: 'What we store', def: 'Your vehicles, runs and sessions. One session cookie, no analytics, no tracking.' },
+              ].map((row, i) => (
+                <div key={row.term} className={`px-4 py-4 sm:px-5 ${i > 0 ? 'rule-t' : ''}`}>
+                  <dt className="t-label">{row.term}</dt>
+                  <dd className="t-body mt-1.5 text-[0.8125rem] leading-6">{row.def}</dd>
+                </div>
+              ))}
+            </dl>
           </section>
 
           <RevisionBar
@@ -939,7 +991,20 @@ export function LandingScreen() {
               className="flex flex-wrap items-center gap-x-6 gap-y-2"
             >
               <a href="/demo" className="t-annotation no-underline hover:underline">Demo</a>
-              <a href="/grip" className="t-annotation no-underline hover:underline">Grip</a>
+              <a
+                href="#dynorun"
+                className="t-annotation inline-flex items-center gap-1.5 no-underline hover:underline"
+              >
+                <BrandLogo size={13} />
+                DynoRun
+              </a>
+              <a
+                href="/grip"
+                className="t-annotation inline-flex items-center gap-1.5 no-underline hover:underline"
+              >
+                <GripMark size={13} />
+                Grip
+              </a>
               <a href="/login" className="t-annotation no-underline hover:underline">Sign in</a>
               <a href="/privacy" className="t-annotation no-underline hover:underline">Privacy</a>
               <a href="/imprint" className="t-annotation no-underline hover:underline">Imprint</a>
