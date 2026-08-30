@@ -529,7 +529,6 @@ export function RunReviewScreen() {
               <div className="px-3 py-4">
                 <Readout
                   size="xl"
-                  tone="procedure"
                   label="Peak power"
                   unit={units.unit}
                   value={

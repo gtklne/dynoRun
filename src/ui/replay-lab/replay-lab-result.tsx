@@ -47,7 +47,6 @@ export function ReplayResultPanel(props: ReplayResultPanelProps) {
                   value={impliedRollout.toFixed(4)}
                   unit="m/rev"
                   label="Implied rollout"
-                  tone="procedure"
                   note={userRpm != null ? `at ${userRpm.toFixed(0)} RPM` : undefined}
                 />
               ) : (
@@ -103,7 +102,6 @@ export function ReplayResultPanel(props: ReplayResultPanelProps) {
               value={formatPower(peak.wheel_power_kw, unit, { unitSuffix: false })}
               unit={unit}
               label="Peak power"
-              tone="procedure"
               note={formatPower(peak.wheel_power_kw, opp)}
             />
           </div>

@@ -313,7 +313,6 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
               value={state.captured_speed_kmh.toFixed(1)}
               unit="km/h"
               size="xl"
-              tone="procedure"
             />
           </div>
         </Zone>

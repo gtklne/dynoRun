@@ -45,30 +45,36 @@
   --font-sans: "Archivo", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: "Archivo", ui-monospace, monospace;
 
-  /* Day plate. Overridden wholesale by the night plate below; every utility
-     resolves through these custom properties, so the switch is one block. */
-  --color-sheet: #ffffff;
-  --color-sunk: #f1f3f5;
-  --color-ink: #14161a;
-  --color-ink-2: #4c5560;
-  --color-ink-3: #66707b;
-  --color-rule: #c3cbd2;
-  --color-rule-faint: #e3e8ec;
-  --color-terrain: #92a4b0;
-  --color-terrain-tint: #dce3e8;
-  --color-procedure: #c6188e;
-  --color-procedure-tint: #fbe7f4;
-  --color-caution: #a85d00;
-  --color-caution-tint: #fbf0dd;
-  --color-gain: #007f86;
-  --color-gain-tint: #dff0f1;
+  /* Day specimen. Never pure white on pure black: the sheet is specimen stock
+     and the ink is a dark slate, so a page of dense figures stops glaring.
+     Overridden wholesale for the night specimen below. */
+  --color-sheet: #f1f2f0;
+  --color-plane: #e7e9e5;
+  --color-plane-2: #dcdfd9;
+  --color-ink: #22252a;
+  --color-ink-2: #5a6068;
+  --color-ink-3: #656b72;
 
-  /* The plate's apparatus. Rules are the only structural material. */
+  /* The construction grid. Visible, and the same grid the data plots on. */
+  --color-grid: #dee1db;
+  --color-grid-strong: #c7cbc3;
+
+  /* Traffic light, and it means exactly what it means on a circuit.
+     Green: gained, within, clean. Amber: read this before you trust the sheet.
+     Red: lost, at the limit, exceeded. Nothing else is coloured. */
+  --color-go: #1f6b33;
+  --color-go-plane: #dbe8dc;
+  --color-caution: #8f5c0c;
+  --color-caution-plane: #f3e8d4;
+  --color-stop: #b3261e;
+  --color-stop-plane: #f7e0dd;
+
+  /* One cell. Every measure in the system is a multiple of it, which is what
+     makes the layout grid and the chart graticule the same grid. */
+  --cell: 0.5rem;
   --rule-hair: 1px;
-  --rule-frame: 1.5px;
-  --rule-section: 2px;
+  --rule-strong: 2px;
 
-  /* Motion. One authored moment (the cross-reference), and plate issue. */
   --ease-plate: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -76,40 +82,38 @@
    variant), not a bolted-on dark mode. Magenta and amber brighten because the
    sheet went dark; terrain drops back so the ink still leads. */
 :root[data-plate="night"] {
-  --color-sheet: #101316;
-  --color-sunk: #181c20;
-  --color-ink: #e8ecef;
-  --color-ink-2: #a8b2bb;
-  --color-ink-3: #7e8892;
-  --color-rule: #2c3339;
-  --color-rule-faint: #1e2429;
-  --color-terrain: #5c6e7a;
-  --color-terrain-tint: #232b31;
-  --color-procedure: #ff3fb0;
-  --color-procedure-tint: #2b1122;
-  --color-caution: #e39a2b;
-  --color-caution-tint: #2a2013;
-  --color-gain: #3fd0d8;
-  --color-gain-tint: #10262a;
+  --color-sheet: #14161a;
+  --color-plane: #1d2025;
+  --color-plane-2: #262a30;
+  --color-ink: #e9ebe8;
+  --color-ink-2: #a9b0b6;
+  --color-ink-3: #838a91;
+  --color-grid: #262a30;
+  --color-grid-strong: #343a41;
+  --color-go: #4fbf6a;
+  --color-go-plane: #16281b;
+  --color-caution: #e0a030;
+  --color-caution-plane: #2a2113;
+  --color-stop: #f2645a;
+  --color-stop-plane: #2c1614;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-plate="day"]) {
-    --color-sheet: #101316;
-    --color-sunk: #181c20;
-    --color-ink: #e8ecef;
-    --color-ink-2: #a8b2bb;
-    --color-ink-3: #7e8892;
-    --color-rule: #2c3339;
-    --color-rule-faint: #1e2429;
-    --color-terrain: #5c6e7a;
-    --color-terrain-tint: #232b31;
-    --color-procedure: #ff3fb0;
-    --color-procedure-tint: #2b1122;
-    --color-caution: #e39a2b;
-    --color-caution-tint: #2a2013;
-    --color-gain: #3fd0d8;
-    --color-gain-tint: #10262a;
+    --color-sheet: #14161a;
+    --color-plane: #1d2025;
+    --color-plane-2: #262a30;
+    --color-ink: #e9ebe8;
+    --color-ink-2: #a9b0b6;
+    --color-ink-3: #838a91;
+    --color-grid: #262a30;
+    --color-grid-strong: #343a41;
+    --color-go: #4fbf6a;
+    --color-go-plane: #16281b;
+    --color-caution: #e0a030;
+    --color-caution-plane: #2a2113;
+    --color-stop: #f2645a;
+    --color-stop-plane: #2c1614;
   }
 }
 
@@ -172,12 +176,12 @@
 
   /* The surfaces we did not draw still belong to the plate. */
   ::selection {
-    background: var(--color-procedure);
+    background: var(--color-ink);
     color: var(--color-sheet);
   }
 
   :focus-visible {
-    outline: var(--rule-section) solid var(--color-procedure);
+    outline: var(--rule-strong) solid var(--color-ink);
     outline-offset: 2px;
   }
 
@@ -187,9 +191,9 @@
   }
 
   :root {
-    accent-color: var(--color-procedure);
-    caret-color: var(--color-procedure);
-    scrollbar-color: var(--color-rule) transparent;
+    accent-color: var(--color-ink);
+    caret-color: var(--color-ink);
+    scrollbar-color: var(--color-grid-strong) transparent;
     scrollbar-width: thin;
   }
 
@@ -203,17 +207,17 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: var(--color-rule);
+    background: var(--color-grid-strong);
     border: 3px solid var(--color-sheet);
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: var(--color-terrain);
+    background: var(--color-ink-3);
   }
 
   a {
     color: inherit;
-    text-decoration-color: var(--color-terrain);
+    text-decoration-color: var(--color-ink-3);
     text-underline-offset: 3px;
     text-decoration-thickness: 1px;
   }
@@ -239,22 +243,22 @@
 }
 
 @utility rule-t {
-  border-top: var(--rule-hair) solid var(--color-rule);
+  border-top: var(--rule-hair) solid var(--color-grid-strong);
 }
 @utility rule-b {
-  border-bottom: var(--rule-hair) solid var(--color-rule);
+  border-bottom: var(--rule-hair) solid var(--color-grid-strong);
 }
 @utility rule-l {
-  border-left: var(--rule-hair) solid var(--color-rule);
+  border-left: var(--rule-hair) solid var(--color-grid-strong);
 }
 @utility rule-r {
-  border-right: var(--rule-hair) solid var(--color-rule);
+  border-right: var(--rule-hair) solid var(--color-grid-strong);
 }
 @utility rule-none {
   border: 0;
 }
 @utility rule-section {
-  border-top: var(--rule-section) solid var(--color-ink);
+  border-top: var(--rule-strong) solid var(--color-ink);
 }
 
 @layer components {
@@ -268,12 +272,12 @@
   }
 
   .meta-cell + .meta-cell {
-    border-left: var(--rule-hair) solid var(--color-rule);
+    border-left: var(--rule-hair) solid var(--color-grid-strong);
   }
 
   /* Every cell that starts a new row takes a top rule instead of a left one. */
   .meta-grid > .meta-cell:nth-child(n + 3) {
-    border-top: var(--rule-hair) solid var(--color-rule);
+    border-top: var(--rule-hair) solid var(--color-grid-strong);
   }
 
   .meta-grid > .meta-cell:nth-child(odd):not(:first-child) {
@@ -290,7 +294,7 @@
     }
 
     .meta-grid > .meta-cell:nth-child(odd):not(:first-child) {
-      border-left: var(--rule-hair) solid var(--color-rule);
+      border-left: var(--rule-hair) solid var(--color-grid-strong);
     }
   }
 
@@ -311,7 +315,7 @@
     gap: 0 1.25rem;
     margin: 0;
     padding: 0.5rem 0.75rem;
-    border-top: var(--rule-hair) solid var(--color-rule);
+    border-top: var(--rule-hair) solid var(--color-grid-strong);
     text-align: left;
     font-variant-numeric: tabular-nums;
   }
@@ -361,7 +365,7 @@
 
   .uplot .u-cursor-x,
   .uplot .u-cursor-y {
-    border-color: var(--color-procedure) !important;
+    border-color: var(--color-go) !important;
     border-width: 1.5px !important;
   }
 
@@ -379,7 +383,7 @@
   /* Tint only, never a border: uPlot keeps this element in the DOM at zero
      size between drags, so any border paints a stray mark on an idle plot. */
   .uplot .u-select {
-    background: var(--color-procedure-tint);
+    background: var(--color-go-plane);
     border: 0;
   }
 
@@ -480,45 +484,120 @@
   }
 
   /* --------------------------------------------------------------- plate --- */
+/* A block is a PLANE, not a box. It separates itself from the sheet by being
+   filled, so the page carries almost no borders: the previous world put a
+   frame round everything and read as a wireframe. A rule is kept for a real
+   edge only, a table row or a section break. */
 
-  .plate {
-    background: var(--color-sheet);
-    border: var(--rule-frame) solid var(--color-ink);
+  /* Every plane is a sheet of the construction grid, at the same cell the
+     layout and the charts use. This is the world's thesis made literal: the
+     armature the page is built on and the graticule the data plots on are one
+     grid. Kept faint, because the previous world's failure was structure that
+     shouted. */
+  .plane {
+    background-color: var(--color-plane);
+    background-image:
+      repeating-linear-gradient(to right, var(--color-grid) 0 1px, transparent 1px calc(var(--cell) * 3)),
+      repeating-linear-gradient(to bottom, var(--color-grid) 0 1px, transparent 1px calc(var(--cell) * 3));
+    background-position: 0 0;
+  }
+
+  /* Where content must not compete with the armature: prose, tables, inputs. */
+  .plane-flat {
+    background-color: var(--color-plane);
+    background-image: none;
+  }
+
+  .plane-2 {
+    background: var(--color-plane-2);
+  }
+
+  /* The one earned accent plane per view: the block that carries the reading
+     the whole screen exists for. Inverted, so it is the thing you see first. */
+  /* The one earned accent plane per view: the block carrying the reading the
+     screen exists for. Inverted and gridded in its own ink, so it is the first
+     thing seen and still belongs to the same armature. */
+  .plane-ink {
+    background-color: var(--color-ink);
+    color: var(--color-sheet);
+    background-image:
+      repeating-linear-gradient(to right, rgb(255 255 255 / 0.06) 0 1px, transparent 1px calc(var(--cell) * 3)),
+      repeating-linear-gradient(to bottom, rgb(255 255 255 / 0.06) 0 1px, transparent 1px calc(var(--cell) * 3));
+  }
+
+  .plane-ink .block-head {
+    border-bottom-color: rgb(255 255 255 / 0.18);
+  }
+
+  .plane-ink .t-annotation,
+  .plane-ink .t-label {
+    color: color-mix(in srgb, var(--color-sheet) 68%, transparent);
+  }
+
+  .plane-ink .t-data,
+  .plane-ink .t-readout,
+  .plane-ink .t-readout-xl {
+    color: var(--color-sheet);
+  }
+
+  /* The construction grid, visible and shared. The page layout aligns to it
+     and every chart plots on it, which is the whole thesis: one armature. */
+  .specimen-grid {
+    background-image:
+      repeating-linear-gradient(
+        to right,
+        var(--color-grid) 0 1px,
+        transparent 1px calc(100% / 12)
+      );
+    background-size: 100% 100%;
+  }
+
+  /* A block's label lives in a top band INSIDE the block, always. The previous
+     system put Zone labels above the frame and PlanView labels inside it, so
+     any screen mixing them showed two conventions at once. One rule now. */
+  .block-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0 calc(var(--cell) * 2);
+    padding: calc(var(--cell) * 1.25) calc(var(--cell) * 1.5);
+    border-bottom: var(--rule-hair) solid var(--color-grid-strong);
+  }
+
+  .block-body {
+    padding: calc(var(--cell) * 1.5);
+  }
+
+  .block-body-flush {
+    padding: 0;
+  }
+
+  /* Kept as aliases so the three domains re-skin without touching every file:
+     what used to be a frame is now a plane. */
+  .box,
+  .box-frame {
+    background: var(--color-plane);
+    border: 0;
   }
 
   .plate-sunk {
-    background: var(--color-sunk);
+    background: var(--color-plane-2);
   }
 
-  /* Boxes are ruled, never rounded, never shadowed. A frame is the plate's only
-     container; anything that needs separating gets a rule, not a card. */
-  .box {
-    border: var(--rule-hair) solid var(--color-rule);
-    background: var(--color-sheet);
-  }
-
-  .box-frame {
-    border: var(--rule-frame) solid var(--color-ink);
-    background: var(--color-sheet);
-  }
-
-  /* Registered as real utilities, not plain classes, so `sm:rule-l` compiles.
-     As plain classes the variant silently produced nothing, which is invisible in
-     review: the divider just fails to appear at that breakpoint. */
-
-  /* Sections are cut blocks with real gaps, so the structure of a plate is
-     legible before a single value is read. */
+  /* Tighter than before. The old rhythm was set for framed blocks that needed
+     air to stop colliding; planes separate themselves, so the stack closes up. */
   .plate-stack > * + * {
-    margin-top: 2.5rem;
+    margin-top: calc(var(--cell) * 3);
   }
 
   @media (min-width: 768px) {
     .plate-stack > * + * {
-      margin-top: 3.5rem;
+      margin-top: calc(var(--cell) * 4);
     }
   }
 
-  /* -------------------------------------------------------------- hatch --- */
+/* -------------------------------------------------------------- hatch --- */
   /* Missing, masked or unmeasured data is hatched, never blank and never zero.
      A blank region reads as "nothing happened"; a hatched one reads as "not
      measured here", which is the honest statement and the product's whole
@@ -529,8 +608,8 @@
       45deg,
       transparent,
       transparent 4px,
-      var(--color-rule) 4px,
-      var(--color-rule) 5px
+      var(--color-grid-strong) 4px,
+      var(--color-grid-strong) 5px
     );
   }
 
@@ -553,8 +632,8 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    border: var(--rule-frame) solid var(--color-ink);
-    background: var(--color-sheet);
+    border: 0;
+    background: var(--color-plane-2);
     color: var(--color-ink);
     font-stretch: 87%;
     font-weight: 700;
@@ -583,21 +662,21 @@
     background: var(--color-ink-2);
   }
 
-  /* The one action that is yours: recording, arming, committing. */
+  /* Go: the action that starts a measurement. The only control that takes a
+     traffic-light colour, and it takes green because that is what green means
+     on a circuit. */
   .ctl-procedure {
-    background: var(--color-procedure);
-    border-color: var(--color-procedure);
+    background: var(--color-go);
     color: #ffffff;
   }
 
   .ctl-procedure:hover:not(:disabled) {
     background: var(--color-ink);
-    border-color: var(--color-ink);
     color: var(--color-sheet);
   }
 
   .ctl:disabled {
-    border-color: var(--color-rule);
+    border-color: var(--color-grid-strong);
     color: var(--color-ink-3);
     background: var(--color-sunk);
     cursor: not-allowed;
@@ -615,8 +694,9 @@
 
   .field {
     width: 100%;
-    border: var(--rule-hair) solid var(--color-rule);
-    background: var(--color-sheet);
+    border: 0;
+    border-bottom: var(--rule-strong) solid var(--color-grid-strong);
+    background: var(--color-plane-2);
     color: var(--color-ink);
     padding: 0.625rem 0.75rem;
     min-height: 44px;
@@ -624,9 +704,8 @@
   }
 
   .field:focus {
-    border-color: var(--color-ink);
+    border-bottom-color: var(--color-ink);
     outline: none;
-    box-shadow: inset 0 0 0 1px var(--color-ink);
   }
 
   .field:disabled {
@@ -644,6 +723,7 @@
   }
 
   .minima th {
+    background: var(--color-plane-2);
     text-align: left;
     font-stretch: 75%;
     font-weight: 700;
@@ -651,14 +731,14 @@
     letter-spacing: 0.09em;
     text-transform: uppercase;
     color: var(--color-ink-3);
-    padding: 0.4rem 0.625rem;
-    border-bottom: var(--rule-frame) solid var(--color-ink);
+    padding: 0.375rem 0.75rem;
+    border-bottom: var(--rule-hair) solid var(--color-ink);
     white-space: nowrap;
   }
 
   .minima td {
-    padding: 0.5rem 0.625rem;
-    border-bottom: var(--rule-hair) solid var(--color-rule-faint);
+    padding: 0.4375rem 0.75rem;
+    border-bottom: var(--rule-hair) solid var(--color-grid);
     color: var(--color-ink);
     font-weight: 500;
   }
@@ -668,8 +748,8 @@
   }
 
   .minima tbody tr[data-selected="true"] td {
-    background: var(--color-procedure-tint);
-    color: var(--color-ink);
+    background: var(--color-plane-2);
+    box-shadow: inset 2px 0 0 var(--color-ink);
   }
 
   .minima .num {
@@ -702,7 +782,7 @@
   }
 
   .xref-cursor {
-    stroke: var(--color-procedure);
+    stroke: var(--color-ink);
     stroke-width: 1.5;
   }
 
@@ -747,7 +827,7 @@
   }
 
   .gauge[data-reached='true'] .gauge-fill {
-    background: var(--color-procedure);
+    background: var(--color-go);
   }
 
   .gauge[data-blocked='true'] {

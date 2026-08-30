@@ -33,7 +33,7 @@ export function TitleBlock({
   actions?: ReactNode;
 }) {
   return (
-    <header className="box-frame">
+    <header className="plane">
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3 px-3 py-2.5 sm:px-4">
         <div className="min-w-0">
           {ident && <p className="t-annotation mb-1 truncate">{ident}</p>}
@@ -84,25 +84,36 @@ export function Zone({
   actions,
   children,
   framed = true,
+  flush = false,
+  accent = false,
   className = '',
 }: {
   label: string;
   note?: string;
   actions?: ReactNode;
   children: ReactNode;
+  /** Kept for call-site compatibility; a block is a plane either way. */
   framed?: boolean;
+  /**
+   * The one earned accent plane on this screen. Exactly one block per view may
+   * take it: the reading the screen exists for. Two accents is no accent.
+   */
+  accent?: boolean;
+  /** The body sets its own padding (tables, canvases, nested planes). */
+  flush?: boolean;
   className?: string;
 }) {
   return (
-    <section className={className} aria-label={label}>
-      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h2 className="t-label">{label}</h2>
-          {note && <p className="t-annotation">{note}</p>}
-        </div>
-        {actions && <div className="flex items-center gap-2">{actions}</div>}
+    <section
+      className={`${framed ? (accent ? 'plane-ink' : 'plane') : ''} ${className}`}
+      aria-label={label}
+    >
+      <div className="block-head">
+        <h2 className="t-label">{label}</h2>
+        {note && <p className="t-annotation">{note}</p>}
+        {actions && <div className="ml-auto flex items-center gap-2">{actions}</div>}
       </div>
-      <div className={framed ? 'box-frame' : ''}>{children}</div>
+      <div className={flush ? 'block-body-flush' : 'block-body'}>{children}</div>
     </section>
   );
 }
@@ -124,13 +135,13 @@ export function PlanView({
   children: ReactNode;
 }) {
   return (
-    <figure className="box-frame">
-      <figcaption className="rule-b flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-3 py-2">
+    <figure className="plane">
+      <figcaption className="block-head">
         <span className="t-label">{label}</span>
         {scale && <span className="t-annotation">{scale}</span>}
       </figcaption>
       <div className="relative">{children}</div>
-      {legend && <div className="rule-t px-3 py-2">{legend}</div>}
+      {legend && <div className="rule-t block-body">{legend}</div>}
     </figure>
   );
 }
@@ -150,8 +161,8 @@ export function ProfileView({
   children: ReactNode;
 }) {
   return (
-    <figure className="box">
-      <figcaption className="rule-b flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-3 py-1.5">
+    <figure className="plane">
+      <figcaption className="block-head">
         <span className="t-annotation">{label}</span>
         {axis && <span className="t-annotation">{axis}</span>}
       </figcaption>
@@ -167,7 +178,7 @@ export function ProfileView({
  */
 export function NotesBox({ title = 'Notes', children }: { title?: string; children: ReactNode }) {
   return (
-    <aside className="box plate-sunk px-3 py-2.5">
+    <aside className="plane-2 block-body">
       <p className="t-annotation mb-1.5">{title}</p>
       <div className="t-body text-[0.8125rem] leading-6">{children}</div>
     </aside>
@@ -198,7 +209,7 @@ export function Advisory({
     <div
       role={urgent ? 'alert' : 'status'}
       aria-live={urgent ? 'assertive' : 'polite'}
-      className="box flex items-start gap-3 px-3 py-2.5"
+      className="flex items-start gap-3 block-body"
       style={
         caution
           ? { borderColor: 'var(--color-caution)', background: 'var(--color-caution-tint)' }

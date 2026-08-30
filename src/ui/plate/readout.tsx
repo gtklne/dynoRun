@@ -22,12 +22,11 @@ export function Readout({
   label: string;
   note?: ReactNode;
   size?: 'md' | 'xl';
-  tone?: 'ink' | 'procedure' | 'gain' | 'caution';
+  /** Judgement, not decoration: go = gained or within, stop = lost or at the
+   *  limit, caution = read this first. `ink` is the ordinary case. */
+  tone?: 'ink' | 'go' | 'caution' | 'stop';
 }) {
-  const color =
-    tone === 'ink'
-      ? undefined
-      : { color: `var(--color-${tone === 'gain' ? 'gain' : tone})` };
+  const color = tone === 'ink' ? undefined : { color: `var(--color-${tone})` };
 
   return (
     <div>

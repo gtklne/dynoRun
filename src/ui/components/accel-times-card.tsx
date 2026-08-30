@@ -42,7 +42,6 @@ export function AccelTimesCard({ accel }: AccelTimesCardProps) {
             value={hero.elapsed_s.toFixed(1)}
             unit="s"
             label={ZERO_TO_HUNDRED_LABEL}
-            tone="procedure"
           />
         </div>
       )}

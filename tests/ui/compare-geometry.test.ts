@@ -79,29 +79,37 @@ describe('compare colours', () => {
   // ink: the same source the components read, never a second hardcoded copy.
   const ink = readPlateInk();
 
-  it('gives the subject procedure magenta and everything measured against it ink', () => {
-    // The world spends magenta on "the line you actually flew", so series 0,
-    // the lap or run under examination, takes it and the comparisons fall back
-    // to ink. Ordering ink first inverted the rule: a single-series run curve
-    // drew near-black and the only magenta on the screen was a button.
-    expect(seriesColor(ink, 0)).toBe(ink.procedure);
-    expect(seriesColor(ink, 1)).toBe(ink.ink);
+  it('gives the subject full ink and steps the comparisons back', () => {
+    // Series 0 is the lap or run under examination and is drawn in full ink;
+    // everything it is measured against steps back to a lighter weight.
+    expect(seriesColor(ink, 0)).toBe(ink.ink);
+    expect(seriesColor(ink, 1)).toBe(ink.ink2);
     expect(seriesColor(ink, MAX_COMPARE_LAPS)).toBe(seriesColor(ink, 0));
     expect(seriesDash(MAX_COMPARE_LAPS)).toEqual(seriesDash(0));
   });
 
-  it('separates six laps by colour AND dash, so hue alone is never the identity', () => {
-    // The old guarantee (series ink never borrows the demand ramp's values) is
-    // gone by design: every series ink is now a plate token, and some of those
-    // tokens are also ramp stops. The dash pattern is what replaces it, so a
-    // colour-blind reader and a phone in direct sun still separate six traces.
-    const colors = new Set<string>();
+  it('never spends a traffic-light colour on lap identity', () => {
+    // The load-bearing separation in this palette: green, amber and red mean
+    // gained, read this, and lost. A lap cannot be "the green one" on a screen
+    // where green also means you gained time, so identity is ink only and the
+    // dash pattern carries the distinction.
+    const judgement = new Set([ink.go, ink.caution, ink.stop]);
+    for (let i = 0; i < MAX_COMPARE_LAPS; i++) {
+      expect(judgement.has(seriesColor(ink, i))).toBe(false);
+    }
+  });
+
+  it('separates six laps by colour AND dash together, never by hue alone', () => {
+    // Colour alone cannot do it now (three ink weights across six laps) and
+    // was never allowed to: the pair is the identity, and all six pairs must
+    // be distinct for a colour-blind reader and for a phone in direct sun.
+    const pairs = new Set<string>();
     const dashes = new Set<string>();
     for (let i = 0; i < MAX_COMPARE_LAPS; i++) {
-      colors.add(seriesColor(ink, i));
+      pairs.add(`${seriesColor(ink, i)}|${seriesDash(i).join(',')}`);
       dashes.add(seriesDash(i).join(','));
     }
-    expect(colors.size).toBe(MAX_COMPARE_LAPS);
+    expect(pairs.size).toBe(MAX_COMPARE_LAPS);
     expect(dashes.size).toBe(MAX_COMPARE_LAPS);
   });
 

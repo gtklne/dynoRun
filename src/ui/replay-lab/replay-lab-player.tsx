@@ -407,7 +407,7 @@ export function ReplayLabPlayer() {
               </div>
               <div className="rule-l px-3 py-3">
                 {livePeakKw != null ? (
-                  <Readout value={units.format(livePeakKw)} label="Live peak" tone="procedure" />
+                  <Readout value={units.format(livePeakKw)} label="Live peak" />
                 ) : (
                   <div>
                     <p className="t-annotation">Live peak</p>

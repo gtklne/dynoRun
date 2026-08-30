@@ -209,7 +209,6 @@ export function PublicShareScreen() {
                       value={formatPower(peak.wheel_power_kw, units.unit, { unitSuffix: false })}
                       unit={units.unit}
                       label="Peak wheel power"
-                      tone="procedure"
                       note={formatPower(peak.wheel_power_kw, opp)}
                     />
                   ) : (
