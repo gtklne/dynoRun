@@ -57,16 +57,6 @@ const PLAN_LABEL: Record<CurveDisplayMode, string> = {
   both: 'Power and torque vs RPM',
 };
 
-/**
- * Stopgap for a gap in `.plane-ink`: it remaps the label and annotation
- * registers onto the inverted ground but not the annotation *ink* itself, and
- * `Readout` sets its unit's colour inline from `--color-ink-3`, which no
- * descendant rule can beat. Left as-is that unit reads at 2.85:1 on the accent
- * plane. Overriding the property here is inherited by the inline style and
- * lands it at the same 7:1 the annotation register already gets. Delete this
- * the moment `src/index.css` covers `.plane-ink .na` and Readout's unit.
- */
-const ACCENT_INK_3 = '[--color-ink-3:color-mix(in_srgb,var(--color-sheet)_68%,transparent)]';
 
 function oppositeUnit(unit: PowerUnit): PowerUnit {
   return unit === 'kW' ? 'hp' : 'kW';
@@ -555,7 +545,7 @@ export function RunReviewScreen() {
               note="wheel, this run"
               accent={peak != null}
               flush
-              className={peak != null ? ACCENT_INK_3 : ''}
+             
             >
               <div className="px-3 pb-3 pt-2.5">
                 <Readout

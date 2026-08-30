@@ -78,6 +78,12 @@
   --ease-plate: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+:root {
+  /* Resolved against :root's own ink, so .plane-ink can redefine every ink
+     token for its descendants without changing the ground it sits on. */
+  --accent-ground: var(--color-ink);
+}
+
 /* The night plate. A real affordance of the world (charts ship a night
    variant), not a bolted-on dark mode. Magenta and amber brighten because the
    sheet went dark; terrain drops back so the ink still leads. */
@@ -537,7 +543,18 @@
      screen exists for. Inverted and gridded in its own ink, so it is the first
      thing seen and still belongs to the same armature. */
   .plane-ink {
-    background-color: var(--color-ink);
+    /* Redefining the ink scale here, rather than listing every register in a
+       descendant rule, is what makes the accent plane usable with primitives
+       that set colour inline: an inline `var(--color-ink-3)` now resolves to
+       the inverted value instead of rendering ink on ink at 2.9:1. */
+    --color-ink: var(--color-sheet);
+    --color-ink-2: color-mix(in srgb, var(--color-sheet) 80%, transparent);
+    --color-ink-3: color-mix(in srgb, var(--color-sheet) 64%, transparent);
+    --color-grid: color-mix(in srgb, var(--color-sheet) 10%, transparent);
+    --color-grid-strong: color-mix(in srgb, var(--color-sheet) 22%, transparent);
+    --color-plane-2: color-mix(in srgb, var(--color-sheet) 14%, transparent);
+
+    background-color: var(--accent-ground);
     color: var(--color-sheet);
     background-image:
       repeating-linear-gradient(

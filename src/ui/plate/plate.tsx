@@ -126,11 +126,18 @@ export function Zone({
 export function PlanView({
   label,
   scale,
+  actions,
   legend,
   children,
 }: {
   label: string;
   scale?: string;
+  /**
+   * Controls that belong to this view (chart mode, an expert toggle). They sit
+   * in the head band with the label, because a control row floating above the
+   * block is the second heading convention this system exists to prevent.
+   */
+  actions?: ReactNode;
   legend?: ReactNode;
   children: ReactNode;
 }) {
@@ -139,6 +146,7 @@ export function PlanView({
       <figcaption className="block-head">
         <span className="t-label">{label}</span>
         {scale && <span className="t-annotation">{scale}</span>}
+        {actions && <div className="ml-auto flex items-center gap-2">{actions}</div>}
       </figcaption>
       <div className="relative">{children}</div>
       {legend && <div className="rule-t block-body">{legend}</div>}
@@ -177,8 +185,11 @@ export function ProfileView({
  * worth is a stated product principle, so it gets a designated place.
  */
 export function NotesBox({ title = 'Notes', children }: { title?: string; children: ReactNode }) {
+  // The plane comes to the prose measure rather than the prose being stretched
+  // to the plane: .t-body caps at 68ch, so a full-width notes block left most
+  // of every row as empty field inside a filled plane.
   return (
-    <aside className="plane-2 block-body">
+    <aside className="plane-2 block-body max-w-[62rem]">
       <p className="t-annotation mb-1.5">{title}</p>
       <div className="t-body text-[0.8125rem] leading-6">{children}</div>
     </aside>

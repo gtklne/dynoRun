@@ -28,9 +28,6 @@ interface GpsState {
   heading_deg: number | null;
 }
 
-// See ACCENT_INK_3 in run-review-screen.tsx: `.plane-ink` cannot reach the
-// inline ink-3 on Readout's unit, so the property is overridden here.
-const ACCENT_INK_3 = '[--color-ink-3:color-mix(in_srgb,var(--color-sheet)_68%,transparent)]';
 
 const STATE_LABEL: Record<RunState['kind'], string> = {
   idle: 'Starting sensors',
@@ -265,7 +262,7 @@ export function LiveRunScreen() {
           {/* The one earned accent plane on this screen: while the car is
               moving, the live speed IS the sheet. Trackside, so the readout
               keeps its size even though the review screens tightened. */}
-          <Zone label="Live readout" note="Recording" accent flush className={ACCENT_INK_3}>
+          <Zone label="Live readout" note="Recording" accent flush>
             <div className="grid grid-cols-2">
               <div className="px-3 py-4">
                 <Readout label="Speed" value={currentSpeed.toFixed(0)} unit="km/h" size="xl" />

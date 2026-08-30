@@ -37,9 +37,6 @@ interface Props {
   onCancel: () => void;
 }
 
-// See ACCENT_INK_3 in run-review-screen.tsx: `.plane-ink` cannot reach the
-// inline ink-3 on Readout's unit, so the property is overridden here.
-const ACCENT_INK_3 = '[--color-ink-3:color-mix(in_srgb,var(--color-sheet)_68%,transparent)]';
 
 function formatElapsed(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
@@ -384,7 +381,7 @@ export function CalibrationStepMeasureHandsFree({ vehicleId, gear, onConfirmed, 
             note={`Elapsed ${formatElapsed(elapsed)}`}
             accent={live != null}
             flush
-            className={live != null ? ACCENT_INK_3 : ''}
+           
           >
             <div className="rule-b px-3 py-4">
               {live == null ? (

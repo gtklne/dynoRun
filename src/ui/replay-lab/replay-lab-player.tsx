@@ -34,9 +34,6 @@ import {
 import type { VehicleKind } from '@/shared/types';
 import type { RawSpeedSample } from '@/analysis/types';
 
-// See ACCENT_INK_3 in run-review-screen.tsx: `.plane-ink` cannot reach the
-// inline ink-3 on Readout's unit, so the property is overridden here.
-const ACCENT_INK_3 = '[--color-ink-3:color-mix(in_srgb,var(--color-sheet)_68%,transparent)]';
 
 type RolloutMode = 'direct' | 'point';
 
@@ -380,7 +377,7 @@ export function ReplayLabPlayer() {
             note={progress.playing ? 'Playing' : 'Paused'}
             accent
             flush
-            className={ACCENT_INK_3}
+           
           >
             <div className="grid grid-cols-3">
               <div className="px-3 py-3">

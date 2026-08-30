@@ -5,9 +5,6 @@ import { describeRecording } from '@/sensors/recording';
 import { formatShortDateTime } from '@/shared/format-time';
 import { NotesBox, PlateButton, Readout, RevisionBar, TitleBlock, Zone } from '@/ui/plate';
 
-// See ACCENT_INK_3 in run-review-screen.tsx: `.plane-ink` cannot reach the
-// inline ink-3 on Readout's unit, so the property is overridden here.
-const ACCENT_INK_3 = '[--color-ink-3:color-mix(in_srgb,var(--color-sheet)_68%,transparent)]';
 
 export function CalibrationStepConfirm({ calibration, onDone }: { calibration: Calibration; onDone: () => void }) {
   const navigate = useNavigate();
@@ -53,7 +50,7 @@ export function CalibrationStepConfirm({ calibration, onDone }: { calibration: C
         note="the chosen hold, as one number"
         accent
         flush
-        className={ACCENT_INK_3}
+       
       >
         <div className="px-3 py-4">
           <Readout

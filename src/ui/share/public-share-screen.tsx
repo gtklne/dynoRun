@@ -23,9 +23,6 @@ import {
 } from '@/ui/plate';
 import type { RpmPoint } from '@/shared/types';
 
-// See ACCENT_INK_3 in run-review-screen.tsx: `.plane-ink` cannot reach the
-// inline ink-3 on Readout's unit, so the property is overridden here.
-const ACCENT_INK_3 = '[--color-ink-3:color-mix(in_srgb,var(--color-sheet)_68%,transparent)]';
 
 type LoadState =
   | { kind: 'loading' }
@@ -212,7 +209,7 @@ export function PublicShareScreen() {
               note={`also shown in ${opp}`}
               accent={peak != null}
               flush
-              className={peak != null ? ACCENT_INK_3 : ''}
+             
             >
               <div className="grid grid-cols-2">
                 <div className="px-3 py-3">

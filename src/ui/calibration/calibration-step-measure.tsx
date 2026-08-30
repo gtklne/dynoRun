@@ -21,9 +21,6 @@ import {
   type MotionFusionState,
 } from '@/sensors/motion-fusion';
 
-// See ACCENT_INK_3 in run-review-screen.tsx: `.plane-ink` cannot reach the
-// inline ink-3 on Readout's unit, so the property is overridden here.
-const ACCENT_INK_3 = '[--color-ink-3:color-mix(in_srgb,var(--color-sheet)_68%,transparent)]';
 
 interface Props {
   vehicleId: string;
@@ -219,7 +216,7 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
             note={`${gear.gear_label}, target ${gear.user_rpm.toLocaleString()} RPM`}
             accent={displaySpeed != null}
             flush
-            className={displaySpeed != null ? ACCENT_INK_3 : ''}
+           
           >
             <div className="px-3 py-4">
               {displaySpeed == null ? (
@@ -312,7 +309,7 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
       )}
 
       {state.kind === 'stable' && (
-        <Zone label="Captured" note="Steady hold locked" accent flush className={ACCENT_INK_3}>
+        <Zone label="Captured" note="Steady hold locked" accent flush>
           <div className="px-3 py-4">
             <Readout
               label="Captured speed"
