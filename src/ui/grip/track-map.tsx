@@ -147,7 +147,7 @@ export function TrackMap({
     ctx.beginPath();
     ctx.arc(X(ci), Y(ci), 5, 0, 7);
     ctx.fill();
-    ctx.strokeStyle = ink.procedure;
+    ctx.strokeStyle = ink.ink;
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.arc(X(ci), Y(ci), 8, 0, 7);
@@ -177,7 +177,7 @@ export function TrackMap({
       onMouseMove={onHover ? (e) => onHover(nearest(e)) : undefined}
       onMouseLeave={onHover ? () => onHover(null) : undefined}
       className="block w-full cursor-crosshair"
-      style={{ aspectRatio: '16 / 10', background: 'var(--color-sunk)' }}
+      style={{ aspectRatio: '16 / 10', background: 'var(--color-plane-2)' }}
     />
   );
 }

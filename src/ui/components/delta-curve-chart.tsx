@@ -38,12 +38,13 @@ export function DeltaCurveChart({
   const ink = usePlateInk();
 
   useEffect(() => {
-    // Gain and shortfall are told apart by which side of zero they sit on
-    // first, and by ink second: the fills are the plate's own gain and caution.
-    const POSITIVE = ink.gain;
-    const POSITIVE_FILL = ink.gainTint;
-    const NEGATIVE = ink.caution;
-    const NEGATIVE_FILL = ink.cautionTint;
+    // Gained and lost are told apart by which side of zero they sit on first,
+    // and by the traffic light second: green above the line, red below, which
+    // is what those two colours mean everywhere else in this product.
+    const POSITIVE = ink.go;
+    const POSITIVE_FILL = ink.goPlane;
+    const NEGATIVE = ink.stop;
+    const NEGATIVE_FILL = ink.stopPlane;
 
     if (!containerRef.current) return;
     if (delta.length === 0) return;

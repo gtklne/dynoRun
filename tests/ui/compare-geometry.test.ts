@@ -3,6 +3,7 @@ import { fitTrackTransform } from '@/ui/grip/track-geometry';
 import { distanceFrame, niceStep } from '@/ui/grip/compare-chart-frame';
 import { nearestIndex } from '@/ui/grip/compare-delta-chart';
 import { deltaColor, formatDelta, deltaTextClass, seriesColor, seriesDash, MAX_COMPARE_LAPS } from '@/ui/grip/compare-colors';
+import { mixInk, rateColor, scoreColor } from '@/ui/grip/colors';
 import { readPlateInk } from '@/ui/plate';
 
 describe('fitTrackTransform', () => {
@@ -78,6 +79,11 @@ describe('compare colours', () => {
   // jsdom resolves no custom properties, so this is the day plate's fallback
   // ink: the same source the components read, never a second hardcoded copy.
   const ink = readPlateInk();
+  // The ramps emit `rgb()` while the tokens are authored as hex, so both sides
+  // go through the same blend before being compared. Without this the
+  // "never a traffic-light colour" assertions pass for free on the notation
+  // difference alone and would keep passing if a ramp did emit `go`.
+  const norm = (c: string) => mixInk(c, c, 0);
 
   it('gives the subject full ink and steps the comparisons back', () => {
     // Series 0 is the lap or run under examination and is drawn in full ink;
@@ -113,7 +119,7 @@ describe('compare colours', () => {
     expect(dashes.size).toBe(MAX_COMPARE_LAPS);
   });
 
-  it('diverges around zero: lost time procedure, gained time gain, midpoint neutral', () => {
+  it('diverges around zero: lost time stop, gained time go, midpoint neutral', () => {
     const neutral = deltaColor(ink, 0, 1);
     expect(deltaColor(ink, 2, 1)).toBe(deltaColor(ink, 1, 1)); // saturates
     expect(deltaColor(ink, -2, 1)).toBe(deltaColor(ink, -1, 1));
@@ -122,6 +128,24 @@ describe('compare colours', () => {
     // a zero delta must not read as a small loss or a small gain
     expect(neutral).not.toBe(deltaColor(ink, 1, 1));
     expect(neutral).not.toBe(deltaColor(ink, -1, 1));
+    // and the ends are the traffic light itself, so "lost" can never drift back
+    // to a hue that means something else on this sheet
+    expect(deltaColor(ink, 1, 1)).toBe(norm(ink.stop));
+    expect(deltaColor(ink, -1, 1)).toBe(norm(ink.go));
+  });
+
+  it('runs demand green to red and keeps load transfer off the traffic light', () => {
+    // The user-facing rule: low demand is go, the tyre-class anchor is stop.
+    expect(scoreColor(ink, 0, 1.1)).toBe(norm(ink.go));
+    expect(scoreColor(ink, 0.605, 1.1)).toBe(norm(ink.caution)); // 55% of the anchor
+    expect(scoreColor(ink, 1.1, 1.1)).toBe(norm(ink.stop));
+    expect(scoreColor(ink, 2.2, 1.1)).toBe(norm(ink.stop)); // saturates, never wraps
+    // Load transfer shares canvases with demand, so it must not be able to
+    // produce a traffic-light colour at any point on its own scale.
+    const judgement = new Set([norm(ink.go), norm(ink.caution), norm(ink.stop)]);
+    for (let i = 0; i <= 10; i++) expect(judgement.has(rateColor(ink, i / 10))).toBe(false);
+    expect(rateColor(ink, 0)).toBe(norm(ink.ink3));
+    expect(rateColor(ink, 1)).toBe(norm(ink.ink));
   });
 
   it('formats signed deltas with an explicit sign', () => {
@@ -129,8 +153,11 @@ describe('compare colours', () => {
     expect(formatDelta(-0.5)).toBe('−0.50');
     expect(formatDelta(0)).toBe('±0.00');
     expect(formatDelta(NaN)).toBe('n/a');
+    // Judgement is the traffic light and nothing else: lost time is stop, gained
+    // time is go, and anything inside the epsilon stays neutral ink so a lap
+    // that merely matched the reference cannot read as slightly behind it.
     expect(deltaTextClass(0.01)).toBe('text-ink-3');
-    expect(deltaTextClass(1)).toBe('text-procedure');
-    expect(deltaTextClass(-1)).toBe('text-gain');
+    expect(deltaTextClass(1)).toBe('text-stop');
+    expect(deltaTextClass(-1)).toBe('text-go');
   });
 });

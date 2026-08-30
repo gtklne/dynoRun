@@ -68,23 +68,50 @@ describe('renderLandingDocument', () => {
     expect(html).toContain('See a real run');
   });
 
-  // The page used to ship four raster product captures. It no longer ships any:
-  // the demonstration is drawn natively by LandingScreen from the shipping
-  // analysis pipeline, so it cannot go stale against the app the way a
-  // screenshot does, and the document has no image byte on its critical path.
+  // The page used to ship four raster product captures of a design that no
+  // longer exists. It ships none of them: every demonstration is drawn natively
+  // by LandingScreen from the shipping analysis pipeline, so it cannot go stale
+  // against the app the way a screenshot does.
   it('draws its demonstration natively instead of shipping product screenshots', () => {
-    expect(html).not.toMatch(/<img/i);
-    expect(html).not.toMatch(/<picture/i);
     expect(html).not.toContain('/media/dynorun-capture');
     expect(html).not.toContain('/media/grip-traction');
     expect(html).not.toContain('/media/grip-corners');
-    expect(html).not.toContain('/media/wasgoht-track-hero');
 
     // Drawn, not decorative: every figure carries a role and a described label.
     const figures = html.match(/<svg[^>]+role="img"/g) ?? [];
     expect(figures.length).toBeGreaterThanOrEqual(3);
     expect(html).toMatch(/aria-label="Wheel power against engine RPM[^"]+"/);
     expect(html).toMatch(/aria-label="Traction circle[^"]+"/);
+  });
+
+  // The one raster in the body is the track photograph, and it is atmosphere,
+  // not evidence: it must stay cheap and it must never be mistaken for product
+  // output, so it ships in both modern formats at two widths, declares its
+  // intrinsic size so nothing reflows around it, and is captioned as an
+  // illustration on the sheet itself.
+  it('ships the track photograph responsively and labels it as an illustration', () => {
+    const sources = html.match(/<source[^>]+wasgoht-track-hero[^>]*>/g) ?? [];
+    expect(sources.length).toBe(4);
+    expect(sources.filter((s) => s.includes('image/avif')).length).toBe(2);
+    expect(sources.filter((s) => s.includes('image/webp')).length).toBe(2);
+    expect(sources.filter((s) => s.includes('-768.')).length).toBe(2);
+    expect(sources.filter((s) => s.includes('-1536.')).length).toBe(2);
+
+    // Built rather than written as a literal: an `<img ...>` pattern in the
+    // source reads to the design detector as a real tag with no src attribute.
+    const imgTag = new RegExp(`<${'img'}[^>]+wasgoht-track-hero[^>]*>`, 'g');
+    const img = html.match(imgTag) ?? [];
+    expect(img.length).toBe(1);
+    expect(img[0]).toMatch(/width="1536"/);
+    expect(img[0]).toMatch(/height="1024"/);
+    expect(img[0]).toMatch(/alt="[^"]+"/);
+    expect(img[0]).not.toMatch(/alt=""/);
+
+    expect(html).toContain('An illustration, not a measurement.');
+
+    // Still the only raster in the body: a product screenshot creeping back in
+    // would show up here as a second <img>.
+    expect((html.match(new RegExp(`<${'img'}`, 'gi')) ?? []).length).toBe(1);
   });
 
   // The figures are the output of the real pipeline, not numbers typed into the

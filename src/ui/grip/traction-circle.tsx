@@ -114,7 +114,7 @@ export function TractionCircle({
 
     ctx.fillStyle = ink.sheet;
     ctx.beginPath(); ctx.arc(px, py, 5, 0, 7); ctx.fill();
-    ctx.strokeStyle = ink.procedure;
+    ctx.strokeStyle = ink.ink;
     ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.arc(px, py, 5, 0, 7); ctx.stroke();
   }, [analysis, lap, cursor, metric, rateFS, anchorG, ink, xref]);
@@ -148,7 +148,7 @@ export function TractionCircle({
       onMouseMove={onHover ? (e) => onHover(nearest(e)) : undefined}
       onMouseLeave={onHover ? () => onHover(null) : undefined}
       className="mx-auto block w-full max-w-[420px]"
-      style={{ aspectRatio: '1 / 1', background: 'var(--color-sunk)' }}
+      style={{ aspectRatio: '1 / 1', background: 'var(--color-plane-2)' }}
     />
   );
 }

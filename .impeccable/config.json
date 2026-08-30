@@ -14,6 +14,12 @@
         "value": "1.125rem",
         "createdAt": "2026-08-30T11:36:17.257Z",
         "reason": "Already on the documented ramp: DESIGN.md Typography records ctl-major as the Control register promoted to 18px for trackside actions. 1.125rem is that 18px."
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "1.75rem",
+        "createdAt": "2026-08-30T12:04:52.235Z",
+        "reason": "Already on the documented ramp: DESIGN.md Typography records Readout SM (.t-readout-sm) as clamp 1.75-2.5rem. The detector cannot match a clamp() min against the prose range."
       }
     ]
   }

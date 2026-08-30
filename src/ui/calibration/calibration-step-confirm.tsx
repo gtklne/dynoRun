@@ -3,7 +3,11 @@ import type { Calibration } from '@/shared/types';
 import { useReplayState, setPendingReplay } from '@/sensors/replay-state';
 import { describeRecording } from '@/sensors/recording';
 import { formatShortDateTime } from '@/shared/format-time';
-import { NotesBox, PlateButton, RevisionBar, TitleBlock, Zone } from '@/ui/plate';
+import { NotesBox, PlateButton, Readout, RevisionBar, TitleBlock, Zone } from '@/ui/plate';
+
+// See ACCENT_INK_3 in run-review-screen.tsx: `.plane-ink` cannot reach the
+// inline ink-3 on Readout's unit, so the property is overridden here.
+const ACCENT_INK_3 = '[--color-ink-3:color-mix(in_srgb,var(--color-sheet)_68%,transparent)]';
 
 export function CalibrationStepConfirm({ calibration, onDone }: { calibration: Calibration; onDone: () => void }) {
   const navigate = useNavigate();
@@ -30,19 +34,37 @@ export function CalibrationStepConfirm({ calibration, onDone }: { calibration: C
 
   return (
     <>
-      {/* The four numbers ARE the calibration, so they sit in the title block's
-          own ruled meta row rather than in a panel below it: there is nothing
-          else on this sheet to read first. */}
+      {/* The three measured inputs sit in the title block's own ruled meta
+          row; the number they produce gets the accent plane below, because
+          rollout is the single reading this whole procedure exists to take and
+          every later run divides by it. */}
       <TitleBlock
         ident={`Gear ${calibration.gear_label} is ready for dyno runs`}
         title="Calibration saved"
         meta={[
           { label: 'Gear', value: calibration.gear_label },
-          { label: 'RPM', value: calibration.rpm.toFixed(0) },
-          { label: 'Speed', value: `${calibration.speed_kmh.toFixed(1)} km/h` },
-          { label: 'Rollout', value: `${calibration.rollout_m_per_rev.toFixed(4)} m/rev` },
+          { label: 'Held RPM', value: calibration.rpm.toFixed(0) },
+          { label: 'Measured speed', value: `${calibration.speed_kmh.toFixed(1)} km/h` },
         ]}
       />
+
+      <Zone
+        label="Rollout"
+        note="the chosen hold, as one number"
+        accent
+        flush
+        className={ACCENT_INK_3}
+      >
+        <div className="px-3 py-4">
+          <Readout
+            size="xl"
+            label="Rollout"
+            unit="m/rev"
+            value={calibration.rollout_m_per_rev.toFixed(4)}
+            note={`${calibration.speed_kmh.toFixed(1)} km/h at ${calibration.rpm.toFixed(0)} RPM in ${calibration.gear_label}`}
+          />
+        </div>
+      </Zone>
 
       <NotesBox title="What rollout is">
         Rollout bundles tyre circumference, gear ratio and final drive into one number, measured
@@ -51,7 +73,7 @@ export function CalibrationStepConfirm({ calibration, onDone }: { calibration: C
       </NotesBox>
 
       {recordingMatches && lastRecording && (
-        <Zone label="Raw sensor recording" note={describeRecording(lastRecording)}>
+        <Zone label="Raw sensor recording" note={describeRecording(lastRecording)} flush>
           <div className="grid grid-cols-2">
             <PlateButton onClick={downloadRecording} className="border-0">
               Download JSON

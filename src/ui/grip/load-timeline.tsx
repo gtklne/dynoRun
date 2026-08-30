@@ -46,9 +46,14 @@ export function LoadTimeline({ analysis, lap, cursor, rateFS, onSeek, xref = nul
       ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
     }
 
-    // top band: longitudinal g. Two flat tints split at the zero rule rather
+    // Top band: longitudinal g. Two flat tints split at the zero rule rather
     // than one vertical gradient: drive and brake are two states, not a
     // continuum, and the plate has no gradients.
+    //
+    // Ink weights, not the traffic light. Green and red are spent two panels up
+    // on grip demand, where green means grip in hand and red means at the limit,
+    // so a green accel band here would claim the opposite of what it looks like.
+    // Brake takes the heavier ink because it is the heavier work.
     const trace = () => {
       ctx.beginPath();
       ctx.moveTo(X(0), zeroY);
@@ -60,15 +65,15 @@ export function LoadTimeline({ analysis, lap, cursor, rateFS, onSeek, xref = nul
       ctx.closePath();
     };
     for (const half of [
-      { y: 0, height: zeroY, color: ink.gain },
-      { y: zeroY, height: topH - zeroY, color: ink.procedure },
+      { y: 0, height: zeroY, color: ink.ink3 },
+      { y: zeroY, height: topH - zeroY, color: ink.ink },
     ]) {
       ctx.save();
       ctx.beginPath();
       ctx.rect(0, half.y, w, half.height);
       ctx.clip();
       trace();
-      ctx.fillStyle = inkAlpha(half.color, 0.22);
+      ctx.fillStyle = inkAlpha(half.color, 0.2);
       ctx.fill();
       ctx.restore();
     }
@@ -102,7 +107,7 @@ export function LoadTimeline({ analysis, lap, cursor, rateFS, onSeek, xref = nul
     }
     ctx.lineTo(X(n - 1), baseY);
     ctx.closePath();
-    ctx.fillStyle = inkAlpha(ink.terrain, 0.32);
+    ctx.fillStyle = inkAlpha(ink.ink3, 0.32);
     ctx.fill();
     ctx.strokeStyle = ink.ink;
     ctx.lineWidth = 1.2;
@@ -135,7 +140,7 @@ export function LoadTimeline({ analysis, lap, cursor, rateFS, onSeek, xref = nul
 
     // cursor
     const cx = X(cursor);
-    ctx.strokeStyle = ink.procedure;
+    ctx.strokeStyle = ink.ink;
     ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, h); ctx.stroke();
     const rr = Math.min(1, d.loadRate[lap.start + cursor] / rateFS);
@@ -158,7 +163,7 @@ export function LoadTimeline({ analysis, lap, cursor, rateFS, onSeek, xref = nul
       onMouseMove={onHover ? (e) => onHover(localAt(e.clientX)) : undefined}
       onMouseLeave={onHover ? () => onHover(null) : undefined}
       className="block h-[150px] w-full cursor-crosshair"
-      style={{ background: 'var(--color-sunk)' }}
+      style={{ background: 'var(--color-plane-2)' }}
     />
   );
 }

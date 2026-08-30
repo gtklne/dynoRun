@@ -73,7 +73,7 @@ function Row({
   children?: ReactNode;
 }) {
   return (
-    <div className="border-rule flex items-center justify-between gap-4 px-3 py-3 [&:not(:first-child)]:border-t">
+    <div className="rule-t flex items-center justify-between gap-4 px-3 py-3 [&:not(:first-child)]:border-t">
       <div className="min-w-0">
         <p className="t-data text-sm">{label}</p>
         {note && <p className="t-annotation mt-1">{note}</p>}
@@ -88,7 +88,7 @@ function NavRow({ to, label, note }: { to: string; label: string; note?: string 
   return (
     <Link
       to={to}
-      className="border-rule flex items-center justify-between gap-4 px-3 py-3 no-underline transition-colors hover:bg-[var(--color-sunk)] [&:not(:first-child)]:border-t"
+      className="rule-t flex items-center justify-between gap-4 px-3 py-3 no-underline transition-colors hover:bg-[var(--color-plane-2)] [&:not(:first-child)]:border-t"
       style={{ color: 'var(--color-ink)' }}
     >
       <span className="min-w-0">
@@ -106,7 +106,7 @@ function StatusReading({ value, good }: { value: string | null; good: boolean })
   return (
     <span
       className="t-label"
-      style={{ color: good ? 'var(--color-gain)' : 'var(--color-caution)' }}
+      style={{ color: good ? 'var(--color-go)' : 'var(--color-caution)' }}
     >
       {value}
     </span>

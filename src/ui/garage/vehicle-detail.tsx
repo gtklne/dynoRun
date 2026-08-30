@@ -10,6 +10,7 @@ import { formatRelativeTime } from '@/shared/format-time';
 import { PeakTrendChart } from '@/ui/components/peak-trend-chart';
 import {
   Advisory,
+  Chevron,
   MinimaTable,
   Na,
   NotesBox,
@@ -51,31 +52,16 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 /**
- * Only a run that needs a second look gets caution ink. Complete is the
- * expected state, so spending colour on it would leave nothing left to mark
- * the run whose curve should not be trusted.
+ * Only a run that needs a second look gets colour, and the traffic light says
+ * which kind: aborted is a run that produced nothing, degraded is one whose
+ * curve should be read twice. Complete is the expected state and stays in
+ * plain ink, so spending a hue on it would leave nothing to mark the others.
  */
 function statusStyle(status: string) {
-  if (status === 'degraded' || status === 'aborted') return { color: 'var(--color-caution)' };
+  if (status === 'aborted') return { color: 'var(--color-stop)' };
+  if (status === 'degraded') return { color: 'var(--color-caution)' };
   if (status === 'in_progress') return { color: 'var(--color-ink-2)' };
   return undefined;
-}
-
-function BackIcon() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="square"
-      aria-hidden="true"
-    >
-      <polyline points="15 5 8 12 15 19" />
-    </svg>
-  );
 }
 
 // A rider cannot reach the phone during a pull, so on a motorcycle the
@@ -92,7 +78,7 @@ function CalibrationActions({ vehicleId, calibrationId, kind }: {
   ];
   if (kind === 'motorcycle') actions.reverse();
   return (
-    <div className="flex shrink-0 flex-col items-stretch gap-1.5">
+    <div className="flex shrink-0 flex-col items-stretch gap-1">
       {actions.map((a, i) => (
         <PlateLink key={a.to} to={a.to} variant={i === 0 ? 'procedure' : 'outline'}>
           {a.label}
@@ -142,7 +128,7 @@ export function VehicleDetail() {
   if (!vehicle) {
     return (
       <div className="flex items-center justify-center py-16">
-        <p className="t-annotation">Loading…</p>
+        <p className="t-annotation">Loading...</p>
       </div>
     );
   }
@@ -222,9 +208,9 @@ export function VehicleDetail() {
       <div>
         <Link
           to="/garage"
-          className="t-label mb-3 inline-flex items-center gap-1.5 no-underline hover:underline"
+          className="t-label mb-2 inline-flex items-center gap-1.5 no-underline hover:underline"
         >
-          <BackIcon />
+          <Chevron direction="left" />
           Garage
         </Link>
 
@@ -254,8 +240,7 @@ export function VehicleDetail() {
 
       {editing && (
         <Zone label="Edit vehicle">
-          <div className="px-3 py-3 lg:px-4 lg:py-4">
-            <VehicleForm
+          <VehicleForm
               initial={vehicle}
               onSubmit={async (input) => {
                 const needsRecompute = affectsPower(vehicle, input);
@@ -279,9 +264,8 @@ export function VehicleDetail() {
                   setRecomputing(false);
                 }
               }}
-              onCancel={() => setEditing(false)}
-            />
-          </div>
+            onCancel={() => setEditing(false)}
+          />
         </Zone>
       )}
 
@@ -295,14 +279,15 @@ export function VehicleDetail() {
       {/* Desktop: config and identity in the narrow left column, performance
           and history in the wide right column. Mobile keeps the stacked order
           (the left column's content precedes the right's in the DOM). */}
-      <div className="space-y-10 lg:grid lg:grid-cols-3 lg:gap-6 lg:space-y-0 lg:items-start">
-        <div className="space-y-10 lg:col-span-1">
+      <div className="plate-stack lg:grid lg:grid-cols-3 lg:gap-4 lg:space-y-0 lg:items-start">
+        <div className="plate-stack lg:col-span-1">
           <Zone
             label="Calibrations"
             note={`${cals.length} on file`}
             actions={
               <PlateLink to={`/vehicles/${vehicle.id}/calibrations/new`}>New</PlateLink>
             }
+            flush
           >
             {cals.length === 0 ? (
               <div className="hatch px-3 py-6 text-center">
@@ -314,14 +299,14 @@ export function VehicleDetail() {
               cals.map((c, i) => (
                 <div
                   key={c.id}
-                  className={`flex items-center justify-between gap-3 px-3 py-3 ${i > 0 ? 'rule-t' : ''}`}
+                  className={`flex items-center justify-between gap-3 px-3 py-2.5 ${i > 0 ? 'rule-t' : ''}`}
                 >
                   <div className="min-w-0">
                     <p className="t-data text-sm">{c.gear_label}</p>
-                    <p className="t-annotation mt-1">
+                    <p className="t-annotation mt-0.5">
                       {c.rpm.toFixed(0)} RPM at {c.speed_kmh.toFixed(1)} km/h
                     </p>
-                    <p className="t-annotation mt-1">
+                    <p className="t-annotation mt-0.5">
                       {c.rollout_m_per_rev.toFixed(4)} m/rev
                     </p>
                   </div>
@@ -333,19 +318,17 @@ export function VehicleDetail() {
 
           {completeRuns.length >= 2 && (
             <Zone label="Comparison">
-              <div className="px-3 py-3">
-                <p className="t-body mb-3 text-[0.8125rem] leading-6">
-                  {completeRuns.length} complete runs available to overlay on one RPM axis.
-                </p>
-                <PlateLink to={`/vehicles/${vehicle.id}/compare`} variant="solid" className="w-full">
-                  Compare runs
-                </PlateLink>
-              </div>
+              <p className="t-body mb-2 text-[0.8125rem] leading-6">
+                {completeRuns.length} complete runs available to overlay on one RPM axis.
+              </p>
+              <PlateLink to={`/vehicles/${vehicle.id}/compare`} variant="solid" className="w-full">
+                Compare runs
+              </PlateLink>
             </Zone>
           )}
         </div>
 
-        <div className="space-y-10 lg:col-span-2">
+        <div className="plate-stack lg:col-span-2">
           <ProfileView
             label="Peak power trend"
             axis={
@@ -354,7 +337,7 @@ export function VehicleDetail() {
                 : 'No runs recorded'
             }
           >
-            <div className="px-2 py-2">
+            <div className="p-1.5">
               <PeakTrendChart
                 runs={runs}
                 onSelectRun={(runId) => navigate(`/runs/${runId}/review`)}
@@ -365,6 +348,7 @@ export function VehicleDetail() {
           <Zone
             label="Run history"
             note={`${runs.length} recorded, ${completeRuns.length} complete`}
+            flush
           >
             <MinimaTable
               columns={runColumns}
@@ -377,24 +361,20 @@ export function VehicleDetail() {
       </div>
 
       {!editing && (
-        <div>
-          <Zone label="Remove this vehicle">
-            <div className="px-3 py-3">
-              <p className="t-body mb-3 text-[0.8125rem] leading-6">
-                Deleting a vehicle deletes its calibrations and every run recorded against it. This
-                cannot be undone.
-              </p>
-              <PlateButton
-                onClick={handleDelete}
-                disabled={deleting}
-                className="w-full lg:w-auto"
-                style={{ borderColor: 'var(--color-caution)', color: 'var(--color-caution)' }}
-              >
-                {deleting ? 'Deleting…' : 'Delete vehicle'}
-              </PlateButton>
-            </div>
-          </Zone>
-        </div>
+        <Zone label="Remove this vehicle">
+          <p className="t-body mb-2 text-[0.8125rem] leading-6">
+            Deleting a vehicle deletes its calibrations and every run recorded against it. This
+            cannot be undone.
+          </p>
+          <PlateButton
+            onClick={handleDelete}
+            disabled={deleting}
+            className="w-full lg:w-auto"
+            style={{ color: 'var(--color-stop)' }}
+          >
+            {deleting ? 'Deleting...' : 'Delete vehicle'}
+          </PlateButton>
+        </Zone>
       )}
 
       <RevisionBar

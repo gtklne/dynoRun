@@ -79,7 +79,7 @@ export function CalibrationWizardScreen() {
         ]}
       />
 
-      <Zone label="Steps" note={`Step ${stepIndex + 1} of ${STEPS.length}`}>
+      <Zone label="Steps" note={`Step ${stepIndex + 1} of ${STEPS.length}`} flush>
         <ol className="flex">
           {STEPS.map((s, i) => {
             const current = i === stepIndex;
@@ -88,7 +88,7 @@ export function CalibrationWizardScreen() {
               <li
                 key={s.key}
                 aria-current={current ? 'step' : undefined}
-                className={`min-w-0 flex-1 px-3 py-2 ${i > 0 ? 'rule-l' : ''} ${done ? 'plate-sunk' : ''}`}
+                className={`min-w-0 flex-1 px-3 py-1.5 ${i > 0 ? 'rule-l' : ''} ${done ? 'plane-2' : ''}`}
                 style={
                   current
                     ? { background: 'var(--color-ink)', color: 'var(--color-sheet)' }
@@ -99,7 +99,7 @@ export function CalibrationWizardScreen() {
                   {done && <DoneMark />}
                   {i + 1}
                 </p>
-                <p className="t-label mt-1 truncate" style={current ? { color: 'inherit' } : undefined}>
+                <p className="t-label mt-0.5 truncate" style={current ? { color: 'inherit' } : undefined}>
                   {s.label}
                 </p>
               </li>

@@ -163,25 +163,25 @@ export function RecordingsScreen() {
       key: 'actions',
       head: 'Actions',
       cell: (r) => (
-        <span className="flex flex-wrap items-center gap-1.5">
+        <span className="flex flex-wrap items-center gap-1">
           <PlateButton
             variant="procedure"
             onClick={() => navigate(`/replay/${r.id}`)}
-            style={{ minHeight: 34, padding: '0.25rem 0.625rem', fontSize: '0.6875rem' }}
+            style={{ minHeight: 32, padding: '0.25rem 0.5rem', fontSize: '0.6875rem' }}
           >
             Replay
           </PlateButton>
           <PlateButton
             onClick={() => download(r.id)}
             disabled={busy === r.id}
-            style={{ minHeight: 34, padding: '0.25rem 0.625rem', fontSize: '0.6875rem' }}
+            style={{ minHeight: 32, padding: '0.25rem 0.5rem', fontSize: '0.6875rem' }}
           >
             Download
           </PlateButton>
           <PlateButton
             onClick={() => remove(r.id)}
             disabled={busy === r.id}
-            style={{ minHeight: 34, padding: '0.25rem 0.625rem', fontSize: '0.6875rem' }}
+            style={{ minHeight: 32, padding: '0.25rem 0.5rem', fontSize: '0.6875rem' }}
           >
             Delete
           </PlateButton>
@@ -202,8 +202,8 @@ export function RecordingsScreen() {
 
       {error && <Advisory>{error}</Advisory>}
 
-      <Zone label="Import a recording" note="JSON exported from this app">
-        <label className="hatch flex cursor-pointer items-center justify-center gap-2.5 px-3 py-6 transition-colors hover:bg-[var(--color-sunk)]">
+      <Zone label="Import a recording" note="JSON exported from this app" flush>
+        <label className="hatch flex cursor-pointer items-center justify-center gap-2.5 px-3 py-5 transition-colors hover:bg-[var(--color-plane-2)]">
           <ImportIcon />
           <span className="t-label" style={{ color: 'var(--color-ink)' }}>
             {uploading ? 'Uploading...' : 'Choose a recording JSON file'}
@@ -218,9 +218,9 @@ export function RecordingsScreen() {
         </label>
       </Zone>
 
-      <Zone label="Stored recordings">
+      <Zone label="Stored recordings" flush>
         {recordings === null ? (
-          <p className="t-annotation px-3 py-8 text-center">Loading...</p>
+          <p className="t-annotation px-3 py-6 text-center">Loading...</p>
         ) : (
           <MinimaTable
             columns={columns}

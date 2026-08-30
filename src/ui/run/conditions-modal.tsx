@@ -152,13 +152,13 @@ export function ConditionsModal({ open, initial, onClose, onSave }: ConditionsMo
       role="dialog"
       aria-modal="true"
       aria-labelledby="conditions-modal-title"
-      style={{ background: 'color-mix(in srgb, var(--color-terrain) 55%, transparent)' }}
+      style={{ background: 'color-mix(in srgb, var(--color-ink) 55%, transparent)' }}
       onClick={(e) => {
         if (e.target === e.currentTarget) attemptClose();
       }}
     >
-      <div className="plate w-full max-w-md">
-        <div className="rule-b flex items-center justify-between px-4 py-2.5">
+      <div className="plane w-full max-w-md">
+        <div className="block-head items-center">
           <h2 id="conditions-modal-title" className="t-plate-title">
             Conditions
           </h2>
@@ -179,7 +179,7 @@ export function ConditionsModal({ open, initial, onClose, onSave }: ConditionsMo
           </PlateButton>
         </div>
 
-        <div className="space-y-4 px-4 py-4">
+        <div className="space-y-3 block-body">
           <PlateField id="cond-temp" label="Ambient temperature (°C)">
             <input
               ref={firstInputRef}
@@ -242,9 +242,9 @@ export function ConditionsModal({ open, initial, onClose, onSave }: ConditionsMo
           )}
         </div>
 
-        <div className="rule-t flex gap-3 px-4 py-3">
+        <div className="rule-t flex gap-2.5 block-body">
           <PlateButton variant="procedure" onClick={handleSave} disabled={saving} className="flex-1">
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? 'Saving...' : 'Save'}
           </PlateButton>
           <PlateButton onClick={attemptClose} disabled={saving} className="flex-1">
             Cancel

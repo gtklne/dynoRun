@@ -47,18 +47,18 @@ function hasAnyCondition(c: RunConditions): boolean {
 }
 
 /**
- * The conditions the run was measured in, as ruled marginal boxes. They are
- * caveats on the reading, not tags, so they carry no fill and no colour: the
- * rule around each one is what says "this is a stated condition".
+ * The conditions the run was measured in, as marginal cells. They are caveats
+ * on the reading, not tags, so they carry no colour at all: the recessed plane
+ * behind each one is what says "this is a stated condition".
  */
 export function ConditionsChips({ conditions, size = 'md' }: ConditionsChipsProps) {
   if (!hasAnyCondition(conditions)) return null;
   const labels = conditionLabels(conditions, size);
   const className =
     size === 'sm'
-      ? 'box t-annotation px-1.5 py-0.5'
-      : 'box t-data px-2.5 py-1 text-xs';
-  const wrapperClass = size === 'sm' ? 'flex flex-wrap gap-1' : 'flex flex-wrap gap-2';
+      ? 'plane-2 t-annotation px-1.5 py-0.5'
+      : 'plane-2 t-data px-2 py-0.5 text-xs';
+  const wrapperClass = size === 'sm' ? 'flex flex-wrap gap-1' : 'flex flex-wrap gap-1.5';
   return (
     <div className={wrapperClass} data-testid="conditions-chips" data-size={size}>
       {labels.map((label) => (

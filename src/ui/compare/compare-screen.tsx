@@ -13,6 +13,7 @@ import { formatRelativeTime } from '@/shared/format-time';
 import { convertPower, formatPower } from '@/shared/format-power';
 import {
   ChannelStrip,
+  Chevron,
   CrossRefProvider,
   CrossRefReadout,
   Na,
@@ -67,23 +68,6 @@ function binAt(points: RpmPoint[], rpm: number): RpmPoint | null {
     if (Math.abs(p.rpm - rpm) < Math.abs(best.rpm - rpm)) best = p;
   }
   return Math.abs(best.rpm - rpm) <= 150 ? best : null;
-}
-
-function BackIcon() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="square"
-      aria-hidden="true"
-    >
-      <polyline points="15 5 8 12 15 19" />
-    </svg>
-  );
 }
 
 export function CompareScreen() {
@@ -261,9 +245,9 @@ function CompareSheet() {
       <div>
         <Link
           to={`/vehicles/${vehicleId}`}
-          className="t-label mb-3 inline-flex items-center gap-1.5 no-underline hover:underline"
+          className="t-label mb-2 inline-flex items-center gap-1.5 no-underline hover:underline"
         >
-          <BackIcon />
+          <Chevron direction="left" />
           Vehicle
         </Link>
 
@@ -289,8 +273,8 @@ function CompareSheet() {
         />
       </div>
 
-      <div className="space-y-10 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-6 lg:space-y-0 lg:items-start">
-        <div className="space-y-10">
+      <div className="plate-stack lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-4 lg:space-y-0 lg:items-start">
+        <div className="plate-stack">
           {chartMode === 'delta' ? (
             isPair && pairA && pairB ? (
               <>
@@ -298,7 +282,7 @@ function CompareSheet() {
                   label="Delta field"
                   scale={`${labelFor(pairA)} minus ${labelFor(pairB)}, per 100 RPM bin`}
                 >
-                  <div className="px-2 py-2">
+                  <div className="p-1.5">
                     <DeltaCurveChart
                       delta={delta}
                       unit={unit}
@@ -315,8 +299,8 @@ function CompareSheet() {
                 />
               </>
             ) : (
-              <Zone label="Delta field">
-                <div className="hatch px-3 py-12 text-center">
+              <Zone label="Delta field" flush>
+                <div className="hatch px-3 py-10 text-center">
                   <p className="t-annotation" style={{ color: 'var(--color-ink-2)' }}>
                     Select exactly 2 runs to see the delta.
                   </p>
@@ -345,7 +329,7 @@ function CompareSheet() {
                   </div>
                 }
               >
-                <div className="px-2 py-2">
+                <div className="p-1.5">
                   <PowerCurveChart
                     series={series}
                     mode={chartMode}
@@ -368,8 +352,8 @@ function CompareSheet() {
               </ProfileView>
             </>
           ) : (
-            <Zone label="Power overlay">
-              <div className="hatch px-3 py-12 text-center">
+            <Zone label="Power overlay" flush>
+              <div className="hatch px-3 py-10 text-center">
                 <p className="t-annotation" style={{ color: 'var(--color-ink-2)' }}>
                   Select runs below to overlay their power curves.
                 </p>
@@ -387,7 +371,7 @@ function CompareSheet() {
         </div>
 
         <div className="lg:sticky lg:top-8 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto">
-          <Zone label="Runs to compare" note={`${selected.size} of ${runs.length} selected`}>
+          <Zone label="Runs to compare" note={`${selected.size} of ${runs.length} selected`} flush>
             <CompareRunsPicker
               runs={runs}
               selectedIds={selected}
@@ -434,16 +418,16 @@ function DeltaSummary({ labelA, labelB, stats, unit }: DeltaSummaryProps) {
   const hasData = stats.maxGain != null || stats.maxLoss != null;
 
   return (
-    <Zone label="Run A vs run B">
+    <Zone label="Run A vs run B" flush>
       <dl className="grid grid-cols-1 sm:grid-cols-2">
-        <div className="px-3 py-2.5">
+        <div className="px-3 py-2">
           <dt className="t-annotation">A</dt>
           <dd className="t-data mt-1 text-sm">{labelA}</dd>
           <dd className="t-annotation mt-1">
             {stats.maxGain ? `peak ${formatPower(stats.maxGain.a_power_kw, unit)}` : <Na />}
           </dd>
         </div>
-        <div className="rule-t px-3 py-2.5 sm:border-t-0 sm:border-l sm:border-rule">
+        <div className="rule-t px-3 py-2 sm:border-t-0 sm:rule-l">
           <dt className="t-annotation">B</dt>
           <dd className="t-data mt-1 text-sm">{labelB}</dd>
           <dd className="t-annotation mt-1">
@@ -454,9 +438,9 @@ function DeltaSummary({ labelA, labelB, stats, unit }: DeltaSummaryProps) {
 
       {hasData ? (
         <dl className="rule-t grid grid-cols-1 sm:grid-cols-3">
-          <div className="px-3 py-2.5">
+          <div className="px-3 py-2">
             <dt className="t-annotation">Max gain</dt>
-            <dd className="t-data mt-1 text-sm" style={{ color: 'var(--color-gain)' }}>
+            <dd className="t-data mt-0.5 text-sm" style={{ color: 'var(--color-go)' }}>
               {stats.maxGain && stats.maxGain.delta_power_kw > 0 ? (
                 `${fmt(stats.maxGain.delta_power_kw)} at ${Math.round(stats.maxGain.rpm)} RPM`
               ) : (
@@ -464,9 +448,9 @@ function DeltaSummary({ labelA, labelB, stats, unit }: DeltaSummaryProps) {
               )}
             </dd>
           </div>
-          <div className="rule-t px-3 py-2.5 sm:border-t-0 sm:border-l sm:border-rule">
+          <div className="rule-t px-3 py-2 sm:border-t-0 sm:rule-l">
             <dt className="t-annotation">Max loss</dt>
-            <dd className="t-data mt-1 text-sm" style={{ color: 'var(--color-caution)' }}>
+            <dd className="t-data mt-0.5 text-sm" style={{ color: 'var(--color-stop)' }}>
               {stats.maxLoss && stats.maxLoss.delta_power_kw < 0 ? (
                 `${fmt(stats.maxLoss.delta_power_kw)} at ${Math.round(stats.maxLoss.rpm)} RPM`
               ) : (
@@ -474,13 +458,13 @@ function DeltaSummary({ labelA, labelB, stats, unit }: DeltaSummaryProps) {
               )}
             </dd>
           </div>
-          <div className="rule-t px-3 py-2.5 sm:border-t-0 sm:border-l sm:border-rule">
+          <div className="rule-t px-3 py-2 sm:border-t-0 sm:rule-l">
             <dt className="t-annotation">Mean delta</dt>
-            <dd className="t-data mt-1 text-sm">{fmt(stats.mean)}</dd>
+            <dd className="t-data mt-0.5 text-sm">{fmt(stats.mean)}</dd>
           </div>
         </dl>
       ) : (
-        <div className="hatch rule-t px-3 py-6 text-center">
+        <div className="hatch rule-t px-3 py-5 text-center">
           <p className="t-annotation" style={{ color: 'var(--color-ink-2)' }}>
             No overlapping RPM range.
           </p>

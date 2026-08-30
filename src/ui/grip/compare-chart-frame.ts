@@ -120,7 +120,7 @@ export function drawTurnTicks(
   ctx.restore();
 }
 
-/** The shared distance cursor: the one thing on the sheet drawn in procedure. */
+/** The shared distance cursor. Full ink: it is a position, not a verdict. */
 export function drawCursor(
   ctx: CanvasRenderingContext2D,
   f: DistanceFrame,
@@ -129,7 +129,7 @@ export function drawCursor(
 ): void {
   const x = f.X(s);
   ctx.save();
-  ctx.strokeStyle = ink.procedure;
+  ctx.strokeStyle = ink.ink;
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.moveTo(x, f.y0);

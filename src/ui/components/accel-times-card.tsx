@@ -35,9 +35,9 @@ export function AccelTimesCard({ accel }: AccelTimesCardProps) {
   if (!hasContent) return null;
 
   return (
-    <Zone label="Acceleration" note={`peak ${accel.peak_speed_kmh.toFixed(0)} km/h`}>
+    <Zone label="Acceleration" note={`peak ${accel.peak_speed_kmh.toFixed(0)} km/h`} flush>
       {hero && (
-        <div className="rule-b px-3 py-3">
+        <div className="rule-b px-3 py-2.5">
           <Readout
             value={hero.elapsed_s.toFixed(1)}
             unit="s"
@@ -52,16 +52,16 @@ export function AccelTimesCard({ accel }: AccelTimesCardProps) {
 
       {accel.quarter_mile && (
         <dl className="rule-t grid grid-cols-2">
-          <div className="px-3 py-2.5">
+          <div className="px-3 py-2">
             <dt className="t-annotation">Quarter mile</dt>
-            <dd className="t-data mt-1 text-lg">
+            <dd className="t-data mt-0.5 text-lg">
               {accel.quarter_mile.elapsed_s.toFixed(1)}
               <span className="t-annotation ml-1">s</span>
             </dd>
           </div>
-          <div className="rule-l px-3 py-2.5">
+          <div className="rule-l px-3 py-2">
             <dt className="t-annotation">Trap speed</dt>
-            <dd className="t-data mt-1 text-lg">
+            <dd className="t-data mt-0.5 text-lg">
               {accel.quarter_mile.trap_speed_kmh.toFixed(0)}
               <span className="t-annotation ml-1">km/h</span>
             </dd>
@@ -70,7 +70,7 @@ export function AccelTimesCard({ accel }: AccelTimesCardProps) {
       )}
 
       {!hero && others.length === 0 && !accel.quarter_mile && (
-        <p className="px-3 py-4">
+        <p className="px-3 py-3">
           <Na title="No interval was crossed in this run" />
         </p>
       )}

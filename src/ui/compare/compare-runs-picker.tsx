@@ -62,7 +62,7 @@ function EmptySwatch() {
     <span
       aria-hidden="true"
       className="inline-block h-3.5 w-3.5 shrink-0"
-      style={{ border: 'var(--rule-hair) solid var(--color-rule)' }}
+      style={{ border: 'var(--rule-hair) solid var(--color-grid-strong)' }}
     />
   );
 }
@@ -112,8 +112,8 @@ export function CompareRunsPicker({
             <span className="t-data block truncate text-sm">
               {r.gear_label} / {formatRelativeTime(r.started_at)}
             </span>
-            {secondary && <span className="t-annotation mt-1 block truncate">{secondary}</span>}
-            <span className="mt-1.5 block">
+            {secondary && <span className="t-annotation mt-0.5 block truncate">{secondary}</span>}
+            <span className="mt-1 block">
               <ConditionsChips conditions={r.conditions} size="sm" />
             </span>
           </span>
@@ -138,11 +138,12 @@ export function CompareRunsPicker({
           return <Na title="No selected run to measure against" />;
         }
         const deltaKw = r.peak_power_kw - bestSelectedKw;
+        // Gained and lost, which is exactly what green and red mean here.
         const style =
           deltaKw > 0
-            ? { color: 'var(--color-gain)' }
+            ? { color: 'var(--color-go)' }
             : deltaKw < 0
-              ? { color: 'var(--color-caution)' }
+              ? { color: 'var(--color-stop)' }
               : undefined;
         return <span style={style}>{formatDeltaKw(deltaKw, unit)}</span>;
       },
@@ -152,7 +153,7 @@ export function CompareRunsPicker({
       head: 'Best',
       cell: (r) =>
         r.id === bestRunId ? (
-          <span className="t-label" style={{ color: 'var(--color-procedure)' }}>
+          <span className="t-label" style={{ color: 'var(--color-ink)' }}>
             Best
           </span>
         ) : (

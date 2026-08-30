@@ -24,8 +24,7 @@ const RATE_FS = 0.1;
 
 /**
  * The delta chart's spatial twin: the reference lap's line, coloured by how
- * fast the subject lap is bleeding (procedure) or making (gain) time at that
- * point. Riders navigate by corners, not by metre counts, so this is usually
+ * fast the subject lap is losing (stop) or making (go) time at that point. Riders navigate by corners, not by metre counts, so this is usually
  * the panel that turns a number into a decision about next session.
  *
  * Where the subject was not on this stretch of track its delta is NaN, and the
@@ -64,7 +63,7 @@ export function CompareTrackMap({ cmp, subjectKey, colorOf, dashOf, cursor, onSe
     const unmeasured = hatchPattern(ctx, ink.rule);
     ctx.lineWidth = 8;
     for (let k = 1; k < n; k++) {
-      let color: string | CanvasPattern = subject && !subject.isReference ? unmeasured : ink.terrain;
+      let color: string | CanvasPattern = subject && !subject.isReference ? unmeasured : ink.ink3;
       const a = subject?.grid.dt[k - 1];
       const b = subject?.grid.dt[k];
       if (subject && !subject.isReference && a != null && b != null && !Number.isNaN(a) && !Number.isNaN(b)) {
@@ -115,7 +114,7 @@ export function CompareTrackMap({ cmp, subjectKey, colorOf, dashOf, cursor, onSe
           : null;
       ctx.fillStyle = ink.sheet;
       ctx.fillRect(lx - 9, ly - 9, 18, 18);
-      ctx.fillStyle = gain != null ? deltaColor(ink, gain, 0.25) : ink.terrain;
+      ctx.fillStyle = gain != null ? deltaColor(ink, gain, 0.25) : ink.ink3;
       ctx.fillRect(lx - 9, ly + 5, 18, 4);
       ctx.strokeStyle = ink.ink;
       ctx.lineWidth = 1.5;
@@ -143,7 +142,7 @@ export function CompareTrackMap({ cmp, subjectKey, colorOf, dashOf, cursor, onSe
     ctx.beginPath();
     ctx.arc(fit.X(rx[ck]), fit.Y(ry[ck]), 5, 0, 7);
     ctx.fill();
-    ctx.strokeStyle = ink.procedure;
+    ctx.strokeStyle = ink.ink;
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.arc(fit.X(rx[ck]), fit.Y(ry[ck]), 8, 0, 7);
@@ -174,7 +173,7 @@ export function CompareTrackMap({ cmp, subjectKey, colorOf, dashOf, cursor, onSe
       ref={canvasRef}
       onClick={onClick}
       className="block w-full cursor-crosshair"
-      style={{ aspectRatio: '16 / 10', background: 'var(--color-sunk)' }}
+      style={{ aspectRatio: '16 / 10', background: 'var(--color-plane-2)' }}
     />
   );
 }

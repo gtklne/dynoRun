@@ -29,6 +29,7 @@ import {
   PlateField,
   PlateLink,
   PlateSegmented,
+  Readout,
   TitleBlock,
   Zone,
   usePlateInk,
@@ -48,6 +49,17 @@ import { CompareTraceChart, TRACE_CHANNELS, type TraceChannel } from './compare-
 import { CompareTurnTable } from './compare-turn-table';
 import { formatLapTime } from './format-lap';
 import { metricModeName, type GripMetricMode } from './metric-mode';
+
+/**
+ * The duty split. Ink weights, never the traffic light: brake / coast / drive
+ * are categories of what the lap did, and the same red that means "time lost"
+ * on the delta chart cannot also mean "braking here" three blocks away.
+ */
+const DUTY_BANDS = [
+  { key: 'brake', label: 'Brake', fill: 'var(--color-ink)' },
+  { key: 'coast', label: 'Coast', fill: 'var(--color-grid-strong)' },
+  { key: 'drive', label: 'Drive', fill: 'var(--color-ink-3)' },
+] as const;
 
 const sessionTitle = (s: GripSessionSummary) => s.label ?? s.track ?? 'Untitled session';
 const sessionSubtitle = (s: GripSessionSummary) =>
@@ -492,26 +504,29 @@ export function GripCompareScreen() {
       ))}
 
       {!cmp || selected.length === 0 ? (
-        <div className="box-frame hatch px-3 py-10 text-center">
-          <p className="t-annotation" style={{ color: 'var(--color-ink-2)' }}>
-            Pick at least one lap above.
-          </p>
-        </div>
+        <Zone label="Comparison" flush>
+          <div className="hatch px-3 py-8 text-center">
+            <p className="t-annotation" style={{ color: 'var(--color-ink-2)' }}>
+              Pick at least one lap above.
+            </p>
+          </div>
+        </Zone>
       ) : (
         <>
-          <Legend
+          <GapToReference
             cmp={cmp}
-            colorOf={colorOf}
-            dashOf={dashOf}
-            refKey={refKey}
+            subjectKey={subjectKey}
             theoreticalBest={segments?.theoreticalBest ?? null}
             referenceTotal={segments?.referenceTotal ?? null}
           />
 
-          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+          <Legend cmp={cmp} colorOf={colorOf} dashOf={dashOf} refKey={refKey} />
+
+          <div className="grid items-start gap-2 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
             <Zone
               label="Where the time went"
               note="slope, not height: an upward trace is losing time right there"
+              flush
             >
               <CompareDeltaChart
                 cmp={cmp}
@@ -521,12 +536,12 @@ export function GripCompareScreen() {
                 cursor={cursor}
                 onSeek={setCursor}
               />
-              <div className="rule-t flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2">
-                <span className="t-annotation" style={{ color: 'var(--color-gain)' }}>
+              <div className="rule-t flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-1.5">
+                <span className="t-annotation" style={{ color: 'var(--color-go)' }}>
                   Gaining
                 </span>
                 <span className="t-annotation">through neutral to</span>
-                <span className="t-annotation" style={{ color: 'var(--color-procedure)' }}>
+                <span className="t-annotation" style={{ color: 'var(--color-stop)' }}>
                   Losing
                 </span>
                 <span className="t-annotation">Hatched: not on every lap&rsquo;s section of track</span>
@@ -574,6 +589,7 @@ export function GripCompareScreen() {
                 onChange={setChannel}
               />
             }
+            flush
           >
             <CompareTraceChart
               cmp={cmp}
@@ -584,7 +600,7 @@ export function GripCompareScreen() {
               cursor={cursor}
               onSeek={setCursor}
             />
-            <p className="rule-t t-annotation px-3 py-2" style={{ textTransform: 'none', letterSpacing: '0.02em' }}>
+            <p className="rule-t t-annotation px-3 py-1.5" style={{ textTransform: 'none', letterSpacing: '0.02em' }}>
               Cursor at {Math.round(cursor)} m of {Math.round(cmp.refLength)} m
               {channel === 'metric' && <> · {metricModeName(mode).toLowerCase()} in points (100 ≈ 1 g)</>}
               {' · '}arrow keys to scrub, shift for 50 m
@@ -602,7 +618,7 @@ export function GripCompareScreen() {
             />
           )}
 
-          <div className="grid items-start gap-4 lg:grid-cols-2">
+          <div className="grid items-start gap-2 lg:grid-cols-2">
             <Zone
               label="Traction envelope"
               note={
@@ -610,84 +626,86 @@ export function GripCompareScreen() {
                   ? `fitted on ${envelopeSeries[0].laps} lap${envelopeSeries[0].laps === 1 ? '' : 's'} each`
                   : undefined
               }
+              flush
             >
               <CompareEnvelopes series={envelopeColored} anchorG={settings.anchorG} />
-              <div>
-                {envelopeColored.map((s) => (
-                  <div key={s.key} className="rule-t px-3 py-2">
-                    <ChannelStrip
-                      color={s.color}
-                      dash={s.dash}
-                      name={s.label}
-                      value={Math.round(s.score)}
-                      unit="score"
-                    />
-                    <dl className="mt-1 grid grid-cols-4 gap-2 px-3">
-                      {(['brake', 'left', 'right', 'accel'] as const).map((sec) => (
-                        <div key={sec}>
-                          <dt className="t-annotation">{SECTOR_LABEL[sec]}</dt>
-                          <dd className="t-data mt-0.5 text-sm">{Math.round(s.sectors[sec])}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                  </div>
-                ))}
-              </div>
-              <p className="rule-t t-annotation px-3 py-2" style={{ textTransform: 'none', letterSpacing: '0.02em' }}>
+              {/* ChannelStrip brings its own px-3 py-2, so the row wrapper adds
+                  no padding of its own: nesting the two was double-padding every
+                  line of this legend. */}
+              {envelopeColored.map((s) => (
+                <div key={s.key} className="rule-t pb-1.5">
+                  <ChannelStrip
+                    color={s.color}
+                    dash={s.dash}
+                    name={s.label}
+                    value={Math.round(s.score)}
+                    unit="score"
+                  />
+                  <dl className="grid grid-cols-4 gap-2 px-3">
+                    {(['brake', 'left', 'right', 'accel'] as const).map((sec) => (
+                      <div key={sec}>
+                        <dt className="t-annotation">{SECTOR_LABEL[sec]}</dt>
+                        <dd className="t-data mt-0.5 text-sm">{Math.round(s.sectors[sec])}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              ))}
+              <p className="rule-t t-annotation px-3 py-1.5" style={{ textTransform: 'none', letterSpacing: '0.02em' }}>
                 Scores are absolute: 100 ≈ working a full 1 g circle. Both sides are fitted on the same number of
                 laps, because the boundary can only grow with more laps.
               </p>
             </Zone>
 
-            <Zone label="How the lap was spent" note="metres of track, never percentages">
-              <div>
-                {aligned.map((l, i) => {
-                  // only the stretch this lap actually rode: outside its section
-                  // every channel holds its last real value
-                  const duty = dutyMetres(cmp.s, l.grid, { section: l.section });
-                  // a lap whose common section collapsed has no metres to split
-                  const pct = (v: number) => (duty.total > 0 ? (100 * v) / duty.total : 0);
-                  return (
-                    <div key={l.key} className={`px-3 py-2.5 ${i > 0 ? 'rule-t' : ''}`}>
-                      <ChannelStrip
-                        color={colorOf.get(l.key) ?? ink.ink}
-                        dash={dashOf.get(l.key)}
-                        name={l.label}
-                        value={`${Math.round(duty.total)} m`}
-                      />
-                      <div
-                        className="mt-1 flex h-3"
-                        style={{ border: 'var(--rule-hair) solid var(--color-rule)' }}
-                      >
-                        <i style={{ width: `${pct(duty.brake)}%`, background: 'var(--color-procedure)' }} />
-                        <i style={{ width: `${pct(duty.coast)}%`, background: 'var(--color-terrain)' }} />
-                        <i style={{ width: `${pct(duty.drive)}%`, background: 'var(--color-gain)' }} />
-                      </div>
-                      <dl className="mt-1.5 grid grid-cols-3 gap-2">
-                        <div>
-                          <dt className="t-annotation" style={{ color: 'var(--color-procedure)' }}>Brake</dt>
-                          <dd className="t-data mt-0.5 text-sm">{Math.round(duty.brake)} m</dd>
-                        </div>
-                        <div>
-                          <dt className="t-annotation">Coast</dt>
-                          <dd className="t-data mt-0.5 text-sm">{Math.round(duty.coast)} m</dd>
-                        </div>
-                        <div>
-                          <dt className="t-annotation" style={{ color: 'var(--color-gain)' }}>Drive</dt>
-                          <dd className="t-data mt-0.5 text-sm">{Math.round(duty.drive)} m</dd>
-                        </div>
-                      </dl>
-                      <p className="t-annotation mt-1.5">
-                        {Math.round(duty.aboveG)} m over 0.8 g · {Math.round(duty.aboveLean)} m over 40°
-                        {l.sectionFraction < 0.98 && (
-                          <> · over the {Math.round(duty.total)} m this lap shares with the reference, not a full lap</>
-                        )}
-                      </p>
+            <Zone label="How the lap was spent" note="metres of track, never percentages" flush>
+              {aligned.map((l, i) => {
+                // only the stretch this lap actually rode: outside its section
+                // every channel holds its last real value
+                const duty = dutyMetres(cmp.s, l.grid, { section: l.section });
+                // a lap whose common section collapsed has no metres to split
+                const pct = (v: number) => (duty.total > 0 ? (100 * v) / duty.total : 0);
+                return (
+                  <div key={l.key} className={`pb-2 ${i > 0 ? 'rule-t' : ''}`}>
+                    <ChannelStrip
+                      color={colorOf.get(l.key) ?? ink.ink}
+                      dash={dashOf.get(l.key)}
+                      name={l.label}
+                      value={`${Math.round(duty.total)} m`}
+                    />
+                    {/* Brake, coast and drive are three states of one lap, not
+                        three verdicts, so they are ink weights rather than a
+                        traffic light: red here would collide with red meaning
+                        time lost two blocks up. Each dt carries the swatch that
+                        maps it to its own segment of the bar. */}
+                    <div
+                      className="mx-3 flex h-3"
+                      style={{ border: 'var(--rule-hair) solid var(--color-grid-strong)' }}
+                    >
+                      {DUTY_BANDS.map((b) => (
+                        <i key={b.key} style={{ width: `${pct(duty[b.key])}%`, background: b.fill }} />
+                      ))}
                     </div>
-                  );
-                })}
-              </div>
-              <p className="rule-t t-annotation px-3 py-2" style={{ textTransform: 'none', letterSpacing: '0.02em' }}>
+                    <dl className="mx-3 mt-1.5 grid grid-cols-3 gap-2">
+                      {DUTY_BANDS.map((b) => (
+                        <div key={b.key}>
+                          <dt className="t-annotation flex items-center gap-1.5">
+                            <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0" style={{ background: b.fill }} />
+                            {b.label}
+                          </dt>
+                          <dd className="t-data mt-0.5 text-sm">{Math.round(duty[b.key])} m</dd>
+                        </div>
+                      ))}
+                    </dl>
+                    <p className="t-annotation mx-3 mt-1.5">
+                      {Math.round(duty.aboveG)} m over 0.8 g · {Math.round(duty.aboveLean)} m over 40°
+                      {l.sectionFraction < 0.98 && (
+                        <> · over the {Math.round(duty.total)} m this lap shares with the reference, not a full lap</>
+                      )}
+                    </p>
+                  </div>
+                );
+              })}
+              <p className="rule-t t-annotation px-3 py-1.5" style={{ textTransform: 'none', letterSpacing: '0.02em' }}>
                 Metres, not percentages: a percentage would hide that one lap covers more ground than the other.
                 Coast is where the tyre is neither driving nor braking, after the drag the tyre has to overcome is
                 accounted for.
@@ -725,23 +743,42 @@ function LayoutMismatch({ lap, reference }: { lap: CompareLapResult; reference: 
   );
 }
 
-function Legend({
+/**
+ * The one earned accent plane on this sheet: the delta the whole screen exists
+ * to explain, for the lap the map and the turn table are already showing.
+ *
+ * Everything in here is set in plate registers with no inline colour, because
+ * an inverted plane cannot override one. That rules out `Readout`'s `unit`
+ * slot, `Na` and `NoReading`, all three of which hard-code ink-3 inline, so the
+ * unit lives in the label and an absent reading is said in words instead. The
+ * sign is carried by the +/− glyph and by the word, never by hue alone.
+ *
+ * It renders nothing when there is no second lap: with one lap on the sheet
+ * there is no delta, and an accent plane holding an absence spends the emphasis
+ * on the one thing that is not a reading.
+ */
+function GapToReference({
   cmp,
-  colorOf,
-  dashOf,
-  refKey,
+  subjectKey,
   theoreticalBest,
+  /** Σ of the reference's own segments: the only baseline on the same clock */
   referenceTotal,
 }: {
   cmp: NonNullable<ReturnType<typeof compareLaps>>;
-  colorOf: Map<string, string>;
-  dashOf: Map<string, number[]>;
-  refKey: string | null;
+  subjectKey: string | null;
   theoreticalBest: number | null;
-  /** Σ of the reference's own segments: the only baseline on the same clock */
   referenceTotal: number | null;
 }) {
   const ref = cmp.laps.find((l) => l.isReference);
+  const subject = cmp.laps.find((l) => l.key === subjectKey && !l.isReference);
+  if (!ref || !subject) return null;
+
+  // A lap that left the reference layout has no finish delta, only a delta over
+  // the stretch the two share. Printing the shared-section figure as if it were
+  // a lap time is the misreading the mask exists to refuse, so it is labelled.
+  const partial = subject.verdict === 'partial' || !Number.isFinite(subject.finishDelta);
+  const delta = partial ? subject.sectionDelta : subject.finishDelta;
+  const measured = Number.isFinite(delta);
   // `lapTime` comes from the RaceBox metadata, the segment sum from the spatial
   // axis: differencing the two reports a 0.05 s gain on real data even when the
   // reference lap won every single segment.
@@ -751,7 +788,67 @@ function Legend({
       : NaN;
 
   return (
-    <Zone label="Lap times and deltas">
+    <Zone label="Gap to reference" note={`${subject.label} against ${ref.label}`} accent>
+      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+        <Readout
+          value={measured ? `${formatDelta(delta)}s` : 'n/a'}
+          label={
+            measured
+              ? delta > 0
+                ? 'Seconds lost against the reference lap'
+                : delta < 0
+                  ? 'Seconds gained on the reference lap'
+                  : 'Level with the reference lap'
+              : 'No comparable stretch on this lap'
+          }
+          note={
+            partial && measured
+              ? `Over the ${Math.round(subject.sectionFraction * 100)}% of the reference lap the two share. Beyond that they are on different ground.`
+              : 'Measured at the finish line, on the spatial axis both laps were projected onto.'
+          }
+        />
+        <dl className="flex flex-wrap gap-x-6 gap-y-2">
+          <div>
+            <dt className="t-annotation">Reference</dt>
+            <dd className="t-data mt-1 text-sm">{formatLapTime(ref.lapTime)}</dd>
+          </div>
+          <div>
+            <dt className="t-annotation">This lap</dt>
+            <dd className="t-data mt-1 text-sm">{formatLapTime(subject.lapTime)}</dd>
+          </div>
+          {theoreticalBest != null && Number.isFinite(theoreticalBest) && cmp.laps.length > 1 && (
+            <div>
+              <dt className="t-annotation">Best of these laps, joined up</dt>
+              <dd className="t-data mt-1 text-sm">
+                {formatLapTime(theoreticalBest)}
+                {Number.isFinite(gain) && <span className="t-annotation ml-2">{formatDelta(gain)}s vs ref</span>}
+              </dd>
+            </div>
+          )}
+        </dl>
+      </div>
+    </Zone>
+  );
+}
+
+/**
+ * The chart legend: every lap on the sheet with the ink and dash it is drawn
+ * in, its time, and its finish delta. The label is the block's own head band,
+ * and the rows own their padding, so the zone runs flush.
+ */
+function Legend({
+  cmp,
+  colorOf,
+  dashOf,
+  refKey,
+}: {
+  cmp: NonNullable<ReturnType<typeof compareLaps>>;
+  colorOf: Map<string, string>;
+  dashOf: Map<string, number[]>;
+  refKey: string | null;
+}) {
+  return (
+    <Zone label="Lap times and deltas" flush>
       {cmp.laps.map((l, i) => (
         <div key={l.key} className={`flex flex-wrap items-baseline gap-x-3 ${i > 0 ? 'rule-t' : ''}`}>
           <div className="min-w-0 flex-1">
@@ -766,17 +863,6 @@ function Legend({
           </p>
         </div>
       ))}
-      {theoreticalBest != null && Number.isFinite(theoreticalBest) && ref && cmp.laps.length > 1 && (
-        <div className="rule-t flex flex-wrap items-baseline justify-between gap-x-3 px-3 py-2">
-          <span className="t-annotation">Best of these laps, joined up</span>
-          <span className="t-data text-sm">
-            {formatLapTime(theoreticalBest)}
-            {Number.isFinite(gain) && (
-              <span className={`ml-2 ${deltaTextClass(gain)}`}>{formatDelta(gain)}s vs ref</span>
-            )}
-          </span>
-        </div>
-      )}
     </Zone>
   );
 }

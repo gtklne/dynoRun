@@ -35,15 +35,8 @@ export function Readout({
         {value}
         {unit && (
           <span
-            className="ml-1.5 align-baseline"
-            style={{
-              fontSize: '0.28em',
-              fontStretch: '75%',
-              fontWeight: 700,
-              letterSpacing: '0.09em',
-              textTransform: 'uppercase',
-              color: 'var(--color-ink-3)',
-            }}
+            className="t-unit ml-1.5 align-baseline"
+            style={{ fontSize: '0.28em' }}
           >
             {unit}
           </span>
@@ -108,9 +101,7 @@ export function ChannelStrip({
   const body = (
     <>
       {swatch}
-      <span className="t-label min-w-0 flex-1 truncate" style={{ color: 'var(--color-ink)' }}>
-        {name}
-      </span>
+      <span className="t-label t-label-strong min-w-0 flex-1 truncate">{name}</span>
       {value !== undefined && (
         <span className="t-data shrink-0 text-sm">
           {value}

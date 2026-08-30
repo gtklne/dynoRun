@@ -1,6 +1,6 @@
 import type { GripLap } from '@/analysis/grip/types';
 import type { GripSessionSummary } from '@/api/repositories/types';
-import { PlateButton } from '@/ui/plate';
+import { PlateButton, Zone } from '@/ui/plate';
 import { formatLapTime } from './format-lap';
 import { MAX_COMPARE_LAPS } from './compare-colors';
 
@@ -62,19 +62,21 @@ export function CompareLapPicker({
 }: Props) {
   const full = selected.length >= MAX_COMPARE_LAPS;
 
+  // Label, cap and the add control all sit in the block's own head band. The
+  // heading used to float above an unlabelled frame, which is exactly the mixed
+  // convention that made Grip read as two systems on one sheet.
   return (
-    <section aria-label="Lap selection">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <h2 className="t-label">
-          Laps ({selected.length}/{MAX_COMPARE_LAPS})
-        </h2>
+    <Zone
+      label={`Laps (${selected.length}/${MAX_COMPARE_LAPS})`}
+      note={full ? 'Six is the cap: colour and dash would start repeating past it' : undefined}
+      actions={
         <select
           value=""
           disabled={loading || available.length === 0}
           onChange={(e) => e.target.value && onAddSession(e.target.value)}
           aria-label="Add a session"
           className="field max-w-[22rem]"
-          style={{ width: 'auto' }}
+          style={{ width: 'auto', minHeight: 36 }}
         >
           <option value="">{available.length ? 'Add a session' : 'No other sessions'}</option>
           {available.map((s) => (
@@ -85,9 +87,10 @@ export function CompareLapPicker({
             </option>
           ))}
         </select>
-      </div>
-
-      <div className="box-frame">
+      }
+      flush
+    >
+      <>
         {sessions.length === 0 && (
           <p className="t-annotation px-3 py-4">
             {loading ? 'Loading sessions…' : 'Add a session above to start comparing laps.'}
@@ -96,7 +99,7 @@ export function CompareLapPicker({
 
         {sessions.map((s, i) => (
           <div key={s.id} className={i > 0 ? 'rule-t' : undefined}>
-            <div className="flex items-start justify-between gap-3 px-3 py-2">
+            <div className="flex items-start justify-between gap-3 px-3 py-1.5">
               <div className="min-w-0">
                 <p className="t-data truncate text-sm">{s.title}</p>
                 <p className="t-annotation mt-0.5 truncate">{s.subtitle}</p>
@@ -134,7 +137,7 @@ export function CompareLapPicker({
                         {on && color && <SeriesMark color={color} dash={dashOf?.get(key)} />}
                         Lap {lap.num}
                         {isRef && (
-                          <span style={{ fontSize: '0.5625rem', fontStretch: '75%', opacity: 0.72 }}>ref</span>
+                          <span style={{ fontSize: '0.6875rem', fontStretch: '75%', opacity: 0.72 }}>ref</span>
                         )}
                       </span>
                       <span
@@ -155,12 +158,7 @@ export function CompareLapPicker({
             )}
           </div>
         ))}
-      </div>
-      {full && (
-        <p className="t-annotation mt-1.5">
-          Six is the cap: colour and dash pattern would start repeating past it.
-        </p>
-      )}
-    </section>
+      </>
+    </Zone>
   );
 }

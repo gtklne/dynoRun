@@ -44,10 +44,10 @@ export function PullSparkline({ samples }: { samples: RawSpeedSample[] }) {
           y1={h - pad}
           x2={w - pad}
           y2={h - pad}
-          stroke={ink.ruleFaint}
+          stroke={ink.grid}
           strokeWidth="1"
         />
-        <polyline points={points} fill="none" stroke={ink.procedure} strokeWidth="1.5" />
+        <polyline points={points} fill="none" stroke={ink.ink} strokeWidth="1.5" />
       </svg>
     </ProfileView>
   );

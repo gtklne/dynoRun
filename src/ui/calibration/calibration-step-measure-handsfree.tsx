@@ -37,6 +37,10 @@ interface Props {
   onCancel: () => void;
 }
 
+// See ACCENT_INK_3 in run-review-screen.tsx: `.plane-ink` cannot reach the
+// inline ink-3 on Readout's unit, so the property is overridden here.
+const ACCENT_INK_3 = '[--color-ink-3:color-mix(in_srgb,var(--color-sheet)_68%,transparent)]';
+
 function formatElapsed(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
   const m = Math.floor(total / 60);
@@ -241,10 +245,7 @@ export function CalibrationStepMeasureHandsFree({ vehicleId, gear, onConfirmed, 
         <>
           <span className="t-data text-base">{candidate.plateau.mean_speed_kmh.toFixed(1)}</span>
           {index === 0 && candidate.plausible && (
-            <span
-              className="t-annotation mt-1 block"
-              style={{ color: 'var(--color-procedure)' }}
-            >
+            <span className="t-annotation mt-0.5 block" style={{ color: 'var(--color-ink)' }}>
               Steadiest
             </span>
           )}
@@ -296,13 +297,13 @@ export function CalibrationStepMeasureHandsFree({ vehicleId, gear, onConfirmed, 
 
       {isReady && (
         <>
-          <Zone label="How it works">
+          <Zone label="How it works" flush>
             <ol>
-              <li className="flex items-start gap-3 px-3 py-2.5">
+              <li className="flex items-start gap-3 px-3 py-2">
                 <span
                   aria-hidden="true"
                   className="t-data flex h-6 w-6 shrink-0 items-center justify-center text-xs"
-                  style={{ border: 'var(--rule-hair) solid var(--color-rule)' }}
+                  style={{ border: 'var(--rule-hair) solid var(--color-grid-strong)' }}
                 >
                   1
                 </span>
@@ -310,11 +311,11 @@ export function CalibrationStepMeasureHandsFree({ vehicleId, gear, onConfirmed, 
                   Start the recording here while stopped, then put the phone away.
                 </span>
               </li>
-              <li className="rule-t flex items-start gap-3 px-3 py-2.5">
+              <li className="rule-t flex items-start gap-3 px-3 py-2">
                 <span
                   aria-hidden="true"
                   className="t-data flex h-6 w-6 shrink-0 items-center justify-center text-xs"
-                  style={{ border: 'var(--rule-hair) solid var(--color-rule)' }}
+                  style={{ border: 'var(--rule-hair) solid var(--color-grid-strong)' }}
                 >
                   2
                 </span>
@@ -325,11 +326,11 @@ export function CalibrationStepMeasureHandsFree({ vehicleId, gear, onConfirmed, 
                   registers.
                 </span>
               </li>
-              <li className="rule-t flex items-start gap-3 px-3 py-2.5">
+              <li className="rule-t flex items-start gap-3 px-3 py-2">
                 <span
                   aria-hidden="true"
                   className="t-data flex h-6 w-6 shrink-0 items-center justify-center text-xs"
-                  style={{ border: 'var(--rule-hair) solid var(--color-rule)' }}
+                  style={{ border: 'var(--rule-hair) solid var(--color-grid-strong)' }}
                 >
                   3
                 </span>
@@ -375,7 +376,16 @@ export function CalibrationStepMeasureHandsFree({ vehicleId, gear, onConfirmed, 
 
       {isRecording && (
         <>
-          <Zone label="Recording" note={`Elapsed ${formatElapsed(elapsed)}`}>
+          {/* The one earned accent plane while recording: trackside, the live
+              speed is the sheet. Annotation register inside it, because
+              `.plane-ink` remaps that one and leaves body copy behind. */}
+          <Zone
+            label="Recording"
+            note={`Elapsed ${formatElapsed(elapsed)}`}
+            accent={live != null}
+            flush
+            className={live != null ? ACCENT_INK_3 : ''}
+          >
             <div className="rule-b px-3 py-4">
               {live == null ? (
                 <NoReading label="Speed" reason="No fix yet" />
@@ -383,21 +393,24 @@ export function CalibrationStepMeasureHandsFree({ vehicleId, gear, onConfirmed, 
                 <Readout label="Speed" value={live.speed_kmh.toFixed(0)} unit="km/h" size="xl" />
               )}
             </div>
-            <p className="t-body px-3 py-2.5 text-[0.8125rem] leading-6">
+            <p className="t-annotation px-3 py-2 normal-case tracking-normal">
               Hold {gear.user_rpm.toLocaleString()} RPM in {gear.gear_label}. Listen for the
               callout.
             </p>
           </Zone>
 
-          <Zone label="Holds heard so far" note={heardHolds.length === 0 ? 'none yet' : `${heardHolds.length} registered`}>
+          <Zone
+            label="Holds heard so far"
+            note={heardHolds.length === 0 ? 'none yet' : `${heardHolds.length} registered`}
+          >
             {heardHolds.length === 0 ? (
-              <p className="t-body px-3 py-2.5 text-[0.8125rem] leading-6">
+              <p className="t-body text-[0.8125rem] leading-6">
                 None yet. Settle at a constant RPM and wait five seconds.
               </p>
             ) : (
-              <div className="flex flex-wrap gap-2 px-3 py-2.5">
+              <div className="flex flex-wrap gap-1.5">
                 {heardHolds.map((s, i) => (
-                  <span key={i} className="box t-data px-2.5 py-1 text-xs">
+                  <span key={i} className="plane-2 t-data px-2 py-0.5 text-xs">
                     {s.toFixed(1)} km/h
                   </span>
                 ))}
@@ -428,14 +441,14 @@ export function CalibrationStepMeasureHandsFree({ vehicleId, gear, onConfirmed, 
       {(isReviewing || isSaving) && candidates.length === 0 && (
         <>
           <Zone label="No steady speed found">
-            <p className="t-body px-3 py-3 text-[0.875rem] leading-6">
+            <p className="t-body text-[0.875rem] leading-6">
               The ride never held a constant speed for long enough (about five seconds above
               20 km/h, within 1.5 km/h). Ride a flat road with little traffic and settle on the
               throttle before you start counting. The raw recording was saved, so you can inspect
               it in the Replay Lab.
             </p>
           </Zone>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2.5">
             <PlateButton type="button" onClick={onCancel} className="w-full">
               Back
             </PlateButton>
@@ -455,8 +468,9 @@ export function CalibrationStepMeasureHandsFree({ vehicleId, gear, onConfirmed, 
                 ? 'One steady hold, best first'
                 : `${candidates.length} steady holds, best first`
             }
+            flush
           >
-            <p className="rule-b t-body px-3 py-2.5 text-[0.8125rem] leading-6">
+            <p className="rule-b t-body px-3 py-2 text-[0.8125rem] leading-6">
               Pick the speed you remember seeing. Only you know which hold you meant, so the app
               does not guess.
             </p>

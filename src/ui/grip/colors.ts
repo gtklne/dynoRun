@@ -1,16 +1,15 @@
 import type { PlateInk } from '@/ui/plate';
 
 /**
- * Grip's two colour ramps, both derived from the plate's inks rather than from
- * fixed hex. Canvas cannot read a Tailwind utility, so without this every chart
- * would keep printing day ink on a night sheet.
+ * Grip's two ramps, both derived from the plate's inks rather than from fixed
+ * hex. Canvas cannot read a Tailwind utility, so without this every chart would
+ * keep printing day ink on a night sheet.
  *
- * Hue is spent here because this is one of the few places in the product where
- * it genuinely changes a decision. The two ramps must stay distinguishable at a
- * glance: the demand ramp is sequential and anchored to the tyre-class grip
- * level (terrain, through caution, to procedure), the rate ramp is a different
- * scale entirely (ink-3, through gain, to full ink) so a load-transfer streak
- * can never be misread as grip demand.
+ * The two ramps must never be confusable, so they run on different channels
+ * entirely. Demand is the traffic light and means on screen what it means on a
+ * circuit: green while there is grip in hand, amber as the tyre starts working,
+ * red at the tyre-class limit. Load transfer is ink at increasing weight, no hue
+ * at all, so a transfer streak can never be read as grip demand.
  */
 
 type Rgb = [number, number, number];
@@ -59,22 +58,34 @@ export function inkAlpha(color: string, alpha: number): string {
 }
 
 /**
- * Grip or load demand in g, anchored so full procedure ink sits at the
- * tyre-class grip level (`settings.anchorG`). Scores stay absolute; only the
+ * Grip or load demand in g as a traffic light, anchored so the red end sits at
+ * the tyre-class grip level (`settings.anchorG`). Scores stay absolute; only the
  * colours rescale, which is why changing the anchor recolours but never
  * rescores.
+ *
+ * Amber is placed at 55% of the anchor rather than at the midpoint on purpose:
+ * a tyre is already working hard well before the limit, and a ramp that only
+ * leaves green in the last third reads as "fine, fine, fine, red".
  */
+const AMBER_AT = 0.55;
+
 export function scoreColor(ink: PlateInk, g: number, anchorG: number): string {
-  const u = Math.max(0, Math.min(1.05, g / (anchorG || 1)));
-  if (u < 0.6) return mixInk(ink.terrain, ink.caution, u / 0.6);
-  return mixInk(ink.caution, ink.procedure, Math.min(1, (u - 0.6) / 0.45));
+  const u = Math.max(0, Math.min(1, g / (anchorG || 1)));
+  if (u < AMBER_AT) return mixInk(ink.go, ink.caution, u / AMBER_AT);
+  return mixInk(ink.caution, ink.stop, (u - AMBER_AT) / (1 - AMBER_AT));
 }
 
-/** Normalised load-transfer rate (0..1): dim ink, through gain, to full ink. */
+/**
+ * Normalised load-transfer rate (0..1) as ink weight, never as hue.
+ *
+ * It shares a canvas with the demand ramp (the comet trail crosses the g-g
+ * scatter, the timeline cursor dot sits under the track map), so putting both
+ * on the traffic light would make a violent throttle-to-brake swap and a corner
+ * at the limit the same colour while meaning opposite things. Dim ink to full
+ * ink is unmistakably a different scale and still reads at a glance.
+ */
 export function rateColor(ink: PlateInk, n: number): string {
-  const x = Math.max(0, Math.min(1, n));
-  if (x < 0.6) return mixInk(ink.ink3, ink.gain, x / 0.6);
-  return mixInk(ink.gain, ink.ink, (x - 0.6) / 0.4);
+  return mixInk(ink.ink3, ink.ink, Math.max(0, Math.min(1, n)));
 }
 
 /**

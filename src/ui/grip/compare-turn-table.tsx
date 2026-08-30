@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { ComparedCorner, ComparedCornerStat, GripComparison } from '@/analysis/grip/compare';
 import { PAYOFF_HINT, PAYOFF_LABEL, turnPayoff, type TurnPayoff } from '@/analysis/grip/compare-stats';
-import { MinimaTable, Na, PlateSegmented, usePlateInk, type MinimaColumn } from '@/ui/plate';
+import { MinimaTable, Na, PlateSegmented, Zone, usePlateInk, type MinimaColumn } from '@/ui/plate';
 import { deltaTextClass, formatDelta } from './compare-colors';
 import { scoreColor } from './colors';
 
@@ -16,18 +16,19 @@ interface Props {
 }
 
 /**
- * A verdict is a reading, so it gets ink rather than decoration: gain where the
- * subject came out ahead, caution where it gave something up, procedure where
- * it paid demand and got nothing back.
+ * A verdict is a reading, so it takes the traffic light and nothing else: go
+ * where the subject came out ahead, caution where it gave something up and
+ * should read the row before trusting it, stop where it paid demand and got
+ * nothing back. Unmeasured and level are not judgements, so they stay in ink.
  */
 const PAYOFF_INK: Record<TurnPayoff, string> = {
   unmeasured: 'var(--color-ink-3)',
   level: 'var(--color-ink-2)',
-  'faster-more-g': 'var(--color-gain)',
-  'faster-other': 'var(--color-gain)',
+  'faster-more-g': 'var(--color-go)',
+  'faster-other': 'var(--color-go)',
   'slower-backed-off': 'var(--color-caution)',
-  'slower-despite-g': 'var(--color-procedure)',
-  'level-cheaper': 'var(--color-gain)',
+  'slower-despite-g': 'var(--color-stop)',
+  'level-cheaper': 'var(--color-go)',
   'level-dearer': 'var(--color-caution)',
 };
 
@@ -88,15 +89,14 @@ export function CompareTurnTable({ cmp, refKey, subjectKey, anchorG, cursor, onS
 
   if (!cmp.corners.length) {
     return (
-      <section aria-label="Turn by turn">
-        <h2 className="t-label mb-2">Turn by turn</h2>
-        <div className="box-frame hatch px-3 py-6 text-center">
+      <Zone label="Turn by turn" flush>
+        <div className="hatch px-3 py-5 text-center">
           <p className="t-annotation" style={{ color: 'var(--color-ink-2)' }}>
             No turns were detected on these laps. Lower &ldquo;Min lean for a corner&rdquo; in Settings if the track
             has only gentle bends.
           </p>
         </div>
-      </section>
+      </Zone>
     );
   }
 
@@ -206,29 +206,25 @@ export function CompareTurnTable({ cmp, refKey, subjectKey, anchorG, cursor, onS
     },
   ];
 
+  // The verdict sentence is the block's note and the sort is its action, so the
+  // whole label band lives inside the plane: no heading row above the table.
+  const note = sameLap
+    ? 'Pick a second lap to see per-turn deltas'
+    : worst.length
+      ? `Most time to find at ${worst.map((r) => `T${r.c.turn}`).join(', ')}: ${formatDelta(
+          worst.reduce((s2, r) => s2 + r.dTime, 0),
+        )}s of the gap sits there`
+      : 'No turn is losing more than 0.05 s, the gap is spread across the lap';
+
   return (
-    <section aria-label="Turn by turn">
-      <div className="mb-2 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
-        <div>
-          <h2 className="t-label">Turn by turn</h2>
-          <p className="t-annotation mt-1" style={{ textTransform: 'none', letterSpacing: '0.02em' }}>
-            {sameLap ? (
-              <>Pick a second lap to see per-turn deltas.</>
-            ) : worst.length ? (
-              <>
-                Most time to find at{' '}
-                <b style={{ color: 'var(--color-procedure)' }}>{worst.map((r) => `T${r.c.turn}`).join(', ')}</b>
-                {': '}
-                {formatDelta(worst.reduce((s, r) => s + r.dTime, 0))}s of the gap sits there.
-              </>
-            ) : (
-              <>No turn is losing more than 0.05 s. The gap is spread across the lap.</>
-            )}
-            {unmeasured > 0 && (
-              <> · {unmeasured} turn{unmeasured === 1 ? '' : 's'} not on the subject lap&rsquo;s section of track.</>
-            )}
-          </p>
-        </div>
+    <Zone
+      label="Turn by turn"
+      note={
+        unmeasured > 0
+          ? `${note} · ${unmeasured} turn${unmeasured === 1 ? '' : 's'} off the subject lap's section`
+          : note
+      }
+      actions={
         <PlateSegmented
           label="Turn order"
           value={order}
@@ -238,18 +234,17 @@ export function CompareTurnTable({ cmp, refKey, subjectKey, anchorG, cursor, onS
           ]}
           onChange={setOrder}
         />
-      </div>
-
-      <div className="box-frame">
-        <MinimaTable
-          columns={columns}
-          rows={rows}
-          rowKey={(r) => String(r.c.turn)}
-          selectedKey={activeTurn == null ? null : String(activeTurn)}
-          onSelect={(r) => onSelectTurn(r.c.s)}
-          caption="Demand is a score: g × 100, so 110 ≈ 1.10 g. Δ columns are the subject lap minus the reference, measured over the same stretch of track on both laps."
-        />
-      </div>
-    </section>
+      }
+      flush
+    >
+      <MinimaTable
+        columns={columns}
+        rows={rows}
+        rowKey={(r) => String(r.c.turn)}
+        selectedKey={activeTurn == null ? null : String(activeTurn)}
+        onSelect={(r) => onSelectTurn(r.c.s)}
+        caption="Demand is a score: g × 100, so 110 ≈ 1.10 g. Δ columns are the subject lap minus the reference, measured over the same stretch of track on both laps."
+      />
+    </Zone>
   );
 }

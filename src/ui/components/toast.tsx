@@ -39,18 +39,23 @@ const DEFAULT_DURATION: Record<ToastVariant, number> = {
 };
 
 /**
- * A toast is a marginal note stuck to the sheet, so it is a ruled box carrying
- * the same square swatch an `Advisory` uses, not a panel with a coloured edge.
- * Only the variants that demand something spend colour; an error additionally
- * tints its ground and frame so it cannot be scanned past. There is no red on
- * this plate, so warning and error share caution ink and the ground separates
- * them.
+ * A toast is a marginal note stuck to the sheet: a filled plane carrying the
+ * same square swatch an `Advisory` uses, not a panel with a coloured edge. The
+ * three that carry a judgement take the traffic light and the ground with it,
+ * so an error reads as red and a save as green; info carries no judgement and
+ * stays in plain ink.
  */
-const SWATCH_BY_VARIANT: Record<ToastVariant, string> = {
-  info: 'var(--color-terrain)',
-  success: 'var(--color-gain)',
-  warning: 'var(--color-caution)',
-  error: 'var(--color-caution)',
+const TONE_BY_VARIANT: Record<ToastVariant, 'ink-3' | 'go' | 'caution' | 'stop'> = {
+  info: 'ink-3',
+  success: 'go',
+  warning: 'caution',
+  error: 'stop',
+};
+
+const PLANE_BY_VARIANT: Partial<Record<ToastVariant, string>> = {
+  success: 'var(--color-go-plane)',
+  warning: 'var(--color-caution-plane)',
+  error: 'var(--color-stop-plane)',
 };
 
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -113,20 +118,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={t.id}
             role="status"
-            className="box pointer-events-auto flex w-full max-w-md items-start gap-3 px-3 py-2.5"
-            style={
-              t.variant === 'error'
-                ? {
-                    borderColor: 'var(--color-caution)',
-                    background: 'var(--color-caution-tint)',
-                  }
-                : undefined
-            }
+            className="plane-flat pointer-events-auto flex w-full max-w-md items-start gap-3 px-3 py-2.5"
+            data-variant={t.variant}
+            style={{ background: PLANE_BY_VARIANT[t.variant] }}
           >
             <span
               aria-hidden="true"
               className="mt-1 h-3.5 w-3.5 shrink-0"
-              style={{ background: SWATCH_BY_VARIANT[t.variant] }}
+              style={{ background: `var(--color-${TONE_BY_VARIANT[t.variant]})` }}
             />
             <p className="t-body m-0 flex-1 text-[0.8125rem] leading-6" style={{ color: 'var(--color-ink)' }}>
               {t.message}

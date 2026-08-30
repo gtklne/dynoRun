@@ -62,7 +62,7 @@ export function TelemetryReadout({ analysis, lap, cursor, metric, mode, settings
         />
       </div>
 
-      <div className="rule-b px-3 py-3">
+      <div className="rule-b px-3 py-2.5">
         <Readout
           value={Math.round(u * 100)}
           unit="pts"
@@ -76,8 +76,8 @@ export function TelemetryReadout({ analysis, lap, cursor, metric, mode, settings
         {/* the bar is the only place the demand ramp appears as a value, so the
             reader can match the track map's colour to a number */}
         <div
-          className="mt-3 h-2.5"
-          style={{ border: 'var(--rule-hair) solid var(--color-rule)', background: 'var(--color-sheet)' }}
+          className="mt-2 h-2.5"
+          style={{ border: 'var(--rule-hair) solid var(--color-grid-strong)', background: 'var(--color-sheet)' }}
           role="presentation"
         >
           <div
@@ -91,7 +91,7 @@ export function TelemetryReadout({ analysis, lap, cursor, metric, mode, settings
         <p className="t-annotation mt-1.5">Full bar = tyre class {settings.anchorG.toFixed(2)} g</p>
       </div>
 
-      <div className="px-3 py-3">
+      <div className="px-3 py-2.5">
         <div className="flex items-baseline justify-between gap-3">
           <span className="t-annotation">
             Rear <span className="t-data ml-1 text-sm">{rearPct}%</span>
@@ -105,10 +105,10 @@ export function TelemetryReadout({ analysis, lap, cursor, metric, mode, settings
             the empty remainder the front, and the centre rule is 50/50. */}
         <div
           className="relative mt-1.5 h-3"
-          style={{ border: 'var(--rule-hair) solid var(--color-rule)', background: 'var(--color-sheet)' }}
+          style={{ border: 'var(--rule-hair) solid var(--color-grid-strong)', background: 'var(--color-sheet)' }}
         >
           <div
-            style={{ width: `${rearPct}%`, height: '100%', background: 'var(--color-terrain)' }}
+            style={{ width: `${rearPct}%`, height: '100%', background: 'var(--color-ink-3)' }}
           />
           <span
             aria-hidden="true"

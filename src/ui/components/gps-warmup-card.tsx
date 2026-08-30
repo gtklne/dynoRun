@@ -1,4 +1,4 @@
-import { Advisory, Na, Zone } from '@/ui/plate';
+import { Advisory, Na, PlateGauge, Zone } from '@/ui/plate';
 
 export const GPS_ACCURACY_GOOD_M = 10;
 export const GPS_REQUIRED_GOOD_MS = 2_000;
@@ -45,7 +45,7 @@ function Row({
   bad?: boolean;
 }) {
   return (
-    <div className="rule-t flex items-baseline justify-between px-3 py-2 first:border-t-0">
+    <div className="rule-t flex items-baseline justify-between px-3 py-1.5 first:border-t-0">
       <dt className="t-annotation">{label}</dt>
       <dd className="t-data text-sm" style={toneStyle(bad)}>
         {value === null ? (
@@ -87,10 +87,9 @@ export function GpsWarmupCard({
         : 'Acquiring lock';
 
   const accuracy = telemetry?.accuracy_m ?? null;
-  const progress = Math.min(100, (goodFor_ms / requiredGoodMs) * 100);
 
   return (
-    <div className="space-y-2">
+    <div className="plate-stack">
       {showPoorWarning && (
         <Advisory>
           Accuracy has stayed worse than {goodAccuracyM} m for over{' '}
@@ -99,7 +98,26 @@ export function GpsWarmupCard({
         </Advisory>
       )}
 
-      <Zone label="GPS signal" note={status}>
+      <Zone label="GPS signal" note={status} flush>
+        {/* Kept on screen after it fills rather than swapped out: green IS the
+            reading the driver is waiting for, and a gauge that vanishes at the
+            moment it succeeds never gets to say so. */}
+        <div className="rule-b block-body">
+          <PlateGauge
+            label="Lock progress"
+            value={Math.min(goodFor_ms, requiredGoodMs) / 1000}
+            max={requiredGoodMs / 1000}
+            unit="s"
+            reached={locked}
+            blocked={showPoorWarning}
+            note={
+              locked
+                ? undefined
+                : `Need ${(requiredGoodMs / 1000).toFixed(0)} s of accuracy at or under ${goodAccuracyM} m`
+            }
+          />
+        </div>
+
         <dl>
           <Row
             label="Accuracy"
@@ -124,40 +142,6 @@ export function GpsWarmupCard({
             unit="km/h"
           />
         </dl>
-
-        {!locked && (
-          <div className="rule-t px-3 py-2.5">
-            <div className="mb-1.5 flex items-baseline justify-between">
-              <span className="t-annotation">Lock progress</span>
-              <span className="t-data text-xs">
-                {(goodFor_ms / 1000).toFixed(1)} s / {(requiredGoodMs / 1000).toFixed(0)} s
-              </span>
-            </div>
-            <div
-              className="h-2.5 w-full"
-              role="progressbar"
-              aria-label="GPS lock progress"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(progress)}
-              style={{ border: 'var(--rule-hair) solid var(--color-rule)' }}
-            >
-              {/* Scaled rather than width-animated: a width transition on a
-                  bar that updates four times a second thrashes layout. */}
-              <div
-                className="h-full w-full origin-left"
-                style={{
-                  transform: `scaleX(${progress / 100})`,
-                  background: showPoorWarning ? 'var(--color-caution)' : 'var(--color-ink)',
-                  transition: 'transform 300ms var(--ease-plate)',
-                }}
-              />
-            </div>
-            <p className="t-annotation mt-1.5">
-              Need {(requiredGoodMs / 1000).toFixed(0)} s of accuracy at or under {goodAccuracyM} m
-            </p>
-          </div>
-        )}
       </Zone>
     </div>
   );

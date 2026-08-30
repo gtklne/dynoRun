@@ -98,7 +98,7 @@ export function RawSpeedChart({ trace, accelCeilingMs2, height = 260, cursorTime
         // ink, or the finding looks like a missing series.
         label: 'Used by pipeline',
         scale: 'kmh',
-        stroke: ink.terrain,
+        stroke: ink.ink3,
         width: 1.5,
         dash: [5, 5],
         spanGaps: true,
@@ -162,7 +162,7 @@ export function RawSpeedChart({ trace, accelCeilingMs2, height = 260, cursorTime
             ctx.beginPath();
             ctx.rect(u.bbox.left, u.bbox.top, u.bbox.width, u.bbox.height);
             ctx.clip();
-            ctx.strokeStyle = ink.procedure;
+            ctx.strokeStyle = ink.ink;
             ctx.lineWidth = 1.5;
             ctx.beginPath();
             ctx.moveTo(x, u.bbox.top);

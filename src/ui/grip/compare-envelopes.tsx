@@ -101,7 +101,7 @@ export function CompareEnvelopes({ series, anchorG }: Props) {
     <canvas
       ref={ref}
       className="mx-auto block w-full max-w-[420px]"
-      style={{ aspectRatio: '1 / 1', background: 'var(--color-sunk)' }}
+      style={{ aspectRatio: '1 / 1', background: 'var(--color-plane-2)' }}
     />
   );
 }

@@ -23,6 +23,10 @@ import {
 } from '@/ui/plate';
 import type { RpmPoint } from '@/shared/types';
 
+// See ACCENT_INK_3 in run-review-screen.tsx: `.plane-ink` cannot reach the
+// inline ink-3 on Readout's unit, so the property is overridden here.
+const ACCENT_INK_3 = '[--color-ink-3:color-mix(in_srgb,var(--color-sheet)_68%,transparent)]';
+
 type LoadState =
   | { kind: 'loading' }
   | { kind: 'error' }
@@ -79,13 +83,13 @@ function Frame({ children }: { children: React.ReactNode }) {
           </a>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 pt-5 pb-12 lg:max-w-5xl">
+      <main className="mx-auto w-full max-w-2xl flex-1 px-4 pb-10 pt-4 lg:max-w-5xl">
         {children}
       </main>
-      <footer className="rule-t px-4 py-6 text-center">
+      <footer className="rule-t px-4 py-5 text-center">
         <p className="t-body mx-auto text-sm">
           Track your own vehicle&apos;s power at{' '}
-          <a href="https://wasgoht.ch" className="no-underline hover:underline" style={{ color: 'var(--color-procedure)' }}>
+          <a href="https://wasgoht.ch" className="no-underline hover:underline" style={{ color: 'var(--color-ink)' }}>
             wasgoht.ch
           </a>
         </p>
@@ -162,15 +166,13 @@ export function PublicShareScreen() {
         <div className="plate-stack">
           <TitleBlock title="Shared run unavailable" />
           <Zone label="What happened">
-            <p className="t-body px-3 py-3 text-[0.875rem] leading-6">
+            <p className="t-body mb-2.5 text-[0.875rem] leading-6">
               This link does not resolve to a run any more. The owner may have revoked it, or the
               URL is mistyped.
             </p>
-            <div className="rule-t px-3 py-3">
-              <PlateAnchor href="https://wasgoht.ch" variant="procedure">
-                Go to DynoRun
-              </PlateAnchor>
-            </div>
+            <PlateAnchor href="https://wasgoht.ch" variant="procedure">
+              Go to DynoRun
+            </PlateAnchor>
           </Zone>
         </div>
       </Frame>
@@ -199,9 +201,19 @@ export function PublicShareScreen() {
           ]}
         />
 
-        <div className="space-y-10 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] lg:gap-8 lg:items-start lg:space-y-0">
-          <div className="space-y-6">
-            <Zone label="Peak readings" note={`also shown in ${opp}`}>
+        <div className="plate-stack lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] lg:gap-4 lg:items-start lg:space-y-0">
+          <div className="plate-stack">
+            {/* The one earned accent plane on a shared sheet: peak power is the
+                whole reason the link was sent. Dropped when the run derived no
+                curve, because `NoReading` sets its figure in a register the ink
+                plane does not remap. */}
+            <Zone
+              label="Peak readings"
+              note={`also shown in ${opp}`}
+              accent={peak != null}
+              flush
+              className={peak != null ? ACCENT_INK_3 : ''}
+            >
               <div className="grid grid-cols-2">
                 <div className="px-3 py-3">
                   {peak ? (
@@ -237,17 +249,17 @@ export function PublicShareScreen() {
               </div>
             </Zone>
 
-            <Zone label="Conditions" note="stated by the owner">
+            <Zone label="Conditions" note="stated by the owner" flush>
               {run.conditions &&
               (run.conditions.ambient_temp_c != null ||
                 run.conditions.wind_kmh != null ||
                 run.conditions.road_slope_pct != null ||
                 run.conditions.surface) ? (
-                <div className="px-3 py-3">
+                <div className="px-3 py-2.5">
                   <ConditionsChips conditions={run.conditions} size="md" />
                 </div>
               ) : (
-                <div className="hatch px-3 py-5 text-center">
+                <div className="hatch px-3 py-4 text-center">
                   <p className="t-annotation" style={{ color: 'var(--color-ink-2)' }}>
                     No conditions were logged for this run
                   </p>
@@ -256,7 +268,7 @@ export function PublicShareScreen() {
             </Zone>
           </div>
 
-          <div className="space-y-6">
+          <div className="plate-stack">
             <PlanView
               label="Wheel power vs RPM"
               scale={
@@ -272,7 +284,7 @@ export function PublicShareScreen() {
                   unit={units.unit}
                 />
               ) : (
-                <div className="hatch px-3 py-12 text-center">
+                <div className="hatch px-3 py-10 text-center">
                   <p className="t-annotation" style={{ color: 'var(--color-ink-2)' }}>
                     No curve was derived for this run
                   </p>
@@ -281,7 +293,7 @@ export function PublicShareScreen() {
             </PlanView>
 
             {hasCurve && (
-              <Zone label="RPM bins" note="the values the curve is drawn from">
+              <Zone label="RPM bins" note="the values the curve is drawn from" flush>
                 <MinimaTable columns={BIN_COLUMNS} rows={curve.points} rowKey={(p) => String(p.rpm)} />
               </Zone>
             )}

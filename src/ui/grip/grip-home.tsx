@@ -176,11 +176,10 @@ export function GripHome() {
 
       {error && <Advisory>{error}</Advisory>}
 
-      <Zone
-        label="Import"
-        note="Parsed in your browser, then saved to your account"
-        framed={false}
-      >
+      {/* One convention: the label is the block's own head band. This zone used
+          to be unframed with a framed child inside it, so the sheet showed a
+          caption above a box beside blocks captioned within. */}
+      <Zone label="Import" note="Parsed in your browser, then saved to your account" flush>
         <label
           onDragEnter={(e) => { e.preventDefault(); setDragging(true); }}
           onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
@@ -191,8 +190,10 @@ export function GripHome() {
             const f = e.dataTransfer.files[0];
             if (f) void importFile(f);
           }}
-          className={`box-frame flex cursor-pointer flex-col items-center justify-center gap-2 px-4 py-8 text-center ${dragging ? 'hatch' : ''}`}
-          style={dragging ? { borderColor: 'var(--color-procedure)' } : undefined}
+          className={`flex cursor-pointer flex-col items-center justify-center gap-1.5 px-4 py-6 text-center ${dragging ? 'hatch' : ''}`}
+          // A drop target is a real edge while the file is over it, and it is
+          // not a judgement, so it takes ink rather than a traffic-light hue.
+          style={dragging ? { outline: 'var(--rule-strong) solid var(--color-ink)', outlineOffset: '-2px' } : undefined}
         >
           <ImportIcon />
           <span className="t-label" style={{ color: 'var(--color-ink)' }}>
@@ -215,7 +216,7 @@ export function GripHome() {
         </label>
       </Zone>
 
-      <Zone label="Saved sessions" note={sessions ? `${sessions.length} stored` : undefined}>
+      <Zone label="Saved sessions" note={sessions ? `${sessions.length} stored` : undefined} flush>
         {sessions === null ? (
           <p className="t-annotation px-3 py-6 text-center">Loading…</p>
         ) : (

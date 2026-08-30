@@ -18,7 +18,7 @@ import { CountdownOverlay } from '@/ui/components/countdown-overlay';
 import { pulseStart, pulseStop } from '@/app/haptics';
 import { useUnits } from '@/app/units-context';
 import { useToast } from '@/ui/components/toast';
-import { Na, Plate, PlateButton, PlateLink, ProfileView, TitleBlock, Zone } from '@/ui/plate';
+import { Na, Plate, PlateButton, PlateLink, ProfileView, Readout, TitleBlock, Zone } from '@/ui/plate';
 
 interface GpsState {
   accuracy_m: number | null;
@@ -27,6 +27,10 @@ interface GpsState {
   altitude_m: number | null;
   heading_deg: number | null;
 }
+
+// See ACCENT_INK_3 in run-review-screen.tsx: `.plane-ink` cannot reach the
+// inline ink-3 on Readout's unit, so the property is overridden here.
+const ACCENT_INK_3 = '[--color-ink-3:color-mix(in_srgb,var(--color-sheet)_68%,transparent)]';
 
 const STATE_LABEL: Record<RunState['kind'], string> = {
   idle: 'Starting sensors',
@@ -258,24 +262,22 @@ export function LiveRunScreen() {
 
       {isRunning && (
         <>
-          <Zone label="Live readout" note="Recording">
+          {/* The one earned accent plane on this screen: while the car is
+              moving, the live speed IS the sheet. Trackside, so the readout
+              keeps its size even though the review screens tightened. */}
+          <Zone label="Live readout" note="Recording" accent flush className={ACCENT_INK_3}>
             <div className="grid grid-cols-2">
               <div className="px-3 py-4">
-                <p className="t-annotation">Speed</p>
-                <p className="t-readout-xl mt-2">
-                  {currentSpeed.toFixed(0)}
-                  <span className="t-annotation ml-2 align-baseline">km/h</span>
-                </p>
+                <Readout label="Speed" value={currentSpeed.toFixed(0)} unit="km/h" size="xl" />
               </div>
               <div className="rule-l px-3 py-4">
-                <p className="t-annotation">RPM</p>
-                <p className="t-readout mt-2">{currentRpm.toFixed(0)}</p>
+                <Readout label="RPM" value={currentRpm.toFixed(0)} />
               </div>
             </div>
             <dl className="rule-t grid grid-cols-2">
               <div className="px-3 py-2.5">
                 <dt className="t-annotation">Live peak</dt>
-                <dd className="t-data mt-1 text-lg" style={{ color: 'var(--color-procedure)' }}>
+                <dd className="t-data mt-1 text-lg">
                   {livePeakKw == null ? <Na title="No positive drive power measured yet" /> : format(livePeakKw)}
                 </dd>
               </div>
@@ -296,7 +298,7 @@ export function LiveRunScreen() {
           </Zone>
 
           <ProfileView label="Speed and RPM" axis="last 30 s">
-            <div className="p-2">
+            <div className="p-1.5">
               <StreamingChart ref={chartRef} />
             </div>
           </ProfileView>

@@ -55,7 +55,7 @@ function gradeLabel(rl: RoadLoadSummary): string {
  *  the reader has to be able to check, not tags. */
 function Assumption({ value, source }: { value: string; source?: string }) {
   return (
-    <div className="box px-2.5 py-1">
+    <div className="plane-2 px-2 py-0.5">
       <span className="t-data text-xs">{value}</span>
       {source && <span className="t-annotation ml-1.5">{source}</span>}
     </div>
@@ -99,10 +99,10 @@ export function ExpertView({ roadLoad, breakdown, peakRpm, unit }: ExpertViewPro
       points: breakdown.map((b) => ({ rpm: b.rpm, wheel_power_kw: b[m.key], wheel_torque_nm: 0 })),
     }));
     out.push({
-      // A reference line, not a fifth component: terrain ink, so it recedes
-      // behind the four forces it is the sum of.
+      // A reference line, not a fifth component: the faintest ink weight, so
+      // it recedes behind the four forces it is the sum of.
       label: 'Total',
-      stroke: ink.terrain,
+      stroke: ink.ink3,
       dash: [],
       points: breakdown.map((b) => ({ rpm: b.rpm, wheel_power_kw: b.total_kw, wheel_torque_nm: 0 })),
     });
@@ -112,9 +112,9 @@ export function ExpertView({ roadLoad, breakdown, peakRpm, unit }: ExpertViewPro
   }, [breakdown, ink]);
 
   return (
-    <div data-testid="expert-view" className="space-y-5">
+    <div data-testid="expert-view" className="plate-stack">
       <Zone label="Road-load assumptions">
-        <div className="flex flex-wrap gap-2 px-3 py-2.5">
+        <div className="flex flex-wrap gap-1.5">
           <Assumption value={`CdA ${roadLoad.cd_a_m2.toFixed(2)} m²`} source={roadLoad.cd_a_source} />
           <Assumption value={`Crr ${roadLoad.crr.toFixed(3)}`} source={roadLoad.crr_source} />
           <Assumption value={gradeLabel(roadLoad)} />
@@ -127,13 +127,14 @@ export function ExpertView({ roadLoad, breakdown, peakRpm, unit }: ExpertViewPro
         <Zone
           label={`Power split at ${peakPoint.rpm.toFixed(0)} RPM`}
           note={formatPower(peakPoint.total_kw, unit)}
+          flush
         >
-          <div className="px-3 py-3">
+          <div className="px-3 py-2.5">
             {positiveSum > 0 && (
               <div
                 className="flex h-6"
                 data-testid="breakdown-bar"
-                style={{ border: 'var(--rule-hair) solid var(--color-rule)' }}
+                style={{ border: 'var(--rule-hair) solid var(--color-grid-strong)' }}
               >
                 {positives.map((c) => (
                   <div
@@ -194,8 +195,8 @@ export function ExpertView({ roadLoad, breakdown, peakRpm, unit }: ExpertViewPro
       )}
 
       {breakdown.length > 0 && (
-        <Zone label="Force contributions vs RPM">
-          <div className="p-2">
+        <Zone label="Force contributions vs RPM" flush>
+          <div className="p-1.5">
             <PowerCurveChart series={seriesData} mode="power" unit={unit} />
           </div>
         </Zone>

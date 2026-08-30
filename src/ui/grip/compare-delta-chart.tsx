@@ -186,7 +186,7 @@ export function CompareDeltaChart({ cmp, colorOf, dashOf, keys, cursor, onSeek, 
       ref={ref}
       onClick={(e) => ref.current && onSeek(seekFromClick(e, ref.current, cmp.refLength))}
       className="block w-full cursor-crosshair"
-      style={{ height, background: 'var(--color-sunk)' }}
+      style={{ height, background: 'var(--color-plane-2)' }}
     />
   );
 }

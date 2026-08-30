@@ -128,12 +128,12 @@ export function ReplayLabIndex() {
 
       {error && <Advisory>{error}</Advisory>}
 
-      <Zone label="Start a replay" note="Re-run a recording in real time, without driving">
+      <Zone label="Start a replay" note="Re-run a recording in real time, without driving" flush>
         {last && (
-          <div className="rule-b flex flex-wrap items-center justify-between gap-3 px-3 py-3">
+          <div className="rule-b flex flex-wrap items-center justify-between gap-3 px-3 py-2.5">
             <div className="min-w-0">
               <p className="t-data text-sm">Last recording, still in memory</p>
-              <p className="t-annotation mt-1">
+              <p className="t-annotation mt-0.5">
                 {last.kind} / {last.gps_fixes.length} GPS fixes / {(last.duration_ms / 1000).toFixed(1)} s
               </p>
             </div>
@@ -143,7 +143,7 @@ export function ReplayLabIndex() {
           </div>
         )}
 
-        <label className="hatch flex cursor-pointer items-center justify-center gap-2.5 px-3 py-6 transition-colors hover:bg-[var(--color-sunk)]">
+        <label className="hatch flex cursor-pointer items-center justify-center gap-2.5 px-3 py-5 transition-colors hover:bg-[var(--color-plane-2)]">
           <ImportIcon />
           <span className="t-label" style={{ color: 'var(--color-ink)' }}>
             Upload a recording JSON file
@@ -152,9 +152,9 @@ export function ReplayLabIndex() {
         </label>
       </Zone>
 
-      <Zone label="Stored recordings">
+      <Zone label="Stored recordings" flush>
         {recordings === null ? (
-          <p className="t-annotation px-3 py-8 text-center">Loading...</p>
+          <p className="t-annotation px-3 py-6 text-center">Loading...</p>
         ) : (
           <MinimaTable
             columns={columns}

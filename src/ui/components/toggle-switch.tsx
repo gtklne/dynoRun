@@ -19,7 +19,7 @@ export function ToggleSwitch({ checked, onChange, ariaLabel }: ToggleSwitchProps
       onClick={() => onChange(!checked)}
       className="relative inline-flex h-7 w-14 shrink-0 items-center"
       style={{
-        border: 'var(--rule-frame) solid var(--color-ink)',
+        border: 'var(--rule-strong) solid var(--color-ink)',
         background: checked ? 'var(--color-ink)' : 'var(--color-sheet)',
         transition: 'background-color 120ms var(--ease-plate)',
       }}

@@ -1,4 +1,4 @@
-import { PlateButton, PlateSegmented } from '@/ui/plate';
+import { PlateButton, PlateSegmented, Zone } from '@/ui/plate';
 
 const RATES = [0.25, 0.5, 1, 2, 4, 8];
 
@@ -62,8 +62,10 @@ export function ReplayTransport({
   RATES[0]);
 
   return (
-    <section className="box-frame" aria-label="Replay transport">
-      <div className="rule-b px-3 py-3">
+    // A named block like every other: an unlabelled framed section was the one
+    // region of this sheet whose name lived only in an aria-label.
+    <Zone label="Transport" note={`${selectedRate}\u00d7 playback`} flush>
+      <div className="rule-b px-3 py-2.5">
         {/* The native range keeps every pointer and keyboard behaviour, and the
             plate's ink drives its own filled track, so the control is the
             platform's rather than a div pretending to be one. */}
@@ -102,7 +104,7 @@ export function ReplayTransport({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
         <PlateSegmented
           label="Playback speed"
           value={String(selectedRate)}
@@ -114,6 +116,6 @@ export function ReplayTransport({
           Restart
         </PlateButton>
       </div>
-    </section>
+    </Zone>
   );
 }

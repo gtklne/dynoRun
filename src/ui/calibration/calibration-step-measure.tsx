@@ -7,7 +7,7 @@ import type { Calibration } from '@/shared/types';
 import type { CalibrationState } from '@/run/types';
 import { setLastRecording } from '@/sensors/replay-state';
 import { recordingRepository } from '@/api/repositories/recording-repository';
-import { Advisory, Na, NoReading, NotesBox, PlateButton, Readout, Zone } from '@/ui/plate';
+import { Advisory, Na, NoReading, NotesBox, PlateButton, PlateGauge, Readout, Zone } from '@/ui/plate';
 import {
   GpsWarmupCard,
   isGpsLocked,
@@ -20,6 +20,10 @@ import {
   onMotionSample,
   type MotionFusionState,
 } from '@/sensors/motion-fusion';
+
+// See ACCENT_INK_3 in run-review-screen.tsx: `.plane-ink` cannot reach the
+// inline ink-3 on Readout's unit, so the property is overridden here.
+const ACCENT_INK_3 = '[--color-ink-3:color-mix(in_srgb,var(--color-sheet)_68%,transparent)]';
 
 interface Props {
   vehicleId: string;
@@ -51,7 +55,7 @@ interface TelemetryRowProps {
 
 function TelemetryRow({ label, value, unit, bad = false }: TelemetryRowProps) {
   return (
-    <div className="rule-t flex items-baseline justify-between px-3 py-2 first:border-t-0">
+    <div className="rule-t flex items-baseline justify-between px-3 py-1.5 first:border-t-0">
       <dt className="t-annotation">{label}</dt>
       <dd className="t-data text-sm" style={outOfTolerance(bad)}>
         {value === null ? (
@@ -206,11 +210,18 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
 
       {state.kind === 'measuring' && (
         <>
+          {/* The one earned accent plane while measuring: the speed the driver
+              is holding is the whole reason this screen is open. Trackside, so
+              it stays monumental. It carries no reading that can be absent, so
+              the plane drops back to plain when there is no fix yet. */}
           <Zone
             label="Measuring"
             note={`${gear.gear_label}, target ${gear.user_rpm.toLocaleString()} RPM`}
+            accent={displaySpeed != null}
+            flush
+            className={displaySpeed != null ? ACCENT_INK_3 : ''}
           >
-            <div className="rule-b px-3 py-4">
+            <div className="px-3 py-4">
               {displaySpeed == null ? (
                 <NoReading label="Current speed" reason="No fix yet" />
               ) : (
@@ -222,7 +233,52 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
                 />
               )}
             </div>
+          </Zone>
 
+          {tooSlow && (
+            <Advisory>
+              Steady, but too slow to calibrate. Get above{' '}
+              {live?.stability.min_speed_kmh.toFixed(0)} km/h in {gear.gear_label} and hold{' '}
+              {gear.user_rpm.toLocaleString()} RPM.
+            </Advisory>
+          )}
+
+          <Zone
+            label="Stability"
+            note={`${live ? (live.stability.elapsed_ms / 1000).toFixed(1) : '0.0'} s of ${live ? (live.stability.window_ms / 1000).toFixed(0) : '5'} s`}
+          >
+            {/* The shared gauge, not a hand-rolled bar: this is the third screen
+                that needed one, and `blocked` is what makes a bar that fills and
+                then refuses to capture say so instead of just sitting there. */}
+            <PlateGauge
+              label="Steady hold"
+              value={live ? live.stability.elapsed_ms / 1000 : 0}
+              max={live ? live.stability.window_ms / 1000 : 5}
+              unit="s"
+              major
+              reached={stabilityPct >= 1 && deltaOk && !tooSlow}
+              blocked={tooSlow || !deltaOk}
+              note={
+                tooSlow
+                  ? 'Too slow to calibrate, so this hold cannot be captured'
+                  : !deltaOk
+                    ? 'Speed is not steady enough, so the window keeps restarting'
+                    : undefined
+              }
+            />
+
+            <div className="mt-2 flex items-baseline justify-between">
+              <span className="t-annotation">Speed spread</span>
+              <span className="t-data text-sm" style={outOfTolerance(!deltaOk)}>
+                {live ? `±${(live.stability.speed_delta_kmh / 2).toFixed(2)} km/h` : <Na />}
+                <span className="t-annotation ml-1.5">
+                  max ±{live ? (live.stability.max_delta_kmh / 2).toFixed(1) : '0.5'}
+                </span>
+              </span>
+            </div>
+          </Zone>
+
+          <Zone label="Signal" flush>
             <dl>
               <TelemetryRow
                 label="Accuracy"
@@ -252,61 +308,11 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
               )}
             </dl>
           </Zone>
-
-          {tooSlow && (
-            <Advisory>
-              Steady, but too slow to calibrate. Get above{' '}
-              {live?.stability.min_speed_kmh.toFixed(0)} km/h in {gear.gear_label} and hold{' '}
-              {gear.user_rpm.toLocaleString()} RPM.
-            </Advisory>
-          )}
-
-          <Zone
-            label="Stability"
-            note={`${live ? (live.stability.elapsed_ms / 1000).toFixed(1) : '0.0'} s of ${live ? (live.stability.window_ms / 1000).toFixed(0) : '5'} s`}
-          >
-            <div className="px-3 py-3">
-              <div
-                className="h-2.5 w-full"
-                role="progressbar"
-                aria-label="Steady-hold progress"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={Math.round(stabilityPct * 100)}
-                style={{ border: 'var(--rule-hair) solid var(--color-rule)' }}
-              >
-                {/* Scaled rather than width-animated: a bar that updates on
-                    every GPS fix should not thrash layout to do it. */}
-                <div
-                  className="h-full w-full origin-left"
-                  style={{
-                    transform: `scaleX(${stabilityPct})`,
-                    background: tooSlow
-                      ? 'var(--color-terrain)'
-                      : deltaOk
-                        ? 'var(--color-ink)'
-                        : 'var(--color-caution)',
-                    transition: 'transform 300ms var(--ease-plate)',
-                  }}
-                />
-              </div>
-
-              <div className="mt-2.5 flex items-baseline justify-between">
-                <span className="t-annotation">Speed spread</span>
-                <span className="t-data text-sm" style={outOfTolerance(!deltaOk)}>
-                  {live ? `±${(live.stability.speed_delta_kmh / 2).toFixed(2)} km/h` : <Na />}
-                  <span className="t-annotation ml-1.5">
-                    max ±{live ? (live.stability.max_delta_kmh / 2).toFixed(1) : '0.5'}
-                  </span>
-                </span>
-              </div>
-            </div>
-          </Zone>
         </>
       )}
 
       {state.kind === 'stable' && (
-        <Zone label="Captured" note="Steady hold locked">
+        <Zone label="Captured" note="Steady hold locked" accent flush className={ACCENT_INK_3}>
           <div className="px-3 py-4">
             <Readout
               label="Captured speed"

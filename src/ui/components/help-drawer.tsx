@@ -46,11 +46,11 @@ function HelpIcon() {
 /** A numbered procedure step: the index is a ruled cell, never a filled pill. */
 function Step({ index, title, body }: { index: number; title: string; body: string }) {
   return (
-    <li className="rule-t flex items-start gap-3 px-3 py-2.5 first:border-t-0">
+    <li className="rule-t flex items-start gap-3 px-3 py-2 first:border-t-0">
       <span
         aria-hidden="true"
         className="t-data flex h-6 w-6 shrink-0 items-center justify-center text-xs"
-        style={{ border: 'var(--rule-hair) solid var(--color-rule)' }}
+        style={{ border: 'var(--rule-hair) solid var(--color-grid-strong)' }}
       >
         {index}
       </span>
@@ -64,7 +64,7 @@ function Step({ index, title, body }: { index: number; title: string; body: stri
 
 function GlossaryItem({ term, definition }: { term: string; definition: ReactNode }) {
   return (
-    <div className="rule-t px-3 py-2.5 first:border-t-0">
+    <div className="rule-t px-3 py-2 first:border-t-0">
       <dt className="t-data text-sm">{term}</dt>
       <dd className="t-body mt-0.5 text-[0.8125rem] leading-6">{definition}</dd>
     </div>
@@ -72,7 +72,7 @@ function GlossaryItem({ term, definition }: { term: string; definition: ReactNod
 }
 
 function Body({ children }: { children: ReactNode }) {
-  return <p className="t-body px-3 py-2.5 text-[0.8125rem] leading-6">{children}</p>;
+  return <p className="t-body px-3 py-2 text-[0.8125rem] leading-6">{children}</p>;
 }
 
 export function HelpDrawer({ open, onClose }: HelpDrawerProps) {
@@ -109,7 +109,7 @@ export function HelpDrawer({ open, onClose }: HelpDrawerProps) {
         aria-label="Close help"
         onClick={onClose}
         className={`absolute inset-0 transition-opacity duration-200 ${open ? 'opacity-100' : 'opacity-0'}`}
-        style={{ background: 'var(--color-terrain)', opacity: open ? 0.55 : 0 }}
+        style={{ background: 'var(--color-ink-3)', opacity: open ? 0.55 : 0 }}
       />
       <aside
         onTransitionEnd={() => {
@@ -120,10 +120,10 @@ export function HelpDrawer({ open, onClose }: HelpDrawerProps) {
         }`}
         style={{
           background: 'var(--color-sheet)',
-          borderLeft: 'var(--rule-section) solid var(--color-ink)',
+          borderLeft: 'var(--rule-strong) solid var(--color-ink)',
         }}
       >
-        <header className="rule-b pt-safe flex shrink-0 items-center justify-between px-4 py-3">
+        <header className="rule-b pt-safe flex shrink-0 items-center justify-between px-4 py-2.5">
           <h1 className="t-plate-title">Getting started</h1>
           <PlateButton
             aria-label="Close"
@@ -135,15 +135,15 @@ export function HelpDrawer({ open, onClose }: HelpDrawerProps) {
           </PlateButton>
         </header>
 
-        <div className="flex-1 space-y-6 overflow-y-auto px-4 py-5">
-          <Zone label="What is DynoRun?">
+        <div className="plate-stack flex-1 overflow-y-auto px-4 py-4">
+          <Zone label="What is DynoRun?" flush>
             <Body>
               DynoRun derives your car&apos;s wheel-power curve from GPS acceleration data. No dyno
               required, just drive.
             </Body>
           </Zone>
 
-          <Zone label="Three steps">
+          <Zone label="Three steps" flush>
             <ol>
               <Step index={1} title="Add vehicle" body="Mass matters, physics is F = m·a." />
               <Step
@@ -159,7 +159,7 @@ export function HelpDrawer({ open, onClose }: HelpDrawerProps) {
             </ol>
           </Zone>
 
-          <Zone label="Why you calibrate once per gear">
+          <Zone label="Why you calibrate once per gear" flush>
             <Body>
               The app uses a steady-state RPM-to-speed reading to figure out your gear ratio and
               tyre size in a single number (rollout). Pick a flat road, hold a known RPM in your
@@ -167,7 +167,7 @@ export function HelpDrawer({ open, onClose }: HelpDrawerProps) {
             </Body>
           </Zone>
 
-          <Zone label="Hands-free mode">
+          <Zone label="Hands-free mode" flush>
             <Body>
               You cannot reach the phone mid-pull on a motorcycle, so both steps have a hands-free
               variant. Start the recording while stopped, put the phone away, and ride. Calibration
@@ -178,7 +178,7 @@ export function HelpDrawer({ open, onClose }: HelpDrawerProps) {
             </Body>
           </Zone>
 
-          <Zone label="What a good run looks like">
+          <Zone label="What a good run looks like" flush>
             <Body>
               GPS accuracy matters. Wait for the GPS quality indicator before starting. Pick a
               straight road with little traffic. Hold a steady throttle from your starting speed to
@@ -186,7 +186,7 @@ export function HelpDrawer({ open, onClose }: HelpDrawerProps) {
             </Body>
           </Zone>
 
-          <Zone label="Glossary">
+          <Zone label="Glossary" flush>
             <dl>
               <GlossaryItem
                 term="Peak power (kW / hp)"
@@ -203,14 +203,14 @@ export function HelpDrawer({ open, onClose }: HelpDrawerProps) {
             </dl>
           </Zone>
 
-          <Zone label="Public links">
+          <Zone label="Public links" flush>
             <Body>
               Tap Share on a run review to make a public link (no login needed to view) or to share
               a card image.
             </Body>
           </Zone>
 
-          <Zone label="Getting the cleanest curve">
+          <Zone label="Getting the cleanest curve" flush>
             <ul>
               {[
                 'Clear-sky GPS: open road, no tunnels or canyons.',
@@ -218,7 +218,7 @@ export function HelpDrawer({ open, onClose }: HelpDrawerProps) {
                 'Smooth throttle from start to redline.',
                 'Avoid wheelspin, it lies to the accelerometer.',
               ].map((tip) => (
-                <li key={tip} className="rule-t flex gap-2.5 px-3 py-2 first:border-t-0">
+                <li key={tip} className="rule-t flex gap-2.5 px-3 py-1.5 first:border-t-0">
                   <span
                     aria-hidden="true"
                     className="mt-2 h-1.5 w-1.5 shrink-0"

@@ -39,7 +39,7 @@ export function LapTabs({ laps, bestNum, activeNum, onSelect }: LapTabsProps) {
             <span className="flex items-baseline gap-1.5">
               <span>Lap {lap.num}</span>
               {best && (
-                <span style={{ fontSize: '0.5625rem', fontStretch: '75%', opacity: 0.72 }}>best</span>
+                <span style={{ fontSize: '0.6875rem', fontStretch: '75%', opacity: 0.72 }}>best</span>
               )}
             </span>
             <span

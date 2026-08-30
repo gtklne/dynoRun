@@ -39,6 +39,10 @@ interface GpsState {
   fix_rate_hz: number;
 }
 
+// See ACCENT_INK_3 in run-review-screen.tsx: `.plane-ink` cannot reach the
+// inline ink-3 on Readout's unit, so the property is overridden here.
+const ACCENT_INK_3 = '[--color-ink-3:color-mix(in_srgb,var(--color-sheet)_68%,transparent)]';
+
 function formatElapsed(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
   const m = Math.floor(total / 60);
@@ -51,9 +55,13 @@ function peakPowerKw(p: SessionPull): number {
   return Math.max(...p.analysis.points.map((pt) => pt.wheel_power_kw));
 }
 
-/** A marginal label on a row: ruled, never a filled pill. */
-function RowMark({ children, tone }: { children: string; tone: 'procedure' | 'caution' }) {
-  const color = tone === 'procedure' ? 'var(--color-procedure)' : 'var(--color-caution)';
+/**
+ * A marginal label on a row: ruled, never a filled pill. `mark` is identity
+ * (this is the strongest pull) and stays in plain ink; `stop` is judgement
+ * (the receiver, not the bike, made this number) and takes the traffic light.
+ */
+function RowMark({ children, tone }: { children: string; tone: 'mark' | 'stop' }) {
+  const color = tone === 'mark' ? 'var(--color-ink)' : 'var(--color-stop)';
   return (
     <span
       className="t-annotation shrink-0 px-1.5 py-0.5"
@@ -293,13 +301,13 @@ export function SessionScreen() {
 
       {isReady && (
         <>
-          <Zone label="How it works">
+          <Zone label="How it works" flush>
             <ol>
-              <li className="flex items-start gap-3 px-3 py-2.5">
+              <li className="flex items-start gap-3 px-3 py-2">
                 <span
                   aria-hidden="true"
                   className="t-data flex h-6 w-6 shrink-0 items-center justify-center text-xs"
-                  style={{ border: 'var(--rule-hair) solid var(--color-rule)' }}
+                  style={{ border: 'var(--rule-hair) solid var(--color-grid-strong)' }}
                 >
                   1
                 </span>
@@ -307,11 +315,11 @@ export function SessionScreen() {
                   Start the session here while stopped, then put the phone away.
                 </span>
               </li>
-              <li className="rule-t flex items-start gap-3 px-3 py-2.5">
+              <li className="rule-t flex items-start gap-3 px-3 py-2">
                 <span
                   aria-hidden="true"
                   className="t-data flex h-6 w-6 shrink-0 items-center justify-center text-xs"
-                  style={{ border: 'var(--rule-hair) solid var(--color-rule)' }}
+                  style={{ border: 'var(--rule-hair) solid var(--color-grid-strong)' }}
                 >
                   2
                 </span>
@@ -320,11 +328,11 @@ export function SessionScreen() {
                   briefly, then make your full pull.
                 </span>
               </li>
-              <li className="rule-t flex items-start gap-3 px-3 py-2.5">
+              <li className="rule-t flex items-start gap-3 px-3 py-2">
                 <span
                   aria-hidden="true"
                   className="t-data flex h-6 w-6 shrink-0 items-center justify-center text-xs"
-                  style={{ border: 'var(--rule-hair) solid var(--color-rule)' }}
+                  style={{ border: 'var(--rule-hair) solid var(--color-grid-strong)' }}
                 >
                   3
                 </span>
@@ -369,7 +377,15 @@ export function SessionScreen() {
 
       {isRecording && (
         <>
-          <Zone label="Recording session" note={`Elapsed ${formatElapsed(elapsed)}`}>
+          {/* The one earned accent plane here: while the bike is moving the
+              live speed is the whole sheet. Trackside, so it stays large. */}
+          <Zone
+            label="Recording session"
+            note={`Elapsed ${formatElapsed(elapsed)}`}
+            accent
+            flush
+            className={ACCENT_INK_3}
+          >
             <div className="rule-b grid grid-cols-2">
               <div className="px-3 py-4">
                 <Readout label="Speed" value={currentSpeed.toFixed(0)} unit="km/h" size="xl" />
@@ -378,7 +394,10 @@ export function SessionScreen() {
                 <Readout label="RPM" value={currentRpm.toFixed(0)} />
               </div>
             </div>
-            <p className="t-body px-3 py-2.5 text-[0.8125rem] leading-6">
+            {/* Annotation, not body: `.plane-ink` remaps the annotation and
+                label registers onto the inverted ground and leaves body copy
+                in its sheet-plate ink, which would be unreadable here. */}
+            <p className="t-annotation px-3 py-2 normal-case tracking-normal">
               Put the phone away and ride. Everything is recorded, and your pulls are picked out
               afterwards.
             </p>
@@ -406,13 +425,13 @@ export function SessionScreen() {
       {(isReviewing || isSaving) && pulls.length === 0 && (
         <>
           <Zone label="No pulls detected">
-            <p className="t-body px-3 py-3 text-[0.875rem] leading-6">
+            <p className="t-body text-[0.875rem] leading-6">
               The session did not contain a clear acceleration run (at least about 15 km/h of
               sustained speed gain). The raw recording was still saved, so you can inspect it in
               the Replay Lab.
             </p>
           </Zone>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2.5">
             <PlateLink to={`/vehicles/${vehicleId}`} className="w-full">
               Back to vehicle
             </PlateLink>
@@ -428,8 +447,9 @@ export function SessionScreen() {
           <Zone
             label="Detected pulls"
             note={`${pulls.length === 1 ? 'One pull' : `${pulls.length} pulls`}, ${selected.size} selected`}
+            flush
           >
-            <p className="rule-b t-body px-3 py-2.5 text-[0.8125rem] leading-6">
+            <p className="rule-b t-body px-3 py-2 text-[0.8125rem] leading-6">
               Select the ones to keep as runs. The rest are discarded, and the raw session
               recording stays available for replay.
             </p>
@@ -442,8 +462,8 @@ export function SessionScreen() {
               return (
                 <label
                   key={i}
-                  className={`block px-3 py-3 ${i > 0 ? 'rule-t' : ''} ${analyzable ? 'cursor-pointer' : ''}`}
-                  style={checked ? { background: 'var(--color-procedure-tint)' } : undefined}
+                  className={`block px-3 py-2.5 ${i > 0 ? 'rule-t' : ''} ${analyzable ? 'cursor-pointer' : ''}`}
+                  style={checked ? { background: 'var(--color-plane-2)' } : undefined}
                 >
                   <div className="flex items-center gap-3">
                     <input
@@ -455,18 +475,18 @@ export function SessionScreen() {
                       aria-label={`Keep pull ${i + 1}`}
                     />
                     <span className="t-data text-sm">Pull {i + 1}</span>
-                    {corrupt && <RowMark tone="caution">GPS drift</RowMark>}
-                    {i === bestIndex && <RowMark tone="procedure">Best</RowMark>}
+                    {corrupt && <RowMark tone="stop">GPS drift</RowMark>}
+                    {i === bestIndex && <RowMark tone="mark">Best</RowMark>}
                     <span className="t-data ml-auto shrink-0 text-sm">
                       {analyzable ? format(kw) : <Na title="Could not be analysed" />}
                     </span>
                   </div>
 
-                  <div className="mt-2.5">
+                  <div className="mt-2">
                     <PullSparkline samples={p.samples} />
                   </div>
 
-                  <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                  <div className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                     <span className="t-annotation">
                       {mpsToKmh(p.pull.v_start_mps).toFixed(0)} to{' '}
                       {mpsToKmh(p.pull.v_peak_mps).toFixed(0)} km/h
@@ -482,13 +502,13 @@ export function SessionScreen() {
                   </div>
 
                   {!analyzable && (
-                    <p className="t-annotation mt-2" style={{ color: 'var(--color-caution)' }}>
+                    <p className="t-annotation mt-1.5" style={{ color: 'var(--color-caution)' }}>
                       This pull could not be analysed, so it cannot be saved as a run.
                     </p>
                   )}
 
                   {corrupt && (
-                    <p className="t-body mt-2 text-[0.8125rem] leading-6" style={{ color: 'var(--color-ink)' }}>
+                    <p className="t-body mt-1.5 text-[0.8125rem] leading-6" style={{ color: 'var(--color-ink)' }}>
                       The GPS lost the speed signal mid-pull and caught up in one step, so this
                       power figure is the receiver, not the bike. Ride this pull again.
                     </p>

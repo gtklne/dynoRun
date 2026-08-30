@@ -44,7 +44,7 @@ export function DevLoginPanel() {
     <section
       className="box px-3 py-3"
       aria-label="Dev sign-in"
-      style={{ borderColor: 'var(--color-caution)', background: 'var(--color-caution-tint)' }}
+      style={{ borderColor: 'var(--color-caution)', background: 'var(--color-caution-plane)' }}
     >
       <p className="t-annotation" style={{ color: 'var(--color-caution)' }}>
         Dev sign-in (no email)

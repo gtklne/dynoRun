@@ -20,7 +20,9 @@ import { useExpertView } from '@/ui/run/use-expert-view';
 import { ToggleSwitch } from '@/ui/components/toggle-switch';
 import {
   Advisory,
+  Chevron,
   Na,
+  NoReading,
   PlateButton,
   PlateField,
   PlateLink,
@@ -31,6 +33,10 @@ import {
 } from '@/ui/plate';
 import type { VehicleKind } from '@/shared/types';
 import type { RawSpeedSample } from '@/analysis/types';
+
+// See ACCENT_INK_3 in run-review-screen.tsx: `.plane-ink` cannot reach the
+// inline ink-3 on Readout's unit, so the property is overridden here.
+const ACCENT_INK_3 = '[--color-ink-3:color-mix(in_srgb,var(--color-sheet)_68%,transparent)]';
 
 type RolloutMode = 'direct' | 'point';
 
@@ -53,23 +59,6 @@ function computeAutoStopTMs(samples: RawSpeedSample[]): number | null {
     if (seenPositive && detector.check(s.t_ms)) return s.t_ms;
   }
   return null;
-}
-
-function BackIcon() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="square"
-      aria-hidden="true"
-    >
-      <polyline points="15 5 8 12 15 19" />
-    </svg>
-  );
 }
 
 function DisclosureIcon() {
@@ -334,7 +323,7 @@ export function ReplayLabPlayer() {
           title="Replay"
           actions={
             <PlateLink to="/replay">
-              <BackIcon />
+              <Chevron direction="left" />
               Replay Lab
             </PlateLink>
           }
@@ -375,54 +364,50 @@ export function ReplayLabPlayer() {
         ]}
         actions={
           <PlateLink to="/replay">
-            <BackIcon />
+            <Chevron direction="left" />
             Replay Lab
           </PlateLink>
         }
       />
 
-      <div className="space-y-10 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start lg:space-y-0">
+      <div className="plate-stack lg:grid lg:grid-cols-3 lg:gap-4 lg:items-start lg:space-y-0">
         {/* LEFT: live player + transport */}
-        <div className="space-y-6 lg:col-span-2">
+        <div className="plate-stack lg:col-span-2">
+          {/* The one earned accent plane here: the replay exists to be watched
+              running, so the live column is what the screen is for. */}
           <Zone
             label="Live readout"
             note={progress.playing ? 'Playing' : 'Paused'}
+            accent
+            flush
+            className={ACCENT_INK_3}
           >
             <div className="grid grid-cols-3">
               <div className="px-3 py-3">
                 <Readout value={currentSpeedKmh.toFixed(0)} unit="km/h" label="Speed" />
               </div>
               <div className="rule-l px-3 py-3">
+                {/* NoReading rather than a hand-sized `n/a`: an absent reading
+                    has its own register, and setting one inline was the only
+                    ad-hoc font-size left on these screens. */}
                 {rpmKnown ? (
                   <Readout value={currentRpm.toFixed(0)} unit="RPM" label="RPM" />
                 ) : (
-                  <div>
-                    <p className="t-annotation">RPM</p>
-                    <p className="t-readout na mt-1.5" style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}>
-                      n/a
-                    </p>
-                    <p className="t-annotation mt-1.5">No rollout set</p>
-                  </div>
+                  <NoReading label="RPM" reason="No rollout set" />
                 )}
               </div>
               <div className="rule-l px-3 py-3">
                 {livePeakKw != null ? (
                   <Readout value={units.format(livePeakKw)} label="Live peak" />
                 ) : (
-                  <div>
-                    <p className="t-annotation">Live peak</p>
-                    <p className="t-readout na mt-1.5" style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}>
-                      n/a
-                    </p>
-                    <p className="t-annotation mt-1.5">Needs a mass</p>
-                  </div>
+                  <NoReading label="Live peak" reason="Needs a mass" />
                 )}
               </div>
             </div>
             {zeroToHundred != null && (
-              <div className="rule-t flex items-baseline justify-between px-3 py-2.5">
+              <div className="rule-t flex items-baseline justify-between px-3 py-2">
                 <span className="t-annotation">0-100 km/h</span>
-                <span className="t-data text-lg" style={{ color: 'var(--color-procedure)' }}>
+                <span className="t-data text-lg">
                   {zeroToHundred.toFixed(1)}
                   <span className="t-annotation ml-1">s</span>
                 </span>
@@ -451,87 +436,88 @@ export function ReplayLabPlayer() {
         </div>
 
         {/* RIGHT: controls + output */}
-        <div className="space-y-6 lg:col-span-1">
-          <section aria-label="Analysis parameters">
-            <details className="box-frame group">
-              <summary className="flex cursor-pointer list-none select-none items-center justify-between px-3 py-2.5">
-                <span className="t-label">Analysis parameters</span>
-                <DisclosureIcon />
-              </summary>
-              <div className="rule-t space-y-4 px-3 py-3">
-                <NumField
-                  label="Vehicle mass"
-                  value={massKg}
-                  onChange={setMassKg}
-                  step={10}
-                  suffix="kg"
-                  placeholder="enter mass"
-                  hint={massSource ? `from ${massSource}` : 'no linked vehicle, enter manually'}
-                />
+        <div className="plate-stack lg:col-span-1">
+          {/* A collapsible block, but its name still lives in the shared head
+              band: `.block-head` on the summary, not a local label row above a
+              wrapper. One convention, disclosure and all. */}
+          <details className="plane group">
+            <summary className="block-head cursor-pointer list-none select-none">
+              <span className="t-label">Analysis parameters</span>
+              <DisclosureIcon />
+            </summary>
+            <div className="block-body space-y-3">
+              <NumField
+                label="Vehicle mass"
+                value={massKg}
+                onChange={setMassKg}
+                step={10}
+                suffix="kg"
+                placeholder="enter mass"
+                hint={massSource ? `from ${massSource}` : 'no linked vehicle, enter manually'}
+              />
 
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="t-annotation">Rollout</span>
-                    <SegmentedControl<RolloutMode>
-                      options={ROLLOUT_MODE_OPTIONS}
-                      value={rolloutMode}
-                      onChange={setRolloutMode}
-                      ariaLabel="How to set the rollout"
-                      compact
-                    />
-                  </div>
-                  {rolloutMode === 'direct' ? (
-                    <NumField
-                      label="Rollout"
-                      value={rolloutDirect}
-                      onChange={setRolloutDirect}
-                      step={0.001}
-                      suffix="m/rev"
-                      placeholder="e.g. 0.5"
-                      hint={rolloutSource ? `from ${rolloutSource}` : 'no linked calibration, enter manually'}
-                    />
-                  ) : (
-                    <div className="grid grid-cols-2 gap-3">
-                      <NumField label="RPM" value={calRpm} onChange={setCalRpm} step={100} />
-                      <NumField
-                        label="Speed"
-                        value={calSpeedKmh}
-                        onChange={setCalSpeedKmh}
-                        step={1}
-                        suffix="km/h"
-                        hint={rolloutSource ? `from ${rolloutSource}` : undefined}
-                      />
-                    </div>
-                  )}
-                  <p className="t-annotation">
-                    Effective rollout{' '}
-                    {effectiveRollout != null ? `${effectiveRollout.toFixed(4)} m/rev` : <Na />}
-                  </p>
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="t-annotation">Rollout</span>
+                  <SegmentedControl<RolloutMode>
+                    options={ROLLOUT_MODE_OPTIONS}
+                    value={rolloutMode}
+                    onChange={setRolloutMode}
+                    ariaLabel="How to set the rollout"
+                    compact
+                  />
                 </div>
-
-                <details className="rule-t pt-3">
-                  <summary className="t-annotation cursor-pointer select-none list-none">
-                    Road load (advanced)
-                  </summary>
-                  <div className="mt-3 grid grid-cols-2 gap-3">
-                    <PlateField label="Kind" id="replay-kind">
-                      <select
-                        id="replay-kind"
-                        value={kind}
-                        onChange={(e) => setKind(e.target.value as VehicleKind)}
-                        className="field"
-                      >
-                        <option value="car">car</option>
-                        <option value="motorcycle">motorcycle</option>
-                      </select>
-                    </PlateField>
-                    <NumField label="CdA coeff" value={cda} onChange={setCda} step={0.01} />
-                    <NumField label="Frontal area" value={fa} onChange={setFa} step={0.1} suffix="m²" />
+                {rolloutMode === 'direct' ? (
+                  <NumField
+                    label="Rollout"
+                    value={rolloutDirect}
+                    onChange={setRolloutDirect}
+                    step={0.001}
+                    suffix="m/rev"
+                    placeholder="e.g. 0.5"
+                    hint={rolloutSource ? `from ${rolloutSource}` : 'no linked calibration, enter manually'}
+                  />
+                ) : (
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <NumField label="RPM" value={calRpm} onChange={setCalRpm} step={100} />
+                    <NumField
+                      label="Speed"
+                      value={calSpeedKmh}
+                      onChange={setCalSpeedKmh}
+                      step={1}
+                      suffix="km/h"
+                      hint={rolloutSource ? `from ${rolloutSource}` : undefined}
+                    />
                   </div>
-                </details>
+                )}
+                <p className="t-annotation">
+                  Effective rollout{' '}
+                  {effectiveRollout != null ? `${effectiveRollout.toFixed(4)} m/rev` : <Na />}
+                </p>
               </div>
-            </details>
-          </section>
+
+              <details className="rule-t pt-2.5">
+                <summary className="t-annotation cursor-pointer select-none list-none">
+                  Road load (advanced)
+                </summary>
+                <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+                  <PlateField label="Kind" id="replay-kind">
+                    <select
+                      id="replay-kind"
+                      value={kind}
+                      onChange={(e) => setKind(e.target.value as VehicleKind)}
+                      className="field"
+                    >
+                      <option value="car">car</option>
+                      <option value="motorcycle">motorcycle</option>
+                    </select>
+                  </PlateField>
+                  <NumField label="CdA coeff" value={cda} onChange={setCda} step={0.01} />
+                  <NumField label="Frontal area" value={fa} onChange={setFa} step={0.1} suffix="m²" />
+                </div>
+              </details>
+            </div>
+          </details>
 
           <PlateButton onClick={() => setShowResult((s) => !s)} aria-expanded={showResult} className="w-full">
             {showResult ? 'Hide result' : 'Show result'}
@@ -559,8 +545,8 @@ export function ReplayLabPlayer() {
                   )}
                 </>
               ) : (
-                <Zone label="Result">
-                  <div className="hatch px-3 py-8 text-center">
+                <Zone label="Result" flush>
+                  <div className="hatch px-3 py-6 text-center">
                     <p className="t-annotation" style={{ color: 'var(--color-ink-2)' }}>
                       Enter vehicle mass and rollout to derive the curve
                     </p>

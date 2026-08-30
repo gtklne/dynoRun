@@ -74,10 +74,11 @@ export function PeakTrendChart({ runs, onSelectRun, height = 200 }: PeakTrendCha
     validRef.current = valid;
 
     // The trend is the line you actually rode; the personal best is a datum
-    // to read it against, so it takes terrain ink and a dash rather than a
-    // second colour competing with the data.
-    const SERIES_COLOR = ink.procedure;
-    const BEST_COLOR = ink.terrain;
+    // to read it against, so it takes the faintest ink and a dash rather than
+    // a second colour competing with the data. Identity is ink weight here,
+    // never a traffic-light hue: green already means gained.
+    const SERIES_COLOR = ink.ink;
+    const BEST_COLOR = ink.ink3;
 
     const xs = valid.map((v) => v.ts);
     const ys = valid.map((v) => convertPower(v.peak_kw, unit));

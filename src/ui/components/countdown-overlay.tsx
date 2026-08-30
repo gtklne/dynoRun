@@ -40,7 +40,7 @@ export function CountdownOverlay({ onComplete, onCancel, from = 3 }: CountdownOv
       <p
         key={count}
         className="t-readout-xl"
-        style={{ color: count > 0 ? 'var(--color-ink)' : 'var(--color-procedure)' }}
+        style={{ color: count > 0 ? 'var(--color-ink)' : 'var(--color-go)' }}
       >
         {count > 0 ? count : 'GO'}
       </p>

@@ -7,6 +7,7 @@ import {
   HOVER_POINT_SIZE,
   legendValue,
   responsiveChartHeight,
+  seriesStyle,
   themedAxis,
   themedCursor,
 } from '@/ui/components/uplot-theme';
@@ -34,10 +35,14 @@ export const StreamingChart = forwardRef<StreamingChartHandle, StreamingChartPro
     useEffect(() => {
       if (!containerRef.current) return;
       // Two channels on one strip: speed is the measurement, RPM is derived
-      // from it, so RPM takes the dashed line rather than a second full-weight
-      // stroke competing for the same glance.
-      const SPEED_STROKE = ink.ink;
-      const RPM_STROKE = ink.procedure;
+      // from it, so RPM steps back to the second ink weight and takes the dash
+      // rather than a second full-weight stroke competing for the same glance.
+      // Both come from the shared series order, which is what stopped them
+      // resolving to the identical ink once identity became ink-only.
+      const speed = seriesStyle(0, ink);
+      const rpm = seriesStyle(1, ink);
+      const SPEED_STROKE = speed.stroke;
+      const RPM_STROKE = rpm.stroke;
       const opts: uPlot.Options = {
         width: containerRef.current.clientWidth,
         height: responsiveChartHeight(BASE_HEIGHT),
@@ -65,7 +70,7 @@ export const StreamingChart = forwardRef<StreamingChartHandle, StreamingChartPro
             label: 'RPM',
             stroke: RPM_STROKE,
             width: 2,
-            dash: [7, 3],
+            dash: rpm.dash,
             scale: 'rpm',
             value: legendValue('RPM', 0),
             points: { size: HOVER_POINT_SIZE, stroke: RPM_STROKE, fill: RPM_STROKE },

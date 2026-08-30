@@ -24,6 +24,7 @@ import {
   CrossRefProvider,
   NotesBox,
   Na,
+  NoReading,
   Plate,
   PlanView,
   PlateButton,
@@ -31,6 +32,7 @@ import {
   PlateLink,
   PlateSegmented,
   ProfileView,
+  Readout,
   RevisionBar,
   TitleBlock,
   Zone,
@@ -305,22 +307,7 @@ function GripSessionPlate() {
               </>
             ),
           },
-          {
-            // The score is monotone in lap count (measured +8.3 points from 1 to
-            // 10 laps of the same riding), so it is only readable next to that
-            // count. Compare equalises the lap budget; here we name it.
-            label: 'Session score',
-            value: hasEnvelope ? (
-              <>
-                {Math.round(analysis.sessionScore)}
-                <span className="t-annotation ml-1.5">
-                  over {laps.length} lap{laps.length === 1 ? '' : 's'}
-                </span>
-              </>
-            ) : (
-              <Na title="No traction envelope could be fitted" />
-            ),
-          },
+          { label: 'Metric', value: metricModeName(mode) },
         ]}
         actions={
           <>
@@ -348,7 +335,53 @@ function GripSessionPlate() {
         </Advisory>
       )}
 
-      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+      {/* The one earned accent plane on this sheet: the reading the analyzer
+          exists for. Nothing else on this screen may take it, and it is accent
+          only when there is a reading, because an inverted plane carrying n/a
+          would spend the emphasis on an absence.
+
+          The lap count travels with the score and is not decoration: the
+          envelope is max-preserving, so it can only grow with laps, measured at
+          +8.3 points from 1 lap to 10 of identical riding. A score read without
+          its budget is not comparable to anything.
+
+          Nothing in here passes Readout a `unit`, and `Na` is kept out: both
+          hard-code an inline ink-3, which an inverted plane cannot override. The
+          unit lives in the label instead. */}
+      <Zone label="Session score" note="traction envelope size, absolute" accent={hasEnvelope}>
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          {hasEnvelope ? (
+            <Readout
+              value={Math.round(analysis.sessionScore)}
+              label={`Points over ${laps.length} lap${laps.length === 1 ? '' : 's'}`}
+              note="100 would be working a full 1 g circle in every direction. Only comparable at equal lap count."
+            />
+          ) : (
+            <NoReading
+              label="Session score, points"
+              reason="No traction envelope could be fitted, so there is no envelope to size."
+            />
+          )}
+          {/* What qualifies the score, not what identifies the sheet: the title
+              block already carries track, best lap and lap count. */}
+          <dl className="flex flex-wrap gap-x-6 gap-y-2">
+            <div>
+              <dt className="t-annotation">Samples in the fit</dt>
+              <dd className="t-data mt-1 text-sm">{analysis.fitSamples.toLocaleString('en')}</dd>
+            </div>
+            <div>
+              <dt className="t-annotation">Tyre class</dt>
+              <dd className="t-data mt-1 text-sm">{settings.anchorG.toFixed(2)} g</dd>
+            </div>
+            <div>
+              <dt className="t-annotation">Track turns</dt>
+              <dd className="t-data mt-1 text-sm">{analysis.turnCount}</dd>
+            </div>
+          </dl>
+        </div>
+      </Zone>
+
+      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
         <LapTabs laps={laps} bestNum={bestLap(laps).num} activeNum={lap.num} onSelect={(l) => setLapNum(l.num)} />
         <PlateSegmented
           label="Colour metric"
@@ -363,8 +396,8 @@ function GripSessionPlate() {
 
       {/* items-start: the plan view has a fixed aspect ratio, so a stretching
           column left a third of it as dead space beside the taller stack */}
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
-        <div className="space-y-4">
+      <div className="grid items-start gap-2 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+        <div className="space-y-2">
           <PlanView
             label={`Track map: ${metricModeName(mode).toLowerCase()}`}
             scale={`Lap ${Math.round(lapMetres)} m, north up`}
@@ -409,13 +442,13 @@ function GripSessionPlate() {
             />
           </ProfileView>
 
-          <Zone label="Playback">
+          <Zone label="Playback" flush>
             <TransportBar playback={playback} lapLength={lapLength} tCur={tCur} tTot={lap.time} />
           </Zone>
         </div>
 
-        <div className="space-y-4">
-          <Zone label="Traction circle" note="lateral by longitudinal g">
+        <div className="space-y-2">
+          <Zone label="Traction circle" note="lateral by longitudinal g" flush>
             <TractionCircle
               analysis={analysis}
               lap={lap}
@@ -426,7 +459,7 @@ function GripSessionPlate() {
               xref={hoverLocal}
               onHover={setHoverLocal}
             />
-            <div className="rule-t flex flex-wrap gap-x-4 gap-y-1 px-3 py-2">
+            <div className="rule-t flex flex-wrap gap-x-4 gap-y-1 px-3 py-1.5">
               <span className="t-annotation">Dashed inner boundary: your fitted envelope</span>
               <span className="t-annotation" style={{ color: 'var(--color-caution)' }}>
                 Dotted ring: tyre class, an advisory, not a limit
@@ -441,6 +474,7 @@ function GripSessionPlate() {
                 ? `in ${activeCorner.turn ? `turn ${activeCorner.turn}` : 'an extra bend'} (${activeCorner.dir === 'L' ? 'left' : 'right'})`
                 : 'straight or transition'
             }
+            flush
           >
             <TelemetryReadout
               analysis={analysis}
@@ -492,7 +526,7 @@ function GripSessionPlate() {
       </NotesBox>
 
       <Zone label="Session record" note="amends this sheet's identification">
-        <div className="grid gap-3 px-3 py-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           <PlateField label="Session label" id="grip-session-label" hint="Blank falls back to the track name">
             <input
               id="grip-session-label"

@@ -27,10 +27,11 @@ export function ReplayResultPanel(props: ReplayResultPanelProps) {
   if (props.kind === 'calibration') {
     const { steadySpeedKmh, userRpm, impliedRollout } = props;
     return (
-      <div className="space-y-4">
+      <div className="plate-stack">
         <Zone
           label="Calibration hold"
           note="Steady state, so there is no power curve to derive"
+          flush
         >
           <div className="grid grid-cols-2">
             <div className="px-3 py-3">
@@ -70,12 +71,12 @@ export function ReplayResultPanel(props: ReplayResultPanelProps) {
   const { analyzed, unit } = props;
   if (analyzed.points.length === 0) {
     return (
-      <Zone label="Result">
-        <div className="hatch px-3 py-8 text-center">
+      <Zone label="Result" flush>
+        <div className="hatch px-3 py-6 text-center">
           <p className="t-annotation" style={{ color: 'var(--color-ink-2)' }}>
             Not enough data for a power curve
           </p>
-          <p className="t-annotation mt-1.5">
+          <p className="t-annotation mt-1">
             Check mass and rollout, or the recording may be too short
           </p>
         </div>
@@ -94,8 +95,11 @@ export function ReplayResultPanel(props: ReplayResultPanelProps) {
   const opp: PowerUnit = unit === 'kW' ? 'hp' : 'kW';
 
   return (
-    <div className="space-y-4">
-      <Zone label="Result" actions={<RunQualityBadge quality={analyzed.quality} />}>
+    <div className="plate-stack">
+      {/* Plain, not the accent plane: this panel is only ever rendered beside
+          the player's live readout, which already holds this screen's one
+          accent, and two accents is no accent. */}
+      <Zone label="Result" actions={<RunQualityBadge quality={analyzed.quality} />} flush>
         <div className="grid grid-cols-2">
           <div className="px-3 py-3">
             <Readout

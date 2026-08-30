@@ -108,14 +108,14 @@ export function RecentActivity({ rows }: { rows: RecentRow[] }) {
           <Link
             key={run.id}
             to={`/runs/${run.id}/review`}
-            className={`flex items-center justify-between gap-3 px-3 py-2.5 no-underline transition-colors hover:bg-[var(--color-sunk)] ${i > 0 ? 'rule-t' : ''}`}
+            className={`flex items-center justify-between gap-3 px-3 py-2.5 no-underline transition-colors hover:bg-[var(--color-plane-2)] ${i > 0 ? 'rule-t' : ''}`}
             style={{ color: 'var(--color-ink)' }}
           >
             <span className="min-w-0 flex-1">
               <span className="t-annotation block truncate">{vehicleName}</span>
               <span className="t-data mt-0.5 block truncate text-sm">{title}</span>
             </span>
-            <span className="t-data shrink-0 text-sm" style={{ color: 'var(--color-procedure)' }}>
+            <span className="t-data shrink-0 text-sm" style={{ color: 'var(--color-ink)' }}>
               {format(run.peak_power_kw)}
             </span>
           </Link>

@@ -4,7 +4,7 @@ import { vehicleRepository } from '@/api/repositories/vehicle-repository';
 import { useUnits } from '@/app/units-context';
 import type { Run, Vehicle } from '@/shared/types';
 import { computeDashboard, useGarageData, HeroStats, RecentActivity } from '@/ui/home/dashboard';
-import { Na, PlateButton, PlateLink, TitleBlock, Zone } from '@/ui/plate';
+import { Chevron, Na, PlateButton, PlateLink, TitleBlock, Zone } from '@/ui/plate';
 import { VehicleForm } from './vehicle-form';
 
 interface VehicleStats {
@@ -22,24 +22,6 @@ function statsFor(runs: Run[]): VehicleStats {
     }
   }
   return { runCount: complete.length, bestPeakKw };
-}
-
-function ChevronIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="square"
-      aria-hidden="true"
-      className="shrink-0"
-    >
-      <polyline points="9 5 16 12 9 19" />
-    </svg>
-  );
 }
 
 /**
@@ -60,25 +42,25 @@ function VehicleRow({
   return (
     <Link
       to={`/vehicles/${vehicle.id}`}
-      className={`flex items-center gap-3 px-3 py-3 no-underline transition-colors hover:bg-[var(--color-sunk)] ${first ? '' : 'rule-t'}`}
+      className={`flex items-center gap-3 px-3 py-2.5 no-underline transition-colors hover:bg-[var(--color-plane-2)] ${first ? '' : 'rule-t'}`}
       style={{ color: 'var(--color-ink)' }}
     >
       <span className="min-w-0 flex-1">
         <span className="t-data block truncate text-[0.9375rem]">{vehicle.name}</span>
-        <span className="t-annotation mt-1 block truncate">
+        <span className="t-annotation mt-0.5 block truncate">
           {vehicle.kind} / {vehicle.mass_kg} kg / {vehicle.drivetrain.toUpperCase()}
         </span>
-        {vehicle.notes && <span className="t-annotation mt-1 block truncate">{vehicle.notes}</span>}
+        {vehicle.notes && <span className="t-annotation mt-0.5 block truncate">{vehicle.notes}</span>}
       </span>
       <span className="shrink-0 text-right">
         <span className="t-annotation block">
           {stats.runCount === 0 ? 'No runs' : `${stats.runCount} run${stats.runCount === 1 ? '' : 's'}`}
         </span>
-        <span className="t-data mt-1 block text-sm" style={{ color: 'var(--color-procedure)' }}>
+        <span className="t-data mt-0.5 block text-sm">
           {stats.bestPeakKw == null ? <Na title="No complete run yet" /> : format(stats.bestPeakKw)}
         </span>
       </span>
-      <ChevronIcon />
+      <Chevron size={16} />
     </Link>
   );
 }
@@ -91,14 +73,14 @@ const ONBOARDING_STEPS = [
 
 function Onboarding() {
   return (
-    <Zone label="How it works" actions={<PlateLink to="/demo">See an example run</PlateLink>}>
+    <Zone label="How it works" actions={<PlateLink to="/demo">See an example run</PlateLink>} flush>
       <ol>
         {ONBOARDING_STEPS.map((text, i) => (
-          <li key={text} className={`flex items-start gap-3 px-3 py-2.5 ${i > 0 ? 'rule-t' : ''}`}>
+          <li key={text} className={`flex items-start gap-3 px-3 py-2 ${i > 0 ? 'rule-t' : ''}`}>
             <span
               aria-hidden="true"
               className="t-data flex h-6 w-6 shrink-0 items-center justify-center text-xs"
-              style={{ border: 'var(--rule-hair) solid var(--color-rule)' }}
+              style={{ border: 'var(--rule-hair) solid var(--color-grid-strong)' }}
             >
               {i + 1}
             </span>
@@ -122,7 +104,7 @@ export function GarageScreen() {
   if (vehicles === null) {
     return (
       <div className="flex items-center justify-center py-16">
-        <p className="t-annotation">Loading…</p>
+        <p className="t-annotation">Loading...</p>
       </div>
     );
   }
@@ -148,24 +130,22 @@ export function GarageScreen() {
 
       {adding && (
         <Zone label="New vehicle">
-          <div className="px-3 py-3">
-            <VehicleForm
-              onSubmit={async (input) => {
-                await vehicleRepository.create(input);
-                setAdding(false);
-                await reload();
-              }}
-              onCancel={() => setAdding(false)}
-            />
-          </div>
+          <VehicleForm
+            onSubmit={async (input) => {
+              await vehicleRepository.create(input);
+              setAdding(false);
+              await reload();
+            }}
+            onCancel={() => setAdding(false)}
+          />
         </Zone>
       )}
 
       {vehicles.length === 0 && !adding && (
         <>
           <Onboarding />
-          <Zone label="Vehicles">
-            <div className="hatch px-3 py-10 text-center">
+          <Zone label="Vehicles" flush>
+            <div className="hatch px-3 py-8 text-center">
               <p className="t-annotation" style={{ color: 'var(--color-ink-2)' }}>
                 No vehicles yet.
               </p>
@@ -185,7 +165,7 @@ export function GarageScreen() {
           sits in the right rail. Mobile keeps the stacked order (recent above
           vehicles) via DOM order + lg:order on desktop. */}
       {(showRecent || vehicles.length > 0) && (
-        <div className="space-y-10 lg:grid lg:grid-cols-3 lg:gap-6 lg:space-y-0 lg:items-start">
+        <div className="plate-stack lg:grid lg:grid-cols-3 lg:gap-4 lg:space-y-0 lg:items-start">
           {showRecent && dashboard && (
             <div className="lg:order-2 lg:col-span-1">
               <RecentActivity rows={dashboard.recent} />
@@ -193,7 +173,7 @@ export function GarageScreen() {
           )}
           {vehicles.length > 0 && (
             <div className={`lg:order-1 ${showRecent ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
-              <Zone label="Vehicles" note={`${vehicles.length} in this garage`}>
+              <Zone label="Vehicles" note={`${vehicles.length} in this garage`} flush>
                 {vehicles.map((v, i) => (
                   <VehicleRow
                     key={v.id}

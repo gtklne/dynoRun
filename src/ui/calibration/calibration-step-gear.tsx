@@ -90,10 +90,10 @@ export function CalibrationStepGear({ onSubmit, defaultMeasureMode = 'tap' }: Pr
         run in this gear.
       </NotesBox>
 
-      <div className="grid gap-10 lg:grid-cols-2 lg:gap-6">
+      <div className="grid gap-3 lg:grid-cols-2 lg:gap-4">
         <Zone label="Gear">
-          <div className="space-y-3 px-3 py-3">
-            <div className="flex flex-wrap gap-2">
+          <div className="space-y-2.5">
+            <div className="flex flex-wrap gap-1.5">
               {GEAR_PRESETS.map((preset) => (
                 <PlateButton
                   key={preset}
@@ -124,7 +124,7 @@ export function CalibrationStepGear({ onSubmit, defaultMeasureMode = 'tap' }: Pr
         </Zone>
 
         <Zone label="Hold target">
-          <div className="space-y-3 px-3 py-3">
+          <div className="space-y-2.5">
             <PlateField
               label="Target RPM"
               id="cal-rpm"
@@ -143,7 +143,7 @@ export function CalibrationStepGear({ onSubmit, defaultMeasureMode = 'tap' }: Pr
                 onChange={(e) => setRpm(e.target.value)}
               />
             </PlateField>
-            <div className="flex items-stretch gap-2">
+            <div className="flex items-stretch gap-1.5">
               {RPM_STEPS.map((delta) => (
                 <PlateButton key={delta} onClick={() => bump(delta)} className="flex-1">
                   {stepLabel(delta)}
@@ -155,7 +155,7 @@ export function CalibrationStepGear({ onSubmit, defaultMeasureMode = 'tap' }: Pr
       </div>
 
       <Zone label="How to capture it">
-        <div className="space-y-2.5 px-3 py-3">
+        <div className="space-y-2">
           <SegmentedControl
             options={MODE_OPTIONS}
             value={measureMode}

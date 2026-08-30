@@ -94,7 +94,7 @@ export function themedAxis(opts: ThemedAxisOptions = {}): uPlot.Axis {
     stroke: ink.ink2,
     font: CHART_FONT,
     labelFont: CHART_LABEL_FONT,
-    grid: { stroke: ink.ruleFaint, width: 1, show: opts.showGrid !== false },
+    grid: { stroke: ink.grid, width: 1, show: opts.showGrid !== false },
     // No tick dashes, and an ink spine: the landing plots draw a heavy axis
     // line with unmarked ticks, and two plots of the same instrument cannot
     // draw their axis furniture two different ways.
@@ -121,15 +121,17 @@ export function legendValue(unit: string, decimals = 1) {
     raw == null || !Number.isFinite(raw) ? 'n/a' : `${raw.toFixed(decimals)} ${unit}`;
 }
 
-/** The cursor is the one place magenta appears in a chart: it marks the instant
- *  you are reading, which is the cross-reference the whole plate is built on. */
+/** The cursor marks the instant you are reading, which is the cross-reference
+ *  the whole plate is built on. It is drawn in full ink, not in a traffic-light
+ *  hue: where you are looking is not a judgement about what you are looking at,
+ *  and green here would collide with green meaning gained. */
 export function themedCursor(extras: uPlot.Cursor = {}, ink?: PlateInk): uPlot.Cursor {
   const resolved = ink ?? readPlateInk();
   return {
     ...extras,
     points: {
       size: HOVER_POINT_SIZE,
-      stroke: resolved.procedure,
+      stroke: resolved.ink,
       ...(extras.points ?? {}),
     },
   };

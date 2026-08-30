@@ -114,7 +114,7 @@ function VehicleChips({ vehicles, counts, totalCount, selectedId, onSelect }: Ve
       <div
         role="tablist"
         aria-label="Filter by vehicle"
-        className="box-frame inline-flex"
+        className="plane-2 inline-flex"
         style={{ isolation: 'isolate' }}
       >
         <button
@@ -269,7 +269,7 @@ export function AllRunsScreen() {
   if (rows === null && !error) {
     return (
       <div className="flex items-center justify-center py-16">
-        <p className="t-annotation">Loading…</p>
+        <p className="t-annotation">Loading...</p>
       </div>
     );
   }
@@ -289,15 +289,15 @@ export function AllRunsScreen() {
       {error && <Advisory>{error}</Advisory>}
 
       {totalCount === 0 && !error && (
-        <Zone label="Run log">
-          <div className="hatch px-3 py-10 text-center">
+        <Zone label="Run log" flush>
+          <div className="hatch px-3 py-8 text-center">
             <p className="t-label" style={{ color: 'var(--color-ink)' }}>
               Start your first run
             </p>
-            <p className="t-annotation mx-auto mt-2 max-w-sm">
+            <p className="t-annotation mx-auto mt-1.5 max-w-sm">
               Add a vehicle and calibrate a gear to record your power curve.
             </p>
-            <div className="mt-4 flex justify-center">
+            <div className="mt-3 flex justify-center">
               <PlateLink to="/garage" variant="procedure">
                 Go to garage
               </PlateLink>
@@ -310,7 +310,7 @@ export function AllRunsScreen() {
         <div>
           {showFilters && (
             <div
-              className="sticky top-0 z-10 -mx-4 space-y-3 px-4 pb-3 pt-2 lg:mx-0 lg:px-0"
+              className="sticky top-0 z-10 -mx-4 space-y-2 px-4 pb-2.5 pt-2 lg:mx-0 lg:px-0"
               style={{ background: 'var(--color-sheet)' }}
             >
               <div className="flex items-stretch">
@@ -369,14 +369,15 @@ export function AllRunsScreen() {
                 ? `${totalCount} complete run${totalCount === 1 ? '' : 's'} across all vehicles`
                 : `${visible.length} of ${totalCount} shown`
             }
-            className="mt-4"
+            className="mt-3"
+            flush
           >
             {visible.length === 0 ? (
-              <div className="hatch px-3 py-10 text-center">
+              <div className="hatch px-3 py-8 text-center">
                 <p className="t-label" style={{ color: 'var(--color-ink)' }}>
                   No runs match your filters
                 </p>
-                <div className="mt-4 flex justify-center">
+                <div className="mt-3 flex justify-center">
                   <PlateButton onClick={clearFilters}>Clear filters</PlateButton>
                 </div>
               </div>

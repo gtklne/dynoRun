@@ -89,7 +89,7 @@ export function Zone({
   className = '',
 }: {
   label: string;
-  note?: string;
+  note?: ReactNode;
   actions?: ReactNode;
   children: ReactNode;
   /** Kept for call-site compatibility; a block is a plane either way. */
@@ -110,7 +110,7 @@ export function Zone({
     >
       <div className="block-head">
         <h2 className="t-label">{label}</h2>
-        {note && <p className="t-annotation">{note}</p>}
+        {note && <div className="t-annotation">{note}</div>}
         {actions && <div className="ml-auto flex items-center gap-2">{actions}</div>}
       </div>
       <div className={flush ? 'block-body-flush' : 'block-body'}>{children}</div>
@@ -212,18 +212,16 @@ export function Advisory({
       className="flex items-start gap-3 block-body"
       style={
         caution
-          ? { borderColor: 'var(--color-caution)', background: 'var(--color-caution-tint)' }
+          ? { borderColor: 'var(--color-caution)', background: 'var(--color-caution-plane)' }
           : undefined
       }
     >
       <span
         aria-hidden="true"
         className="mt-0.5 h-3.5 w-3.5 shrink-0"
-        style={{ background: caution ? 'var(--color-caution)' : 'var(--color-terrain)' }}
+        style={{ background: caution ? 'var(--color-caution)' : 'var(--color-ink-3)' }}
       />
-      <p className="t-body m-0 text-[0.8125rem] leading-6" style={{ color: 'var(--color-ink)' }}>
-        {children}
-      </p>
+      <p className="t-body t-body-strong m-0 text-[0.8125rem] leading-6">{children}</p>
     </div>
   );
 }
@@ -276,9 +274,7 @@ export function PlateRow({
   const body = (
     <>
       <div className="min-w-0 flex-1">
-        <p className="t-label" style={{ color: 'var(--color-ink)' }}>
-          {label}
-        </p>
+        <p className="t-label t-label-strong">{label}</p>
         {note && <p className="t-annotation mt-1 normal-case tracking-normal">{note}</p>}
       </div>
       {value !== undefined && <span className="t-data shrink-0 text-sm">{value}</span>}
@@ -291,14 +287,14 @@ export function PlateRow({
 
   if (to) {
     return (
-      <Link to={to} className={`${shell} transition-colors hover:bg-[var(--color-sunk)]`}>
+      <Link to={to} className={`${shell} transition-colors hover:bg-[var(--color-plane-2)]`}>
         {body}
       </Link>
     );
   }
   if (href) {
     return (
-      <a href={href} className={`${shell} transition-colors hover:bg-[var(--color-sunk)]`}>
+      <a href={href} className={`${shell} transition-colors hover:bg-[var(--color-plane-2)]`}>
         {body}
       </a>
     );
@@ -308,7 +304,7 @@ export function PlateRow({
       <button
         type="button"
         onClick={onClick}
-        className={`${shell} w-full transition-colors hover:bg-[var(--color-sunk)]`}
+        className={`${shell} w-full transition-colors hover:bg-[var(--color-plane-2)]`}
       >
         {body}
       </button>

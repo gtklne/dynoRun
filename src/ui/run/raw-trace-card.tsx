@@ -34,8 +34,9 @@ interface Note {
 }
 
 /**
- * One marginal figure. `data-tone` carries whether the reading is a fault, so
- * caution ink is spent only on the numbers a rider can act on.
+ * One marginal figure. `data-tone` carries whether the reading is a fault, and
+ * a fault here means the number below is the receiver rather than the vehicle,
+ * so it takes red. Everything within tolerance stays in plain ink.
  */
 function Stat({ label, value, sub, tone }: {
   label: string;
@@ -44,12 +45,12 @@ function Stat({ label, value, sub, tone }: {
   tone: 'ok' | 'warn';
 }) {
   return (
-    <div className="rule-l px-3 py-2.5 first:border-l-0">
+    <div className="rule-l px-3 py-2 first:border-l-0">
       <p className="t-annotation">{label}</p>
       <p
-        className="t-data mt-1 text-lg"
+        className="t-data mt-0.5 text-lg"
         data-tone={tone}
-        style={tone === 'warn' ? { color: 'var(--color-caution)' } : undefined}
+        style={tone === 'warn' ? { color: 'var(--color-stop)' } : undefined}
       >
         {value}
       </p>
@@ -108,13 +109,13 @@ export function RawTraceCard({ samples, cursorTimeS = null }: Props) {
 
   return (
     <ProfileView label="Raw GPS trace" axis="speed and fix-to-fix accel vs time (s)">
-      <p className="rule-b t-body px-3 py-2.5 text-[0.8125rem] leading-6">
+      <p className="rule-b t-body px-3 py-2 text-[0.8125rem] leading-6">
         Every speed the receiver reported, before any filtering. The dashed line is what the
         pipeline derived power from: where it sits on top of the raw trace, smoothing changed
         nothing.
       </p>
 
-      <div className="rule-b p-2">
+      <div className="rule-b p-1.5">
         <RawSpeedChart
           trace={trace}
           accelCeilingMs2={PEAK_ACCEL_SUSPICIOUS_MS2}
@@ -144,7 +145,7 @@ export function RawTraceCard({ samples, cursorTimeS = null }: Props) {
         />
       </div>
 
-      <div className="space-y-2.5 px-3 py-3">
+      <div className="space-y-2 px-3 py-2.5">
         {trailing > 0 && (
           <p className="t-body text-[0.8125rem] leading-6">
             The pipeline used the first {trace.trim_index + 1} of {trace.points.length} fixes. It
@@ -153,13 +154,13 @@ export function RawTraceCard({ samples, cursorTimeS = null }: Props) {
         )}
 
         {warnings.length > 0 && (
-          <ul className="space-y-2">
+          <ul className="space-y-1.5">
             {warnings.map((w) => (
               <li key={w.key} className="flex gap-2.5">
                 <span
                   aria-hidden="true"
                   className="mt-1.5 h-2.5 w-2.5 shrink-0"
-                  style={{ background: 'var(--color-caution)' }}
+                  style={{ background: 'var(--color-stop)' }}
                 />
                 <span className="t-body text-[0.8125rem] leading-6" style={{ color: 'var(--color-ink)' }}>
                   {w.text}
@@ -173,7 +174,7 @@ export function RawTraceCard({ samples, cursorTimeS = null }: Props) {
           // At one fix per second a clean signal still cannot pin a peak, so the
           // all-clear has to say what it actually checked rather than bless the
           // number. Promising more here would undo the whole point of the card.
-          <p className="t-body text-[0.8125rem] leading-6" style={{ color: 'var(--color-gain)' }}>
+          <p className="t-body text-[0.8125rem] leading-6" style={{ color: 'var(--color-go)' }}>
             {coarse
               ? 'No frozen fixes, dropouts, or impossible steps. Nothing in this signal is fabricated, though at this fix rate the peak is still a coarse read.'
               : 'No frozen fixes, dropouts, or impossible steps. The speed signal supports this curve.'}

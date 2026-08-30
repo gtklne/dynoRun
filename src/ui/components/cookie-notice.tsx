@@ -27,11 +27,13 @@ export function CookieNotice() {
   return (
     <div className="pb-safe fixed bottom-16 left-0 right-0 z-[80] flex justify-center px-4 lg:bottom-4">
       <aside
-        className="box-frame flex w-full max-w-xl items-center gap-3 px-3 py-2.5"
+        className="plane-2 flex w-full max-w-xl items-center gap-3 px-3 py-2"
         aria-label="Cookie notice"
       >
+        {/* No label line above the copy: a small uppercase word standing over a
+            sentence is a kicker, which this world does not have. The sentence
+            names its own subject. */}
         <div className="min-w-0 flex-1">
-          <p className="t-annotation mb-1">Cookies</p>
           <p className="t-body m-0 text-[0.8125rem] leading-6">
             We only use a strictly necessary cookie to keep you signed in, with no
             tracking or analytics.{' '}

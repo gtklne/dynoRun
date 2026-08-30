@@ -74,9 +74,8 @@ function UnitField({ unit, children }: { unit: string; children: React.ReactNode
         aria-hidden="true"
         className="t-annotation flex shrink-0 items-center px-2.5"
         style={{
-          border: 'var(--rule-hair) solid var(--color-rule)',
-          borderLeft: 'none',
-          background: 'var(--color-sunk)',
+          borderBottom: 'var(--rule-strong) solid var(--color-grid-strong)',
+          background: 'var(--color-plane-2)',
         }}
       >
         {unit}
@@ -169,7 +168,7 @@ export function VehicleForm({
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form onSubmit={submit} className="space-y-3">
       <PlateField id="vf-name" label="Name">
         <input
           id="vf-name"
@@ -272,7 +271,7 @@ export function VehicleForm({
         />
       </PlateField>
 
-      <div className="rule-section pt-3">
+      <div className="rule-section pt-2.5">
         <button
           type="button"
           aria-expanded={detailsOpen}
@@ -285,8 +284,8 @@ export function VehicleForm({
         </button>
 
         {detailsOpen && (
-          <div id="vf-details-panel" className="space-y-4 pt-4">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div id="vf-details-panel" className="space-y-3 pt-3">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
               <PlateField id="vf-make" label="Make">
                 <input
                   id="vf-make"
@@ -313,7 +312,7 @@ export function VehicleForm({
                 <input
                   id="vf-year"
                   className="field"
-                  style={yearError ? { borderColor: 'var(--color-caution)' } : undefined}
+                  style={yearError ? { borderBottomColor: 'var(--color-caution)' } : undefined}
                   value={year}
                   inputMode="numeric"
                   placeholder="2020"
@@ -363,7 +362,7 @@ export function VehicleForm({
         )}
       </div>
 
-      <div className="flex gap-3 pt-1">
+      <div className="flex gap-2.5 pt-1">
         <PlateButton type="submit" variant="procedure" className="flex-1">
           Save vehicle
         </PlateButton>

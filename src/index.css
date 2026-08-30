@@ -430,6 +430,25 @@
     max-width: 68ch;
   }
 
+  /* Emphasis variants, as classes rather than inline colour, so the accent
+     plane can invert them. An inline style beats any descendant rule, which is
+     what made these five primitives render ink on ink inside .plane-ink. */
+  .t-label-strong {
+    color: var(--color-ink);
+  }
+
+  .t-body-strong {
+    color: var(--color-ink);
+  }
+
+  .t-unit {
+    font-stretch: 75%;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--color-ink-3);
+  }
+
   .t-data {
     font-stretch: 100%;
     font-weight: 550;
@@ -521,12 +540,20 @@
     background-color: var(--color-ink);
     color: var(--color-sheet);
     background-image:
-      repeating-linear-gradient(to right, rgb(255 255 255 / 0.06) 0 1px, transparent 1px calc(var(--cell) * 3)),
-      repeating-linear-gradient(to bottom, rgb(255 255 255 / 0.06) 0 1px, transparent 1px calc(var(--cell) * 3));
+      repeating-linear-gradient(
+        to right,
+        color-mix(in srgb, var(--color-sheet) 12%, transparent) 0 1px,
+        transparent 1px calc(var(--cell) * 3)
+      ),
+      repeating-linear-gradient(
+        to bottom,
+        color-mix(in srgb, var(--color-sheet) 12%, transparent) 0 1px,
+        transparent 1px calc(var(--cell) * 3)
+      );
   }
 
   .plane-ink .block-head {
-    border-bottom-color: rgb(255 255 255 / 0.18);
+    border-bottom-color: color-mix(in srgb, var(--color-sheet) 22%, transparent);
   }
 
   .plane-ink .t-annotation,
@@ -534,10 +561,21 @@
     color: color-mix(in srgb, var(--color-sheet) 68%, transparent);
   }
 
+  .plane-ink .t-display,
+  .plane-ink .t-body,
   .plane-ink .t-data,
   .plane-ink .t-readout,
-  .plane-ink .t-readout-xl {
+  .plane-ink .t-readout-sm,
+  .plane-ink .t-readout-xl,
+  .plane-ink .t-label-strong,
+  .plane-ink .t-body-strong,
+  .plane-ink .t-plate-title,
+  .plane-ink .na {
     color: var(--color-sheet);
+  }
+
+  .plane-ink .t-unit {
+    color: color-mix(in srgb, var(--color-sheet) 68%, transparent);
   }
 
   /* The construction grid, visible and shared. The page layout aligns to it
@@ -648,7 +686,7 @@
   }
 
   .ctl:hover:not(:disabled) {
-    background: var(--color-sunk);
+    background: var(--color-grid-strong);
   }
 
   .ctl-solid,
@@ -678,7 +716,7 @@
   .ctl:disabled {
     border-color: var(--color-grid-strong);
     color: var(--color-ink-3);
-    background: var(--color-sunk);
+    background: var(--color-plane-2);
     cursor: not-allowed;
   }
 
@@ -709,7 +747,7 @@
   }
 
   .field:disabled {
-    background: var(--color-sunk);
+    background: var(--color-plane-2);
     color: var(--color-ink-3);
   }
 
@@ -731,20 +769,20 @@
     letter-spacing: 0.09em;
     text-transform: uppercase;
     color: var(--color-ink-3);
-    padding: 0.375rem 0.75rem;
+    padding: calc(var(--cell) * 0.625) calc(var(--cell) * 1.25);
     border-bottom: var(--rule-hair) solid var(--color-ink);
     white-space: nowrap;
   }
 
   .minima td {
-    padding: 0.4375rem 0.75rem;
+    padding: calc(var(--cell) * 0.75) calc(var(--cell) * 1.25);
     border-bottom: var(--rule-hair) solid var(--color-grid);
     color: var(--color-ink);
     font-weight: 500;
   }
 
   .minima tbody tr:hover td {
-    background: var(--color-sunk);
+    background: var(--color-plane-2);
   }
 
   .minima tbody tr[data-selected="true"] td {

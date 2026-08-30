@@ -47,7 +47,7 @@ function ToolRow({
   return (
     <Link
       to={to}
-      className={`flex items-center gap-4 px-3 py-4 no-underline transition-colors hover:bg-[var(--color-sunk)] ${divider ? 'rule-t' : ''}`}
+      className={`flex items-center gap-4 px-3 py-4 no-underline transition-colors hover:bg-[var(--color-plane-2)] ${divider ? 'rule-t' : ''}`}
       style={{ color: 'var(--color-ink)' }}
     >
       <span className="shrink-0">{mark}</span>

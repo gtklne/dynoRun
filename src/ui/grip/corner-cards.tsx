@@ -1,6 +1,6 @@
 import type { GripCorner, GripLap } from '@/analysis/grip/types';
 import type { GripSettings } from '@/analysis/grip/settings';
-import { MinimaTable, Na, usePlateInk, type MinimaColumn } from '@/ui/plate';
+import { MinimaTable, Na, Zone, usePlateInk, type MinimaColumn } from '@/ui/plate';
 import type { GripMetricMode } from './metric-mode';
 import { rateColor, scoreColor } from './colors';
 
@@ -39,8 +39,9 @@ interface Row {
 }
 
 /**
- * The minima table: one boxed decision table, one row per corner, never a grid
- * of cards. Rows are keyed on the TRACK turn, because a per-lap detection index
+ * One decision table, one row per corner, never a grid of cards. The zone owns
+ * the label and the corner count, so nothing sits above the block. Rows are
+ * keyed on the TRACK turn, because a per-lap detection index
  * pairs unrelated bends across laps (see turns.ts). A detection no other lap
  * agrees with has no turn identity, so it is marked as an extra bend and its
  * cross-lap columns read n/a rather than borrowing another turn's best.
@@ -131,7 +132,7 @@ export function CornerMinima({
         r.spare ? (
           <span style={{ color: 'var(--color-caution)' }}>{r.gap} spare</span>
         ) : r.isBest ? (
-          <span style={{ color: 'var(--color-gain)' }}>Session best</span>
+          <span style={{ color: 'var(--color-go)' }}>Session best</span>
         ) : r.c.turn && r.best > 0 ? (
           <span className="t-annotation">Matched</span>
         ) : (
@@ -152,26 +153,23 @@ export function CornerMinima({
     },
   ];
 
+  // The label lives in the block's own head band, never in a heading row above
+  // it: the mixed convention is what made this screen read as two systems.
   return (
-    <section aria-label="Corner minima">
-      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h2 className="t-label">Corner minima</h2>
-        <p className="t-annotation">
-          {lap.corners.length} corners on this lap
-          {opportunities && <> · spare grip at {opportunities}</>}
-        </p>
-      </div>
-      <div className="box-frame">
-        <MinimaTable
-          columns={columns}
-          rows={rows}
-          rowKey={(r) => String(r.c.n)}
-          selectedKey={activeCorner == null ? null : String(rows.find((r) => r.c.ap === activeCorner)?.c.n ?? '')}
-          onSelect={(r) => onSelect(r.c)}
-          empty="No corners detected on this lap"
-          caption={`Score = ${label} × 100, so 100 ≈ 1 g. Turn numbers are the same bend on every lap${mode === 'load' ? '; dynamic load adds the transient to steady-state grip' : ''}.`}
-        />
-      </div>
-    </section>
+    <Zone
+      label="Corner minima"
+      note={`${lap.corners.length} corners on this lap${opportunities ? ` · spare grip at ${opportunities}` : ''}`}
+      flush
+    >
+      <MinimaTable
+        columns={columns}
+        rows={rows}
+        rowKey={(r) => String(r.c.n)}
+        selectedKey={activeCorner == null ? null : String(rows.find((r) => r.c.ap === activeCorner)?.c.n ?? '')}
+        onSelect={(r) => onSelect(r.c)}
+        empty="No corners detected on this lap"
+        caption={`Score = ${label} × 100, so 100 ≈ 1 g. Turn numbers are the same bend on every lap${mode === 'load' ? '; dynamic load adds the transient to steady-state grip' : ''}.`}
+      />
+    </Zone>
   );
 }

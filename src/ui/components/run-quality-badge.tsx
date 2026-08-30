@@ -31,40 +31,41 @@ function DisclosureIcon() {
 }
 
 /**
- * The sheet's own confidence stamp. A rating is a decision input, not
- * decoration, so it takes a ruled box and the caution ink only when the run
- * actually needs reading twice; a good run stays in plain ink rather than
- * spending a second colour on "everything is fine".
+ * The sheet's own confidence stamp, and a real traffic light: a rating is a
+ * judgement about whether the curve can be trusted, which is exactly what
+ * go/caution/stop are reserved for. Good is green because a clean signal is a
+ * fact worth stating on a sheet whose whole position is honesty about what a
+ * measurement is worth; poor is red because the number below it is wrong.
  */
+const TONE: Record<RunQuality['rating'], 'go' | 'caution' | 'stop'> = {
+  good: 'go',
+  fair: 'caution',
+  poor: 'stop',
+};
+
 export function RunQualityBadge({ quality }: RunQualityBadgeProps) {
-  const poor = quality.rating === 'poor';
-  const fair = quality.rating === 'fair';
-  const flagged = poor || fair;
+  const tone = TONE[quality.rating] ?? 'caution';
 
   return (
     <details className="group inline-block" data-rating={quality.rating}>
       <summary
-        className="box flex cursor-pointer list-none select-none items-center gap-2 px-2.5 py-1.5"
-        style={
-          flagged
-            ? { borderColor: 'var(--color-caution)', background: 'var(--color-caution-tint)' }
-            : undefined
-        }
+        className="plane-2 flex cursor-pointer list-none select-none items-center gap-2 px-2.5 py-1.5"
+        data-tone={tone}
       >
         <span
           aria-hidden="true"
           className="h-2 w-2 shrink-0"
-          style={{ background: flagged ? 'var(--color-caution)' : 'var(--color-ink)' }}
+          style={{ background: `var(--color-${tone})` }}
         />
-        <span className="t-label" style={{ color: 'var(--color-ink)' }}>
+        <span className="t-label" style={{ color: `var(--color-${tone})` }}>
           Signal {quality.rating}
         </span>
         <span className="t-data text-xs">{quality.score}/100</span>
         <DisclosureIcon />
       </summary>
 
-      <div className="box mt-2 max-w-xs px-3 py-2.5">
-        <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+      <div className="plane-2 mt-1 max-w-xs px-2.5 py-2">
+        <dl className="grid grid-cols-2 gap-x-3 gap-y-1">
           <dt className="t-annotation">Samples</dt>
           <dd className="t-data text-right text-sm">{quality.sample_count}</dd>
           <dt className="t-annotation">Duration</dt>
@@ -76,20 +77,20 @@ export function RunQualityBadge({ quality }: RunQualityBadgeProps) {
         </dl>
 
         {quality.flags.length > 0 ? (
-          <ul className="rule-t mt-2.5 space-y-1.5 pt-2.5">
+          <ul className="rule-t mt-2 space-y-1 pt-2">
             {quality.flags.map((flag) => (
               <li key={flag} className="t-body flex gap-2 text-xs leading-5">
                 <span
                   aria-hidden="true"
                   className="mt-1.5 h-2 w-2 shrink-0"
-                  style={{ background: 'var(--color-caution)' }}
+                  style={{ background: `var(--color-${tone})` }}
                 />
                 <span style={{ color: 'var(--color-ink)' }}>{FLAG_LABELS[flag]}</span>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="rule-t t-annotation mt-2.5 pt-2.5">No quality issues detected.</p>
+          <p className="rule-t t-annotation mt-2 pt-2">No quality issues detected.</p>
         )}
       </div>
     </details>

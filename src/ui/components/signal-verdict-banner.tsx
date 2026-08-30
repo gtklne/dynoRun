@@ -16,47 +16,44 @@ interface Props {
  * The verdict on whether a run's speed signal fabricated its power number.
  *
  * Only rendered for 'corrupt' and 'suspect'. A clean run says nothing here: the
- * raw-trace card below already reports the all-clear, and a green banner on
- * every good run would train riders to skim past the red one.
+ * raw-trace card below already reports the all-clear, and a banner on every
+ * good run would train riders to skim past the bad one.
  *
- * This is the plate's advisory box, so it takes caution ink whichever verdict
- * it carries. Corrupt and suspect are separated by the word and by the frame
- * weight, not by inventing a second alarm colour.
+ * Corrupt is red and suspect is amber, which is the traffic light meaning
+ * exactly what it means on a circuit: red is a number the vehicle never made,
+ * amber is one to read twice. They are separated by hue AND by the headline
+ * wording, so the distinction survives a colour-blind reader.
  */
 export function SignalVerdictBanner({ integrity, action }: Props) {
   if (integrity.verdict === 'ok') return null;
-  const corrupt = integrity.verdict === 'corrupt';
+  const tone = integrity.verdict === 'corrupt' ? 'stop' : 'caution';
 
   return (
     <div
       role="alert"
-      className="box px-3 py-3"
-      style={{
-        borderColor: 'var(--color-caution)',
-        borderWidth: corrupt ? 'var(--rule-frame)' : 'var(--rule-hair)',
-        background: 'var(--color-caution-tint)',
-      }}
+      className="block-body"
+      style={{ background: `var(--color-${tone}-plane)` }}
       data-verdict={integrity.verdict}
     >
       <div className="flex items-start gap-3">
         <span
           aria-hidden="true"
           className="mt-1 h-3.5 w-3.5 shrink-0"
-          style={{ background: 'var(--color-caution)' }}
+          style={{ background: `var(--color-${tone})` }}
         />
         <div className="min-w-0">
-          <p className="t-label" style={{ color: 'var(--color-ink)' }}>
+          <p className="t-label" style={{ color: `var(--color-${tone})` }}>
             {integrity.headline}
           </p>
-          <p className="t-body mt-1.5 text-[0.8125rem] leading-6" style={{ color: 'var(--color-ink)' }}>
+          <p className="t-body mt-1 text-[0.8125rem] leading-6" style={{ color: 'var(--color-ink)' }}>
             {integrity.advice}
           </p>
         </div>
       </div>
 
-      <ul className="rule-t mt-3 pt-2.5">
+      <ul className="rule-t mt-2.5 pt-2">
         {integrity.faults.map((f, i) => (
-          <li key={`${f.kind}-${f.t_ms}-${i}`} className="flex gap-3 py-1 text-xs">
+          <li key={`${f.kind}-${f.t_ms}-${i}`} className="flex gap-3 py-0.5 text-xs">
             <span className="t-data w-14 shrink-0 text-right text-xs">
               {(f.t_ms / 1000).toFixed(1)} s
             </span>
@@ -70,7 +67,7 @@ export function SignalVerdictBanner({ integrity, action }: Props) {
         ))}
       </ul>
 
-      {action && <div className="mt-3">{action}</div>}
+      {action && <div className="mt-2.5">{action}</div>}
     </div>
   );
 }

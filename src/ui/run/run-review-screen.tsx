@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { runRepository } from '@/api/repositories/run-repository';
 import { derivedCurveRepository } from '@/api/repositories/derived-curve-repository';
@@ -37,7 +37,6 @@ import {
   Plate,
   PlateButton,
   PlateField,
-  PlanView,
   Readout,
   RevisionBar,
   TitleBlock,
@@ -57,6 +56,17 @@ const PLAN_LABEL: Record<CurveDisplayMode, string> = {
   torque: 'Torque vs RPM',
   both: 'Power and torque vs RPM',
 };
+
+/**
+ * Stopgap for a gap in `.plane-ink`: it remaps the label and annotation
+ * registers onto the inverted ground but not the annotation *ink* itself, and
+ * `Readout` sets its unit's colour inline from `--color-ink-3`, which no
+ * descendant rule can beat. Left as-is that unit reads at 2.85:1 on the accent
+ * plane. Overriding the property here is inherited by the inline style and
+ * lands it at the same 7:1 the annotation register already gets. Delete this
+ * the moment `src/index.css` covers `.plane-ink .na` and Readout's unit.
+ */
+const ACCENT_INK_3 = '[--color-ink-3:color-mix(in_srgb,var(--color-sheet)_68%,transparent)]';
 
 function oppositeUnit(unit: PowerUnit): PowerUnit {
   return unit === 'kW' ? 'hp' : 'kW';
@@ -97,25 +107,32 @@ function CurvePlan({
   unit,
   rpmMin,
   rpmMax,
+  actions,
 }: {
   points: RpmPoint[];
   mode: CurveDisplayMode;
   unit: PowerUnit;
   rpmMin: number;
   rpmMax: number;
+  actions?: ReactNode;
 }) {
   const { setPosition } = useCrossRef();
   // Memoised because publishing the cursor re-renders this subtree on every
   // mouse move, and a fresh `series` array identity would tear down and
   // rebuild the uPlot instance under the cursor that produced it.
   const series = useMemo(() => [{ label: 'This run', points }], [points]);
+  // A Zone rather than a PlanView: the channel switch and the expert toggle
+  // belong in this block's own head band, and PlanView has no actions slot.
+  // Floating them in a bare row above the plot was the one place on this sheet
+  // where a control sat outside the block it drives.
   return (
-    <PlanView
+    <Zone
       label={PLAN_LABEL[mode]}
-      scale={`${rpmMin.toFixed(0)}-${rpmMax.toFixed(0)} RPM, 100 RPM bins`}
-      legend={<CurveReadout points={points} unit={unit} />}
+      note={`${rpmMin.toFixed(0)}-${rpmMax.toFixed(0)} RPM, 100 RPM bins`}
+      actions={actions}
+      flush
     >
-      <div className="p-2">
+      <div className="p-1.5">
         <PowerCurveChart
           series={series}
           mode={mode}
@@ -123,7 +140,10 @@ function CurvePlan({
           onCursor={(rpm) => setPosition(rpm == null ? null : { at: rpm, source: 'curve' })}
         />
       </div>
-    </PlanView>
+      <div className="rule-t">
+        <CurveReadout points={points} unit={unit} />
+      </div>
+    </Zone>
   );
 }
 
@@ -317,7 +337,7 @@ export function RunReviewScreen() {
   if (!run || !curve) {
     return (
       <div className="flex items-center justify-center py-16">
-        <p className="t-annotation">Loading…</p>
+        <p className="t-annotation">Loading...</p>
       </div>
     );
   }
@@ -523,10 +543,21 @@ export function RunReviewScreen() {
         {/* Desktop: the sheet in the wide left column, the marginal apparatus
             (metadata, conditions, actions) in the right rail. Mobile keeps the
             single-column reading order. */}
-        <div className="space-y-10 lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-8 lg:items-start lg:space-y-0">
-          <div className="space-y-10">
-            <Zone label="Peak readings" note="wheel power, this run">
-              <div className="px-3 py-4">
+        <div className="plate-stack lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-6 lg:items-start lg:space-y-0">
+          <div className="plate-stack">
+            {/* The one earned accent plane on this sheet: peak power is the
+                single reading the whole screen exists for, so it gets the block
+                and nothing shares it. The supporting figures stay on the sheet
+                ground below, which is also where an `n/a` and a traffic light
+                stay legible: neither survives solid ink on both plates. */}
+            <Zone
+              label="Peak power"
+              note="wheel, this run"
+              accent={peak != null}
+              flush
+              className={peak != null ? ACCENT_INK_3 : ''}
+            >
+              <div className="px-3 pb-3 pt-2.5">
                 <Readout
                   size="xl"
                   label="Peak power"
@@ -545,15 +576,17 @@ export function RunReviewScreen() {
                   }
                 />
               </div>
+            </Zone>
 
-              {/* A ruled list, not a three-up tile grid: these are supporting
-                  readings under one primary figure, and the rules say so at
-                  every width without a breakpoint changing their meaning. */}
-              <dl className="rule-t">
-                <div className="flex items-baseline justify-between gap-4 px-3 py-2.5">
+            {/* A ruled list, not a three-up tile grid: these are supporting
+                readings under one primary figure, and the rules say so at
+                every width without a breakpoint changing their meaning. */}
+            <Zone label="Supporting readings" flush>
+              <dl>
+                <div className="flex items-baseline justify-between gap-4 px-3 py-2">
                   <div>
                     <dt className="t-annotation">Peak torque</dt>
-                    <dd className="t-annotation mt-1">
+                    <dd className="t-annotation mt-0.5">
                       {peakTorque ? `at ${peakTorque.rpm.toFixed(0)} RPM` : 'not derived'}
                     </dd>
                   </div>
@@ -568,10 +601,10 @@ export function RunReviewScreen() {
                     )}
                   </dd>
                 </div>
-                <div className="rule-t flex items-baseline justify-between gap-4 px-3 py-2.5">
+                <div className="rule-t flex items-baseline justify-between gap-4 px-3 py-2">
                   <div>
                     <dt className="t-annotation">Power band</dt>
-                    <dd className="t-annotation mt-1">at or above 80% of peak</dd>
+                    <dd className="t-annotation mt-0.5">at or above 80% of peak</dd>
                   </div>
                   <dd className="t-data text-lg">
                     {powerBand ? (
@@ -586,10 +619,10 @@ export function RunReviewScreen() {
                     )}
                   </dd>
                 </div>
-                <div className="rule-t flex items-baseline justify-between gap-4 px-3 py-2.5">
+                <div className="rule-t flex items-baseline justify-between gap-4 px-3 py-2">
                   <div>
-                    <dt className="t-annotation">Δ vs your best</dt>
-                    <dd className="t-annotation mt-1">
+                    <dt className="t-annotation">Delta vs your best</dt>
+                    <dd className="t-annotation mt-0.5">
                       {isFirstRun
                         ? 'nothing to compare against yet'
                         : isNewBest
@@ -597,9 +630,15 @@ export function RunReviewScreen() {
                           : 'against this vehicle'}
                     </dd>
                   </div>
+                  {/* Gained or lost against your own best, which is exactly
+                      what green and red mean everywhere else here. */}
                   <dd
                     className="t-data text-lg"
-                    style={isNewBest ? { color: 'var(--color-gain)' } : undefined}
+                    style={
+                      diffKw == null || diffKw === 0
+                        ? undefined
+                        : { color: diffKw > 0 ? 'var(--color-go)' : 'var(--color-stop)' }
+                    }
                   >
                     {isFirstRun ? 'First run' : (diffDisplay ?? <Na />)}
                   </dd>
@@ -607,35 +646,34 @@ export function RunReviewScreen() {
               </dl>
             </Zone>
 
-            <section aria-label="Power curve" className="space-y-3">
-              <div className="flex flex-wrap items-center justify-end gap-4">
-                <SegmentedControl<CurveDisplayMode>
-                  options={CHART_MODE_OPTIONS}
-                  value={chartMode}
-                  onChange={setChartMode}
-                  compact
-                  ariaLabel="Chart mode"
-                />
-                <label className="t-label flex items-center gap-2">
-                  Expert
-                  <ToggleSwitch checked={expert} onChange={setExpert} ariaLabel="Expert view" />
-                </label>
-              </div>
+            <CurvePlan
+              points={curve.points}
+              mode={chartMode}
+              unit={units.unit}
+              rpmMin={rpmMin}
+              rpmMax={rpmMax}
+              actions={
+                <>
+                  <SegmentedControl<CurveDisplayMode>
+                    options={CHART_MODE_OPTIONS}
+                    value={chartMode}
+                    onChange={setChartMode}
+                    compact
+                    ariaLabel="Chart mode"
+                  />
+                  <label className="t-annotation flex items-center gap-2">
+                    Expert
+                    <ToggleSwitch checked={expert} onChange={setExpert} ariaLabel="Expert view" />
+                  </label>
+                </>
+              }
+            />
 
-              <CurvePlan
-                points={curve.points}
-                mode={chartMode}
-                unit={units.unit}
-                rpmMin={rpmMin}
-                rpmMax={rpmMax}
-              />
+            {rawSamples && rawSamples.length > 1 && (
+              <TraceProfile samples={rawSamples} rolloutMPerRev={rollout} />
+            )}
 
-              {rawSamples && rawSamples.length > 1 && (
-                <TraceProfile samples={rawSamples} rolloutMPerRev={rollout} />
-              )}
-            </section>
-
-            <Zone label="RPM bins" note="the curve as numbers, 100 RPM apart">
+            <Zone label="RPM bins" note="the curve as numbers, 100 RPM apart" flush>
               <BinTable points={curve.points} unit={units.unit} />
             </Zone>
 
@@ -671,9 +709,9 @@ export function RunReviewScreen() {
             />
           </div>
 
-          <div className="space-y-10">
+          <div className="plate-stack">
             {recordingMatchesRun && lastRecording && (
-              <Zone label="Raw sensor recording" note={describeRecording(lastRecording)}>
+              <Zone label="Raw sensor recording" note={describeRecording(lastRecording)} flush>
                 <div className="flex gap-2 px-3 py-2.5">
                   <PlateButton className="flex-1" onClick={downloadRecording}>
                     Download JSON
@@ -685,8 +723,8 @@ export function RunReviewScreen() {
               </Zone>
             )}
 
-            <Zone label="Run record" framed={false}>
-              <div className="space-y-4">
+            <Zone label="Run record">
+              <div className="space-y-3">
                 <PlateField id="run-title" label="Title">
                   <input
                     id="run-title"
@@ -722,11 +760,9 @@ export function RunReviewScreen() {
               }
             >
               {hasAnyCondition(run.conditions) ? (
-                <div className="px-3 py-2.5">
-                  <ConditionsChips conditions={run.conditions} size="md" />
-                </div>
+                <ConditionsChips conditions={run.conditions} size="md" />
               ) : (
-                <div className="space-y-3 px-3 py-2.5">
+                <div className="space-y-2.5">
                   <p className="t-body text-[0.8125rem] leading-6">
                     Log temp, wind, tires, or surface to make this run comparable later.
                   </p>
@@ -737,7 +773,7 @@ export function RunReviewScreen() {
               )}
             </Zone>
 
-            <Zone label="Public link">
+            <Zone label="Public link" flush>
               <p className="t-body px-3 py-2.5 text-[0.8125rem] leading-6">
                 {run.share_token
                   ? 'Anyone with this URL can view the run, no sign-in required.'
@@ -763,19 +799,19 @@ export function RunReviewScreen() {
               ) : (
                 <div className="rule-t px-3 py-2.5">
                   <PlateButton className="w-full" onClick={createShareLink} disabled={shareBusy}>
-                    {shareBusy ? 'Creating…' : 'Get public link'}
+                    {shareBusy ? 'Creating...' : 'Get public link'}
                   </PlateButton>
                 </div>
               )}
             </Zone>
 
-            <Zone label="Decision" framed={false}>
-              <div className="space-y-3">
+            <Zone label="Decision">
+              <div className="space-y-2.5">
                 {/* A corrupt run demotes Save to a secondary action rather than
                     removing it: the samples are still the rider's, and there are
                     honest reasons to keep one (comparing artifacts, filing a bug).
                     What it must not stay is the obvious default. */}
-                <div className="flex gap-3">
+                <div className="flex gap-2.5">
                   <PlateButton
                     className="flex-1"
                     variant={corruptRun ? 'outline' : 'procedure'}
@@ -791,7 +827,7 @@ export function RunReviewScreen() {
                     Discard
                   </PlateButton>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex gap-2.5">
                   <PlateButton className="flex-1" onClick={exportCsv}>
                     Export CSV
                   </PlateButton>

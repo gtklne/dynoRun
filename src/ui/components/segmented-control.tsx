@@ -24,7 +24,7 @@ export function SegmentedControl<T extends string>({
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className="box-frame inline-flex"
+      className="plane-2 inline-flex"
       style={{ isolation: 'isolate' }}
     >
       {options.map((opt, i) => {

@@ -117,7 +117,8 @@ function HelpContent() {
 /**
  * The marginalia panel: every tunable estimate the analysis rests on, and the
  * notes that say what each reading is worth. Ruled, not floated: it is another
- * sheet slid over this one, so it carries a frame rather than a shadow.
+ * sheet slid over this one, so it carries an edge rather than a shadow, and its
+ * groups are planes labelled the same way every block on the plate is.
  */
 export function GripSettingsDrawer({ open, initialTab, settings, onChange, onReset, onClose }: GripSettingsDrawerProps) {
   const [tab, setTab] = useState<'settings' | 'help'>(initialTab);
@@ -137,14 +138,14 @@ export function GripSettingsDrawer({ open, initialTab, settings, onChange, onRes
         aria-label="Close panel"
         onClick={onClose}
         className="fixed inset-0 z-[60] cursor-default"
-        style={{ background: 'var(--color-terrain)', opacity: 0.5 }}
+        style={{ background: 'var(--color-ink)', opacity: 0.5 }}
       />
       <aside
         aria-label="Grip settings and notes"
         className="fixed inset-y-0 right-0 z-[70] flex w-[460px] max-w-[94vw] flex-col"
         style={{
           background: 'var(--color-sheet)',
-          borderLeft: 'var(--rule-frame) solid var(--color-ink)',
+          borderLeft: 'var(--rule-strong) solid var(--color-ink)',
         }}
       >
         <div className="rule-b flex items-center justify-between gap-3 px-3 py-2.5">
@@ -162,19 +163,23 @@ export function GripSettingsDrawer({ open, initialTab, settings, onChange, onRes
           </PlateButton>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-3 py-3 sm:px-4">
+        <div className="flex-1 overflow-y-auto px-3 py-2.5 sm:px-4">
           {tab === 'settings' ? (
             <>
-              <p className="t-body mb-5 text-[0.8125rem] leading-6">
+              <p className="t-body mb-3 text-[0.8125rem] leading-6">
                 Every estimate the analysis relies on. Changes apply live. Some re-derive the channels (a beat
                 of compute), others just redraw. Defaults suit a track sportbike.
               </p>
+              {/* Same convention as every block on the sheet: the group's name
+                  lives in a head band inside the plane, not floating above it. */}
               {GRIP_SETTINGS_SCHEMA.map((group) => (
-                <section key={group.group} className="mb-7" aria-label={group.group}>
-                  <h3 className="t-label rule-b pb-1.5">{group.group}</h3>
-                  {group.items.map((item) => (
-                    <div key={item.key} className="rule-b py-3">
-                      <div className="mb-2 flex items-baseline justify-between gap-3">
+                <section key={group.group} className="plane mb-2" aria-label={group.group}>
+                  <div className="block-head">
+                    <h3 className="t-label">{group.group}</h3>
+                  </div>
+                  {group.items.map((item, i) => (
+                    <div key={item.key} className={`px-3 py-2.5 ${i > 0 ? 'rule-t' : ''}`}>
+                      <div className="mb-1.5 flex items-baseline justify-between gap-3">
                         <span className="t-data flex items-baseline gap-2 text-sm">
                           {item.label}
                           {item.apply === 'recompute' && (
@@ -191,7 +196,7 @@ export function GripSettingsDrawer({ open, initialTab, settings, onChange, onRes
                         </span>
                         <span
                           className="t-data shrink-0 px-2 py-0.5 text-sm"
-                          style={{ border: 'var(--rule-hair) solid var(--color-rule)' }}
+                          style={{ border: 'var(--rule-hair) solid var(--color-grid-strong)' }}
                         >
                           {settings[item.key].toFixed(item.dp)}
                           {item.unit && ` ${item.unit}`}
@@ -207,14 +212,14 @@ export function GripSettingsDrawer({ open, initialTab, settings, onChange, onRes
                         onChange={(e) => onChange(item.key, +e.target.value)}
                         className="w-full"
                       />
-                      <p className="t-annotation mt-1.5" style={{ textTransform: 'none', letterSpacing: '0.02em' }}>
+                      <p className="t-annotation mt-1" style={{ textTransform: 'none', letterSpacing: '0.02em' }}>
                         {item.help}
                       </p>
                     </div>
                   ))}
                 </section>
               ))}
-              <PlateButton onClick={onReset}>Reset to defaults</PlateButton>
+              <PlateButton className="mt-2" onClick={onReset}>Reset to defaults</PlateButton>
             </>
           ) : (
             <HelpContent />

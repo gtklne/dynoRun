@@ -59,22 +59,22 @@ function formatDate(iso: string | null | undefined): ReactNode {
  */
 function FigureBlock({ children, columns }: { children: ReactNode; columns: string }) {
   return (
-    <div className={`grid gap-px ${columns}`} style={{ background: 'var(--color-rule)' }}>
+    <div className={`grid gap-px ${columns}`} style={{ background: 'var(--color-grid-strong)' }}>
       {children}
     </div>
   );
 }
 
 function Cell({ children }: { children: ReactNode }) {
-  return <div style={{ background: 'var(--color-sheet)' }}>{children}</div>;
+  return <div style={{ background: 'var(--color-plane)' }}>{children}</div>;
 }
 
 function DistributionList({ title, entries }: { title: string; entries: AdminDistributionEntry[] }) {
   const max = entries.reduce((m, e) => Math.max(m, e.count), 0);
   return (
-    <Zone label={title}>
+    <Zone label={title} flush>
       {entries.length === 0 ? (
-        <div className="hatch px-3 py-6 text-center">
+        <div className="hatch px-3 py-5 text-center">
           <p className="t-annotation" style={{ color: 'var(--color-ink-2)' }}>
             No data yet
           </p>
@@ -84,12 +84,12 @@ function DistributionList({ title, entries }: { title: string; entries: AdminDis
           {entries.map((e, i) => (
             <div
               key={e.label}
-              className={`flex items-center gap-3 px-3 py-2 ${i > 0 ? 'rule-t' : ''}`}
+              className={`flex items-center gap-3 px-3 py-1.5 ${i > 0 ? 'rule-t' : ''}`}
             >
               <span className="t-data w-28 shrink-0 truncate text-sm capitalize">{e.label}</span>
               <span
                 className="h-2.5 flex-1"
-                style={{ border: 'var(--rule-hair) solid var(--color-rule)' }}
+                style={{ border: 'var(--rule-hair) solid var(--color-grid-strong)' }}
               >
                 <span
                   className="block h-full"
@@ -110,10 +110,11 @@ function DistributionList({ title, entries }: { title: string; entries: AdminDis
 
 /**
  * Aborted is the only run status that asks the operator to look twice, so it is
- * the only one that spends caution ink. The rest stay in plain ink.
+ * the only one that spends a hue, and it takes red because an aborted run is a
+ * measurement that was lost. The rest stay in plain ink.
  */
 function statusStyle(status: string) {
-  return status === 'aborted' ? { color: 'var(--color-caution)' } : undefined;
+  return status === 'aborted' ? { color: 'var(--color-stop)' } : undefined;
 }
 
 export function AdminScreen() {
@@ -185,8 +186,8 @@ export function AdminScreen() {
           <span className="truncate">{row.email}</span>
           {row.role === 'admin' && (
             <span
-              className="t-annotation box shrink-0 px-1.5 py-0.5"
-              style={{ borderColor: 'var(--color-procedure)', color: 'var(--color-procedure)' }}
+              className="t-annotation plane-2 shrink-0 px-1.5 py-0.5"
+              style={{ color: 'var(--color-ink)' }}
             >
               admin
             </span>
@@ -245,9 +246,7 @@ export function AdminScreen() {
       head: `Peak (${unit})`,
       numeric: true,
       cell: (r) => (
-        <span style={{ color: 'var(--color-procedure)' }}>
-          {formatPower(r.peak_power_kw, unit, { unitSuffix: false })}
-        </span>
+        <span className="t-data">{formatPower(r.peak_power_kw, unit, { unitSuffix: false })}</span>
       ),
     },
   ];
@@ -264,7 +263,7 @@ export function AdminScreen() {
             label: 'Stuck runs',
             value:
               health.stuck_runs > 0 ? (
-                <span style={{ color: 'var(--color-caution)' }}>{health.stuck_runs}</span>
+                <span style={{ color: 'var(--color-stop)' }}>{health.stuck_runs}</span>
               ) : (
                 0
               ),
@@ -280,7 +279,7 @@ export function AdminScreen() {
         </Advisory>
       )}
 
-      <Zone label="Users" note="accounts and session activity">
+      <Zone label="Users" note="accounts and session activity" flush>
         <FigureBlock columns="grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
           <Cell><StatTile label="Total users" value={String(u.total)} accent /></Cell>
           <Cell><StatTile label="New (7 d)" value={String(u.new_7d)} /></Cell>
@@ -290,7 +289,7 @@ export function AdminScreen() {
         </FigureBlock>
       </Zone>
 
-      <Zone label="Content" note="what users have recorded">
+      <Zone label="Content" note="what users have recorded" flush>
         <FigureBlock columns="grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
           <Cell><StatTile label="Vehicles" value={String(content.vehicles)} /></Cell>
           <Cell><StatTile label="Runs" value={String(content.runs_total)} subtitle={`${content.runs_complete} complete`} /></Cell>
@@ -300,21 +299,21 @@ export function AdminScreen() {
         </FigureBlock>
       </Zone>
 
-      <div className="space-y-10 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0">
+      <div className="plate-stack lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
         <PlanView label="Signups" scale={`daily count, last ${SIGNUP_DAYS} days`}>
-          <div className="p-2">
+          <div className="p-1.5">
             <DailySeriesChart series={signupSeries} testId="admin-signups-chart" />
           </div>
         </PlanView>
 
         <ProfileView label="Runs and recordings" axis={`daily count, last ${ACTIVITY_DAYS} days`}>
-          <div className="p-2">
+          <div className="p-1.5">
             <DailySeriesChart series={activitySeries} testId="admin-activity-chart" />
           </div>
         </ProfileView>
       </div>
 
-      <Zone label="System health" note="storage and pipeline state">
+      <Zone label="System health" note="storage and pipeline state" flush>
         <FigureBlock columns="grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
           <Cell><StatTile label="Database" value={health.db_size} /></Cell>
           <Cell><StatTile label="Samples" value={health.samples_size} subtitle={`${content.samples.toLocaleString()} rows`} /></Cell>
@@ -325,7 +324,7 @@ export function AdminScreen() {
               label="Stuck runs"
               value={String(health.stuck_runs)}
               subtitle={health.stuck_runs > 0 ? 'in analyzing over 1 h' : 'none'}
-              accent={health.stuck_runs > 0}
+              tone={health.stuck_runs > 0 ? 'stop' : 'ink'}
             />
           </Cell>
           <Cell>
@@ -338,7 +337,7 @@ export function AdminScreen() {
         </FigureBlock>
       </Zone>
 
-      <Zone label="All users" note={`${users.length} accounts`}>
+      <Zone label="All users" note={`${users.length} accounts`} flush>
         <MinimaTable
           columns={userColumns}
           rows={users}
@@ -347,8 +346,8 @@ export function AdminScreen() {
         />
       </Zone>
 
-      <div className="space-y-10 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0">
-        <Zone label="Recent runs">
+      <div className="plate-stack lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
+        <Zone label="Recent runs" flush>
           <MinimaTable
             columns={recentColumns}
             rows={activity.recent_runs}
@@ -357,8 +356,8 @@ export function AdminScreen() {
           />
         </Zone>
 
-        <div className="space-y-10">
-          <Zone label="Top peak power" note="highest wheel power recorded">
+        <div className="plate-stack">
+          <Zone label="Top peak power" note="highest wheel power recorded" flush>
             <MinimaTable
               columns={topColumns}
               rows={activity.top_runs}
@@ -367,7 +366,7 @@ export function AdminScreen() {
             />
           </Zone>
 
-          <div className="space-y-10 sm:grid sm:grid-cols-2 sm:gap-4 sm:space-y-0">
+          <div className="plate-stack sm:grid sm:grid-cols-2 sm:gap-4 sm:space-y-0">
             <DistributionList title="Vehicle kinds" entries={activity.vehicle_kinds} />
             <DistributionList title="Drivetrains" entries={activity.drivetrains} />
           </div>
