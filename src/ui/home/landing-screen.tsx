@@ -935,7 +935,7 @@ export function LandingScreen() {
             </div>
           </section>
 
-          <Zone label="Notes" note="What these measurements are worth">
+          <Zone label="Notes" note="What these measurements are worth" className="max-w-[62rem]">
             <div className="grid">
               {[
                 {
@@ -969,9 +969,17 @@ export function LandingScreen() {
                   key={s.step}
                   className={`border-rule px-4 py-4 ${i > 0 ? 'border-t lg:border-l lg:border-t-0' : ''}`}
                 >
-                  <p className="t-annotation">{s.step}</p>
-                  <h3 className="t-plate-title mt-1.5">{s.name}</h3>
-                  <p className="t-body mt-2 text-[0.8125rem] leading-6">{s.body}</p>
+                  <div className="flex items-baseline gap-3">
+                    <span
+                      aria-hidden="true"
+                      className="t-data shrink-0 leading-none"
+                      style={{ fontSize: '1.75rem', fontStretch: '112%', fontWeight: 700 }}
+                    >
+                      {s.step}
+                    </span>
+                    <h3 className="t-plate-title">{s.name}</h3>
+                  </div>
+                  <p className="t-body mt-2.5 text-[0.8125rem] leading-6">{s.body}</p>
                 </li>
               ))}
             </ol>
@@ -995,18 +1003,6 @@ export function LandingScreen() {
             {/* A ruled strip, not a third right-hand column: the two tool
                 sections above already own that shape, and repeating it a third
                 time turns the page into a template. */}
-            <dl className="rule-t flex flex-wrap gap-x-10 gap-y-2 px-4 py-3 sm:px-8">
-              {[
-                { term: 'Costs', def: 'Nothing today' },
-                { term: 'Needs', def: 'A phone with GPS' },
-                { term: 'Stores', def: 'Your runs, one session cookie' },
-              ].map((row) => (
-                <div key={row.term} className="flex items-baseline gap-2">
-                  <dt className="t-annotation">{row.term}</dt>
-                  <dd className="t-data text-[0.8125rem]">{row.def}</dd>
-                </div>
-              ))}
-            </dl>
           </section>
 
           <RevisionBar
