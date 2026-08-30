@@ -64,17 +64,44 @@ describe('renderLandingDocument', () => {
     expect(html).toContain('See a real run');
   });
 
-  it('includes responsive modern image formats, dimensions, and useful alt text', () => {
-    expect(html).toContain('/media/wasgoht-track-hero-1536.avif');
-    expect(html).toContain('/media/wasgoht-track-hero-768.webp');
-    expect(html).toContain('/media/dynorun-capture-1200.avif');
-    expect(html).toContain('/media/dynorun-capture-768.webp');
-    expect(html).toContain('/media/grip-traction-824.avif');
-    expect(html).toContain('/media/grip-corners-720.webp');
-    expect(html).toContain('width="1536" height="1024"');
-    expect(html).toContain('alt="Unbranded track car waiting in a quiet pit lane before a test session"');
-    expect(html.match(/loading="eager"/g)).toHaveLength(1);
-    expect(html.match(/loading="lazy"/g)).toHaveLength(3);
+  // The page used to ship four raster product captures. It no longer ships any:
+  // the demonstration is drawn natively by LandingScreen from the shipping
+  // analysis pipeline, so it cannot go stale against the app the way a
+  // screenshot does, and the document has no image byte on its critical path.
+  it('draws its demonstration natively instead of shipping product screenshots', () => {
+    expect(html).not.toMatch(/<img/i);
+    expect(html).not.toMatch(/<picture/i);
+    expect(html).not.toContain('/media/dynorun-capture');
+    expect(html).not.toContain('/media/grip-traction');
+    expect(html).not.toContain('/media/grip-corners');
+    expect(html).not.toContain('/media/wasgoht-track-hero');
+
+    // Drawn, not decorative: every figure carries a role and a described label.
+    const figures = html.match(/<svg[^>]+role="img"/g) ?? [];
+    expect(figures.length).toBeGreaterThanOrEqual(3);
+    expect(html).toMatch(/aria-label="Wheel power against engine RPM[^"]+"/);
+    expect(html).toMatch(/aria-label="Traction circle[^"]+"/);
+  });
+
+  // The figures are the output of the real pipeline, not numbers typed into the
+  // markup, so they have to be plausible readings rather than any string at all.
+  it('plots real pipeline output, with the peak stated on the sheet', () => {
+    const peak = html.match(/(\d+) kW at (\d+) RPM/);
+    expect(peak).not.toBeNull();
+    const kw = Number(peak![1]);
+    const rpm = Number(peak![2]);
+    expect(kw).toBeGreaterThan(50);
+    expect(kw).toBeLessThan(600);
+    expect(rpm).toBeGreaterThan(2000);
+    expect(rpm).toBeLessThan(7000);
+  });
+
+  // Both caveats are a stated product principle, not decoration, so they are
+  // pinned here: a rewrite that quietly drops either one changes the claim.
+  it('states what the two measurements are worth', () => {
+    expect(html).toContain('It is not a replacement for a calibrated rolling-road');
+    expect(html).toContain('It does not measure the tyre&#x27;s absolute limit.');
+    expect(html).toContain('Synthetic');
   });
 
   it('publishes large social-card metadata backed by a real image asset', () => {
@@ -87,32 +114,6 @@ describe('renderLandingDocument', () => {
     const socialCard = resolve('public/media/wasgoht-social-card.png');
     expect(existsSync(socialCard)).toBe(true);
     expect(statSync(socialCard).size).toBeGreaterThan(25_000);
-  });
-
-  it('keeps every referenced responsive asset in the public bundle', () => {
-    const assets = [
-      'wasgoht-track-hero-1536.avif',
-      'wasgoht-track-hero-1536.webp',
-      'wasgoht-track-hero-768.avif',
-      'wasgoht-track-hero-768.webp',
-      'dynorun-capture-1200.avif',
-      'dynorun-capture-1200.webp',
-      'dynorun-capture-768.avif',
-      'dynorun-capture-768.webp',
-      'grip-traction-824.avif',
-      'grip-traction-824.webp',
-      'grip-traction-520.avif',
-      'grip-traction-520.webp',
-      'grip-corners-1120.avif',
-      'grip-corners-1120.webp',
-      'grip-corners-720.avif',
-      'grip-corners-720.webp',
-    ];
-    for (const asset of assets) {
-      const path = resolve('public/media', asset);
-      expect(existsSync(path), asset).toBe(true);
-      expect(statSync(path).size, asset).toBeGreaterThan(1_000);
-    }
   });
 
   it('carries a followable link to Partynado', () => {

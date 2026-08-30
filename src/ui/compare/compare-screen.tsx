@@ -11,9 +11,27 @@ import { CompareRunsPicker } from './compare-runs-picker';
 import { useUnits } from '@/app/units-context';
 import { formatRelativeTime } from '@/shared/format-time';
 import { convertPower, formatPower } from '@/shared/format-power';
-import type { Run, DerivedCurve } from '@/shared/types';
+import {
+  ChannelStrip,
+  CrossRefProvider,
+  CrossRefReadout,
+  Na,
+  NotesBox,
+  PlanView,
+  ProfileView,
+  RevisionBar,
+  seriesInk,
+  SERIES_DASH,
+  TitleBlock,
+  usePlateInk,
+  useCrossRef,
+  Zone,
+} from '@/ui/plate';
+import type { Run, DerivedCurve, RpmPoint } from '@/shared/types';
 
 type CompareMode = CurveDisplayMode | 'delta';
+
+const CURSOR_SOURCE = 'compare-overlay';
 
 interface DeltaStats {
   maxGain: CurveDeltaPoint | null;
@@ -37,9 +55,50 @@ function summarizeDelta(delta: CurveDeltaPoint[]): DeltaStats {
   };
 }
 
+/**
+ * The bin whose RPM is closest to the cross-referenced instant. Returns null
+ * rather than the nearest-at-any-distance so a cursor parked outside a run's
+ * own RPM span reports n/a instead of quietly quoting that run's end bin.
+ */
+function binAt(points: RpmPoint[], rpm: number): RpmPoint | null {
+  if (points.length === 0) return null;
+  let best = points[0];
+  for (const p of points) {
+    if (Math.abs(p.rpm - rpm) < Math.abs(best.rpm - rpm)) best = p;
+  }
+  return Math.abs(best.rpm - rpm) <= 150 ? best : null;
+}
+
+function BackIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="square"
+      aria-hidden="true"
+    >
+      <polyline points="15 5 8 12 15 19" />
+    </svg>
+  );
+}
+
 export function CompareScreen() {
+  return (
+    <CrossRefProvider>
+      <CompareSheet />
+    </CrossRefProvider>
+  );
+}
+
+function CompareSheet() {
   const { vehicleId = '' } = useParams();
   const { unit } = useUnits();
+  const ink = usePlateInk();
+  const { position, setPosition } = useCrossRef();
   const [runs, setRuns] = useState<Run[]>([]);
   const [curves, setCurves] = useState<Map<string, DerivedCurve>>(new Map());
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -74,7 +133,7 @@ export function CompareScreen() {
   }, [runs]);
 
   function labelFor(run: Run): string {
-    return run.title || `${run.gear_label} · ${formatRelativeTime(run.started_at)}`;
+    return run.title || `${run.gear_label} / ${formatRelativeTime(run.started_at)}`;
   }
 
   const selectedRuns = useMemo<Run[]>(
@@ -88,6 +147,20 @@ export function CompareScreen() {
       if (!curve) return [];
       return [{ label: labelFor(run), points: curve.points }];
     });
+  }, [selectedRuns, curves]);
+
+  // The picker shows each run's swatch, so it needs the same index the chart
+  // assigns. Derived from the plotted series, not the selection set, because a
+  // selected run whose curve failed to load is not on the plot at all.
+  const seriesIndexById = useMemo<Map<string, number>>(() => {
+    const map = new Map<string, number>();
+    let i = 0;
+    for (const run of selectedRuns) {
+      if (!curves.has(run.id)) continue;
+      map.set(run.id, i);
+      i += 1;
+    }
+    return map;
   }, [selectedRuns, curves]);
 
   const bestSeriesLabel = useMemo<string | undefined>(() => {
@@ -144,23 +217,65 @@ export function CompareScreen() {
     { value: 'delta' as const, label: 'Delta' },
   ];
 
+  const rpmSpan = useMemo<{ lo: number; hi: number } | null>(() => {
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (const run of selectedRuns) {
+      const c = curves.get(run.id);
+      if (!c) continue;
+      lo = Math.min(lo, c.rpm_min);
+      hi = Math.max(hi, c.rpm_max);
+    }
+    return Number.isFinite(lo) && Number.isFinite(hi) ? { lo, hi } : null;
+  }, [selectedRuns, curves]);
+
+  const colors = seriesInk(ink);
+  const cursorRpm = position?.at ?? null;
+
+  const channels = selectedRuns.flatMap((run) => {
+    const curve = curves.get(run.id);
+    const idx = seriesIndexById.get(run.id);
+    if (!curve || idx == null) return [];
+    const bin = cursorRpm == null ? null : binAt(curve.points, cursorRpm);
+    return [
+      {
+        name: labelFor(run),
+        color: colors[idx % colors.length],
+        unit: chartMode === 'torque' ? 'Nm' : unit,
+        value:
+          bin == null ? (
+            <Na title="This run has no bin at the cross-referenced RPM" />
+          ) : chartMode === 'torque' ? (
+            bin.wheel_torque_nm.toFixed(1)
+          ) : (
+            convertPower(bin.wheel_power_kw, unit).toFixed(unit === 'kW' ? 1 : 0)
+          ),
+      },
+    ];
+  });
+
+  const pipelineVersions = [...new Set([...curves.values()].map((c) => c.pipeline_version))];
+
   return (
-    <div className="space-y-5">
-      <Link to={`/vehicles/${vehicleId}`} className="inline-flex items-center gap-1.5 text-zinc-400 hover:text-zinc-200 text-sm transition-colors">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="15 18 9 12 15 6"/>
-        </svg>
-        Vehicle
-      </Link>
+    <div className="plate-stack">
+      <div>
+        <Link
+          to={`/vehicles/${vehicleId}`}
+          className="t-label mb-3 inline-flex items-center gap-1.5 no-underline hover:underline"
+        >
+          <BackIcon />
+          Vehicle
+        </Link>
 
-      <h1 className="text-2xl font-bold text-zinc-100">Compare runs</h1>
-
-      <div className="space-y-5 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-6 lg:items-start lg:space-y-0">
-        <div className="space-y-5">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">
-              {selected.size > 0 ? `Overlay (${selected.size})` : 'Overlay'}
-            </p>
+        <TitleBlock
+          title="Compare runs"
+          meta={[
+            { label: 'Runs on file', value: runs.length },
+            { label: 'On the plot', value: selected.size },
+            { label: 'Channel', value: chartMode === 'delta' ? 'Delta' : chartMode === 'torque' ? 'Torque' : 'Power' },
+            { label: 'Power unit', value: unit },
+          ]}
+          actions={
             <SegmentedControl
               options={segmentOptions}
               value={chartMode}
@@ -170,71 +285,133 @@ export function CompareScreen() {
               }}
               compact
             />
-          </div>
+          }
+        />
+      </div>
 
+      <div className="space-y-10 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-6 lg:space-y-0 lg:items-start">
+        <div className="space-y-10">
           {chartMode === 'delta' ? (
             isPair && pairA && pairB ? (
-              <div className="space-y-3">
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden p-2">
-                  <DeltaCurveChart
-                    delta={delta}
-                    unit={unit}
-                    labelA={labelFor(pairA)}
-                    labelB={labelFor(pairB)}
-                  />
-                </div>
+              <>
+                <PlanView
+                  label="Delta field"
+                  scale={`${labelFor(pairA)} minus ${labelFor(pairB)}, per 100 RPM bin`}
+                >
+                  <div className="px-2 py-2">
+                    <DeltaCurveChart
+                      delta={delta}
+                      unit={unit}
+                      labelA={labelFor(pairA)}
+                      labelB={labelFor(pairB)}
+                    />
+                  </div>
+                </PlanView>
                 <DeltaSummary
                   labelA={labelFor(pairA)}
                   labelB={labelFor(pairB)}
                   stats={deltaStats}
                   unit={unit}
                 />
-              </div>
+              </>
             ) : (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 flex flex-col items-center gap-2">
-                <svg className="text-zinc-700" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 12h18"/>
-                  <path d="M12 3v18"/>
-                </svg>
-                <p className="text-zinc-500 text-sm text-center">
-                  Select exactly 2 runs to see the delta.
-                </p>
-              </div>
+              <Zone label="Delta field">
+                <div className="hatch px-3 py-12 text-center">
+                  <p className="t-annotation" style={{ color: 'var(--color-ink-2)' }}>
+                    Select exactly 2 runs to see the delta.
+                  </p>
+                </div>
+              </Zone>
             )
           ) : selected.size > 0 ? (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden p-2">
-              <PowerCurveChart
-                series={series}
-                mode={chartMode}
-                unit={unit}
-                highlightLabel={bestSeriesLabel}
-              />
-            </div>
+            <>
+              <PlanView
+                label={chartMode === 'torque' ? 'Torque overlay' : 'Power overlay'}
+                scale={
+                  rpmSpan
+                    ? `${Math.round(rpmSpan.lo)}-${Math.round(rpmSpan.hi)} RPM, 100 RPM bins`
+                    : 'No RPM span'
+                }
+                legend={
+                  <div className="space-y-0">
+                    {series.map((s, i) => (
+                      <ChannelStrip
+                        key={s.label}
+                        color={colors[i % colors.length]}
+                        dash={SERIES_DASH[i % SERIES_DASH.length]}
+                        name={s.label}
+                      />
+                    ))}
+                  </div>
+                }
+              >
+                <div className="px-2 py-2">
+                  <PowerCurveChart
+                    series={series}
+                    mode={chartMode}
+                    unit={unit}
+                    highlightLabel={bestSeriesLabel}
+                    onCursor={(rpm) =>
+                      setPosition(rpm == null ? null : { at: rpm, source: CURSOR_SOURCE })
+                    }
+                  />
+                </div>
+              </PlanView>
+
+              <ProfileView label="Cross-reference" axis="Every run at the same RPM">
+                <CrossRefReadout
+                  axisLabel="RPM"
+                  axisValue={cursorRpm == null ? <Na /> : Math.round(cursorRpm)}
+                  channels={channels}
+                  idle="Move across the overlay to read every run at one RPM"
+                />
+              </ProfileView>
+            </>
           ) : (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 flex flex-col items-center gap-2">
-              <svg className="text-zinc-700" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-              </svg>
-              <p className="text-zinc-500 text-sm text-center">Select runs below to overlay their power curves</p>
-            </div>
+            <Zone label="Power overlay">
+              <div className="hatch px-3 py-12 text-center">
+                <p className="t-annotation" style={{ color: 'var(--color-ink-2)' }}>
+                  Select runs below to overlay their power curves.
+                </p>
+              </div>
+            </Zone>
           )}
+
+          <NotesBox title="What this comparison is worth">
+            Wheel power here is estimated from GPS acceleration, vehicle mass, the calibrated gear
+            rollout, and road-load assumptions. It is not a calibrated rolling-road dyno figure.
+            Read the difference between two runs, not the absolute number, and compare only runs
+            taken in similar conditions: the conditions each run was logged with are listed beside
+            it below.
+          </NotesBox>
         </div>
 
-        <div className="space-y-3 lg:sticky lg:top-8 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto">
-          <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">
-            Select runs to compare
-          </p>
-          <CompareRunsPicker
-            runs={runs}
-            selectedIds={selected}
-            onToggle={toggle}
-            unit={unit}
-            bestRunId={bestRunId}
-            bestSelectedKw={bestSelected?.kw ?? null}
-            bestSelectedRunId={bestSelected?.id ?? null}
-          />
+        <div className="lg:sticky lg:top-8 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto">
+          <Zone label="Runs to compare" note={`${selected.size} of ${runs.length} selected`}>
+            <CompareRunsPicker
+              runs={runs}
+              selectedIds={selected}
+              onToggle={toggle}
+              unit={unit}
+              bestRunId={bestRunId}
+              bestSelectedKw={bestSelected?.kw ?? null}
+              bestSelectedRunId={bestSelected?.id ?? null}
+              seriesIndexById={seriesIndexById}
+            />
+          </Zone>
         </div>
       </div>
+
+      <RevisionBar
+        entries={[
+          {
+            label: 'Pipeline',
+            value: pipelineVersions.length === 0 ? <Na /> : `v${pipelineVersions.join(', v')}`,
+          },
+          { label: 'Bin width', value: '100 RPM' },
+          { label: 'Reading', value: 'Wheel power, uncorrected for driveline loss' },
+        ]}
+      />
     </div>
   );
 }
@@ -257,60 +434,58 @@ function DeltaSummary({ labelA, labelB, stats, unit }: DeltaSummaryProps) {
   const hasData = stats.maxGain != null || stats.maxLoss != null;
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
-      <div className="flex items-baseline justify-between gap-3 flex-wrap">
-        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">
-          Run A vs Run B
-        </p>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-        <p className="text-zinc-300">
-          <span className="text-emerald-400 font-semibold">A:</span>{' '}
-          <span className="text-zinc-200">{labelA}</span>
-          {stats.maxGain && (
-            <span className="block text-zinc-500 text-xs">
-              peak {formatPower(stats.maxGain.a_power_kw, unit)}
-            </span>
-          )}
-        </p>
-        <p className="text-zinc-300">
-          <span className="text-rose-400 font-semibold">B:</span>{' '}
-          <span className="text-zinc-200">{labelB}</span>
-          {stats.maxLoss && (
-            <span className="block text-zinc-500 text-xs">
-              peak {formatPower(stats.maxLoss.b_power_kw, unit)}
-            </span>
-          )}
-        </p>
-      </div>
-      {hasData ? (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-zinc-800">
-          <div>
-            <p className="text-xs text-zinc-500 uppercase tracking-wider">Max gain</p>
-            <p className="text-emerald-400 font-semibold tabular-nums">
-              {stats.maxGain && stats.maxGain.delta_power_kw > 0
-                ? `${fmt(stats.maxGain.delta_power_kw)} @ ${Math.round(stats.maxGain.rpm)} RPM`
-                : 'n/a'}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-zinc-500 uppercase tracking-wider">Max loss</p>
-            <p className="text-rose-400 font-semibold tabular-nums">
-              {stats.maxLoss && stats.maxLoss.delta_power_kw < 0
-                ? `${fmt(stats.maxLoss.delta_power_kw)} @ ${Math.round(stats.maxLoss.rpm)} RPM`
-                : 'n/a'}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-zinc-500 uppercase tracking-wider">Mean Δ</p>
-            <p className="text-zinc-200 font-semibold tabular-nums">{fmt(stats.mean)}</p>
-          </div>
+    <Zone label="Run A vs run B">
+      <dl className="grid grid-cols-1 sm:grid-cols-2">
+        <div className="px-3 py-2.5">
+          <dt className="t-annotation">A</dt>
+          <dd className="t-data mt-1 text-sm">{labelA}</dd>
+          <dd className="t-annotation mt-1">
+            {stats.maxGain ? `peak ${formatPower(stats.maxGain.a_power_kw, unit)}` : <Na />}
+          </dd>
         </div>
+        <div className="rule-t px-3 py-2.5 sm:border-t-0 sm:border-l sm:border-rule">
+          <dt className="t-annotation">B</dt>
+          <dd className="t-data mt-1 text-sm">{labelB}</dd>
+          <dd className="t-annotation mt-1">
+            {stats.maxLoss ? `peak ${formatPower(stats.maxLoss.b_power_kw, unit)}` : <Na />}
+          </dd>
+        </div>
+      </dl>
+
+      {hasData ? (
+        <dl className="rule-t grid grid-cols-1 sm:grid-cols-3">
+          <div className="px-3 py-2.5">
+            <dt className="t-annotation">Max gain</dt>
+            <dd className="t-data mt-1 text-sm" style={{ color: 'var(--color-gain)' }}>
+              {stats.maxGain && stats.maxGain.delta_power_kw > 0 ? (
+                `${fmt(stats.maxGain.delta_power_kw)} at ${Math.round(stats.maxGain.rpm)} RPM`
+              ) : (
+                <Na title="A never leads B" />
+              )}
+            </dd>
+          </div>
+          <div className="rule-t px-3 py-2.5 sm:border-t-0 sm:border-l sm:border-rule">
+            <dt className="t-annotation">Max loss</dt>
+            <dd className="t-data mt-1 text-sm" style={{ color: 'var(--color-caution)' }}>
+              {stats.maxLoss && stats.maxLoss.delta_power_kw < 0 ? (
+                `${fmt(stats.maxLoss.delta_power_kw)} at ${Math.round(stats.maxLoss.rpm)} RPM`
+              ) : (
+                <Na title="A never trails B" />
+              )}
+            </dd>
+          </div>
+          <div className="rule-t px-3 py-2.5 sm:border-t-0 sm:border-l sm:border-rule">
+            <dt className="t-annotation">Mean delta</dt>
+            <dd className="t-data mt-1 text-sm">{fmt(stats.mean)}</dd>
+          </div>
+        </dl>
       ) : (
-        <p className="text-zinc-500 text-sm pt-2 border-t border-zinc-800">
-          No overlapping RPM range.
-        </p>
+        <div className="hatch rule-t px-3 py-6 text-center">
+          <p className="t-annotation" style={{ color: 'var(--color-ink-2)' }}>
+            No overlapping RPM range.
+          </p>
+        </div>
       )}
-    </div>
+    </Zone>
   );
 }

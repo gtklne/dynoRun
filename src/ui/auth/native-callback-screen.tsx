@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NATIVE_CALLBACK_URL } from '@/auth/social-sign-in';
-import { BrandLogo } from '@/ui/components/brand-logo';
+import { AuthLayout, BrandHeader } from '@/ui/auth/auth-layout';
+import { Advisory } from '@/ui/plate';
 
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
 
@@ -57,19 +58,25 @@ export function NativeCallbackScreen() {
   }, []);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-zinc-950 p-6 text-center">
-      <BrandLogo size={48} />
-      {error ? (
-        <>
-          <p className="text-sm text-red-400">{error}</p>
-          <p className="text-xs text-zinc-500">You can close this window and try again in the app.</p>
-        </>
-      ) : (
-        <>
-          <p className="text-sm text-zinc-300">Signing you in…</p>
-          <p className="text-xs text-zinc-500">Returning you to the DynoRun app.</p>
-        </>
-      )}
-    </div>
+    <AuthLayout>
+      <BrandHeader title="Signing you in" subtitle="Native hand-off" />
+      <div className="box-frame flex flex-col gap-3 px-4 py-4 sm:px-5 sm:py-5">
+        {error ? (
+          <>
+            <Advisory>{error}</Advisory>
+            <p className="t-annotation">
+              You can close this window and try again in the app.
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="t-body m-0" role="status">
+              Handing your session back to the app.
+            </p>
+            <p className="t-annotation">Returning you to the DynoRun app.</p>
+          </>
+        )}
+      </div>
+    </AuthLayout>
   );
 }

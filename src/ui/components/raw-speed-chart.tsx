@@ -3,20 +3,15 @@ import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
 import type { RawTrace } from '@/analysis/raw-trace';
 import { mpsToKmh } from '@/shared/units';
+import { usePlateInk } from '@/ui/plate';
 import {
   attachChartResize,
-  CURSOR_STROKE,
   HOVER_POINT_SIZE,
   legendValue,
   responsiveChartHeight,
   themedAxis,
   themedCursor,
 } from '@/ui/components/uplot-theme';
-
-const RAW_STROKE = '#f59e0b';
-const PIPELINE_STROKE = '#e4e4e7';
-const ACCEL_STROKE = '#22d3ee';
-const SUSPECT_STROKE = '#f87171';
 
 interface Props {
   trace: RawTrace;
@@ -25,11 +20,22 @@ interface Props {
    *  and squash the trace nobody needed to worry about. */
   accelCeilingMs2: number;
   height?: number;
+  /**
+   * Seconds from the start of the trace to mark, published by another view of
+   * the same procedure (the power curve's RPM cursor). This is the profile
+   * half of the plate's cross-reference: null draws nothing.
+   */
+  cursorTimeS?: number | null;
 }
 
-export function RawSpeedChart({ trace, accelCeilingMs2, height = 260 }: Props) {
+export function RawSpeedChart({ trace, accelCeilingMs2, height = 260, cursorTimeS = null }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const plotRef = useRef<uPlot | null>(null);
+  const ink = usePlateInk();
+  // Read inside the draw hook so moving the cross-reference repaints without
+  // rebuilding the plot.
+  const cursorRef = useRef<number | null>(cursorTimeS);
+  cursorRef.current = cursorTimeS;
 
   // One shared x axis across two different time grids: the raw fixes sit ~1 s
   // apart, the pipeline grid at 100 ms. uPlot wants aligned data, so take the
@@ -78,21 +84,21 @@ export function RawSpeedChart({ trace, accelCeilingMs2, height = 260 }: Props) {
       {
         label: 'GPS speed',
         scale: 'kmh',
-        stroke: RAW_STROKE,
+        stroke: ink.ink,
         width: 2,
         spanGaps: true,
         value: legendValue('km/h', 1),
-        points: pointsFor(RAW_STROKE),
+        points: pointsFor(ink.ink),
       },
       {
         // Drawn after the raw series so it rides on top. At a low fix rate it
         // lands exactly on the raw trace, and that coincidence is the point:
         // the Savitzky-Golay window spans about one real fix, so it smooths
-        // interpolation rather than data. It has to be light enough to read
-        // against the amber, or the finding looks like a missing series.
+        // interpolation rather than data. It has to be legible against the raw
+        // ink, or the finding looks like a missing series.
         label: 'Used by pipeline',
         scale: 'kmh',
-        stroke: PIPELINE_STROKE,
+        stroke: ink.terrain,
         width: 1.5,
         dash: [5, 5],
         spanGaps: true,
@@ -102,28 +108,29 @@ export function RawSpeedChart({ trace, accelCeilingMs2, height = 260 }: Props) {
       {
         label: 'Fix-to-fix accel',
         scale: 'accel',
-        stroke: ACCEL_STROKE,
+        stroke: ink.gain,
         width: 2,
+        dash: [2, 3],
         spanGaps: true,
         value: legendValue('m/s²', 2),
-        points: pointsFor(ACCEL_STROKE),
+        points: pointsFor(ink.gain),
       },
       {
         label: 'Suspect fix',
         scale: 'accel',
-        stroke: SUSPECT_STROKE,
+        stroke: ink.caution,
         // Markers only. A connecting line here would imply the flagged fixes
         // are a trend rather than isolated artifacts.
         paths: () => null,
         value: legendValue('m/s²', 2),
-        points: { show: true, size: HOVER_POINT_SIZE + 4, stroke: SUSPECT_STROKE, fill: SUSPECT_STROKE },
+        points: { show: true, size: HOVER_POINT_SIZE + 4, stroke: ink.caution, fill: ink.caution },
       },
     ];
     if (trace.spike_count > 0) {
       series.push({
         label: 'Grip limit',
         scale: 'accel',
-        stroke: SUSPECT_STROKE,
+        stroke: ink.caution,
         width: 1,
         dash: [2, 5],
         value: legendValue('m/s²', 0),
@@ -136,13 +143,35 @@ export function RawSpeedChart({ trace, accelCeilingMs2, height = 260 }: Props) {
       height: responsiveChartHeight(height),
       scales: { x: { time: false }, kmh: {}, accel: {} },
       axes: [
-        themedAxis({ label: 'Time (s)' }),
-        themedAxis({ label: 'Speed (km/h)', scale: 'kmh', decimals: 0 }),
-        themedAxis({ label: 'Accel (m/s²)', scale: 'accel', side: 1, showGrid: false, decimals: 1 }),
+        themedAxis({ label: 'Time (s)', ink }),
+        themedAxis({ label: 'Speed (km/h)', scale: 'kmh', decimals: 0, ink }),
+        themedAxis({ label: 'Accel (m/s²)', scale: 'accel', side: 1, showGrid: false, decimals: 1, ink }),
       ],
       series,
       legend: { show: true },
-      cursor: themedCursor({ x: true, y: true, points: { stroke: CURSOR_STROKE } }),
+      cursor: themedCursor({ x: true, y: true }, ink),
+      hooks: {
+        draw: [
+          (u): void => {
+            const at = cursorRef.current;
+            if (at == null || !Number.isFinite(at)) return;
+            const x = u.valToPos(at, 'x', true);
+            if (!Number.isFinite(x)) return;
+            const ctx = u.ctx;
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(u.bbox.left, u.bbox.top, u.bbox.width, u.bbox.height);
+            ctx.clip();
+            ctx.strokeStyle = ink.procedure;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(x, u.bbox.top);
+            ctx.lineTo(x, u.bbox.top + u.bbox.height);
+            ctx.stroke();
+            ctx.restore();
+          },
+        ],
+      },
     };
 
     plotRef.current = new uPlot(opts, data, containerRef.current);
@@ -152,8 +181,13 @@ export function RawSpeedChart({ trace, accelCeilingMs2, height = 260 }: Props) {
       plotRef.current?.destroy();
       plotRef.current = null;
     };
-  }, [data, trace.spike_count, height]);
+  }, [data, trace.spike_count, height, ink]);
 
-  if (!data) return <p className="text-zinc-500 text-sm p-3">Not enough fixes to plot.</p>;
-  return <div ref={containerRef} />;
+  // Repaint the cross-reference marker without rebuilding the plot.
+  useEffect(() => {
+    plotRef.current?.redraw(false, false);
+  }, [cursorTimeS]);
+
+  if (!data) return <p className="t-annotation px-3 py-6">Not enough fixes to plot.</p>;
+  return <div ref={containerRef} data-plate-figures />;
 }

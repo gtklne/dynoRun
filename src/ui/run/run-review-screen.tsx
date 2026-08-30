@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { runRepository } from '@/api/repositories/run-repository';
 import { derivedCurveRepository } from '@/api/repositories/derived-curve-repository';
 import { vehicleRepository } from '@/api/repositories/vehicle-repository';
+import { calibrationRepository } from '@/api/repositories/calibration-repository';
 import { shareRepository } from '@/api/repositories/share-repository';
 import { ensureCurrentCurve, loadRunAnalysis } from '@/analysis/re-analyze';
 import type { AnalyzedRun, RawSpeedSample } from '@/analysis/types';
@@ -19,19 +20,43 @@ import { SignalVerdictBanner } from '@/ui/components/signal-verdict-banner';
 import { assessSignal } from '@/analysis/signal-integrity';
 import { useExpertView } from '@/ui/run/use-expert-view';
 import { ToggleSwitch } from '@/ui/components/toggle-switch';
-import type { Run, DerivedCurve, Vehicle, RunConditions } from '@/shared/types';
+import type { Calibration, Run, DerivedCurve, Vehicle, RunConditions, RpmPoint } from '@/shared/types';
 import { useReplayState, setPendingReplay } from '@/sensors/replay-state';
 import { describeRecording } from '@/sensors/recording';
 import { useUnits } from '@/app/units-context';
 import { convertPower, formatPower, type PowerUnit } from '@/shared/format-power';
 import { formatShortDateTime } from '@/shared/format-time';
 import { shareRun, shareRunCard } from '@/app/share-image';
+import { mpsToKmh } from '@/shared/units';
+import {
+  CrossRefProvider,
+  CrossRefReadout,
+  MinimaTable,
+  Na,
+  NotesBox,
+  Plate,
+  PlateButton,
+  PlateField,
+  PlanView,
+  Readout,
+  RevisionBar,
+  TitleBlock,
+  Zone,
+  useCrossRef,
+  type MinimaColumn,
+} from '@/ui/plate';
 
 const CHART_MODE_OPTIONS = [
   { value: 'power', label: 'Power' },
   { value: 'torque', label: 'Torque' },
   { value: 'both', label: 'Both' },
 ] as const satisfies ReadonlyArray<{ value: CurveDisplayMode; label: string }>;
+
+const PLAN_LABEL: Record<CurveDisplayMode, string> = {
+  power: 'Power vs RPM',
+  torque: 'Torque vs RPM',
+  both: 'Power and torque vs RPM',
+};
 
 function oppositeUnit(unit: PowerUnit): PowerUnit {
   return unit === 'kW' ? 'hp' : 'kW';
@@ -53,6 +78,139 @@ function hasAnyCondition(c: RunConditions): boolean {
   );
 }
 
+/** Nearest curve bin to an RPM, so every view reports the same instant. */
+function binAt(points: RpmPoint[], rpm: number | null): RpmPoint | null {
+  if (rpm == null || points.length === 0) return null;
+  return points.reduce(
+    (best, p) => (Math.abs(p.rpm - rpm) < Math.abs(best.rpm - rpm) ? p : best),
+    points[0],
+  );
+}
+
+/**
+ * The plan view of the procedure: the field the whole sheet is about. It owns
+ * the cross-reference cursor, which every other view on this plate reads.
+ */
+function CurvePlan({
+  points,
+  mode,
+  unit,
+  rpmMin,
+  rpmMax,
+}: {
+  points: RpmPoint[];
+  mode: CurveDisplayMode;
+  unit: PowerUnit;
+  rpmMin: number;
+  rpmMax: number;
+}) {
+  const { setPosition } = useCrossRef();
+  // Memoised because publishing the cursor re-renders this subtree on every
+  // mouse move, and a fresh `series` array identity would tear down and
+  // rebuild the uPlot instance under the cursor that produced it.
+  const series = useMemo(() => [{ label: 'This run', points }], [points]);
+  return (
+    <PlanView
+      label={PLAN_LABEL[mode]}
+      scale={`${rpmMin.toFixed(0)}-${rpmMax.toFixed(0)} RPM, 100 RPM bins`}
+      legend={<CurveReadout points={points} unit={unit} />}
+    >
+      <div className="p-2">
+        <PowerCurveChart
+          series={series}
+          mode={mode}
+          unit={unit}
+          onCursor={(rpm) => setPosition(rpm == null ? null : { at: rpm, source: 'curve' })}
+        />
+      </div>
+    </PlanView>
+  );
+}
+
+/** The aligned channel column at the cross-referenced RPM. */
+function CurveReadout({ points, unit }: { points: RpmPoint[]; unit: PowerUnit }) {
+  const { position } = useCrossRef();
+  const bin = binAt(points, position?.at ?? null);
+  return (
+    <CrossRefReadout
+      axisLabel="RPM"
+      axisValue={bin ? bin.rpm.toFixed(0) : <Na />}
+      idle="Move across the curve to read every channel at one RPM"
+      channels={[
+        {
+          name: 'Wheel power',
+          value: bin ? formatPower(bin.wheel_power_kw, unit, { unitSuffix: false }) : <Na />,
+          unit,
+        },
+        {
+          name: 'Wheel torque',
+          value: bin ? bin.wheel_torque_nm.toFixed(0) : <Na />,
+          unit: 'Nm',
+        },
+      ]}
+    />
+  );
+}
+
+/**
+ * The profile view beneath the plan. It reports the same instant the curve
+ * cursor is on, translated through the calibration's rollout: an RPM is a
+ * speed, and a speed is a moment in the raw trace.
+ */
+function TraceProfile({
+  samples,
+  rolloutMPerRev,
+}: {
+  samples: RawSpeedSample[];
+  rolloutMPerRev: number | null;
+}) {
+  const { position } = useCrossRef();
+
+  const cursorTimeS = useMemo(() => {
+    if (position == null || rolloutMPerRev == null || rolloutMPerRev <= 0) return null;
+    if (samples.length < 2) return null;
+    const targetMps = (position.at / 60) * rolloutMPerRev;
+    const t0 = samples[0].t_ms;
+    const hit = samples.find((s) => s.speed_mps >= targetMps);
+    if (!hit) return null;
+    return (hit.t_ms - t0) / 1000;
+  }, [position, rolloutMPerRev, samples]);
+
+  return <RawTraceCard samples={samples} cursorTimeS={cursorTimeS} />;
+}
+
+/** The minima table of RPM bins, with the cross-referenced bin selected. */
+function BinTable({ points, unit }: { points: RpmPoint[]; unit: PowerUnit }) {
+  const { position } = useCrossRef();
+  const bin = binAt(points, position?.at ?? null);
+
+  const columns: MinimaColumn<RpmPoint>[] = [
+    { key: 'rpm', head: 'RPM', numeric: true, cell: (p) => p.rpm.toFixed(0) },
+    {
+      key: 'power',
+      head: `Power (${unit})`,
+      numeric: true,
+      cell: (p) => formatPower(p.wheel_power_kw, unit, { unitSuffix: false }),
+    },
+    {
+      key: 'torque',
+      head: 'Torque (Nm)',
+      numeric: true,
+      cell: (p) => p.wheel_torque_nm.toFixed(0),
+    },
+  ];
+
+  return (
+    <MinimaTable
+      columns={columns}
+      rows={points}
+      rowKey={(p) => String(p.rpm)}
+      selectedKey={bin ? String(bin.rpm) : null}
+      empty="No RPM bins were derived from this run"
+    />
+  );
+}
+
 export function RunReviewScreen() {
   const { runId = '' } = useParams();
   const navigate = useNavigate();
@@ -60,6 +218,7 @@ export function RunReviewScreen() {
   const toast = useToast();
   const [run, setRun] = useState<Run | null>(null);
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+  const [calibration, setCalibration] = useState<Calibration | null>(null);
   const [curve, setCurve] = useState<DerivedCurve | null>(null);
   const [analyzed, setAnalyzed] = useState<AnalyzedRun | null>(null);
   const [rawSamples, setRawSamples] = useState<RawSpeedSample[] | null>(null);
@@ -85,6 +244,10 @@ export function RunReviewScreen() {
         setTitle(r.title ?? `${r.gear_label} · ${formatShortDateTime(r.started_at)}`);
         const v = await vehicleRepository.get(r.vehicle_id);
         setVehicle(v);
+        // The rollout is what ties the RPM axis to the speed trace, so the
+        // cross-reference between plan and profile needs it.
+        const cal = await calibrationRepository.get(r.calibration_id).catch(() => null);
+        setCalibration(cal);
       }
       // accel-times + quality aren't in the persisted DerivedCurve, so
       // re-run analyzeRun in-memory from raw samples.
@@ -144,10 +307,17 @@ export function RunReviewScreen() {
     return { lo: Math.min(...rpms), hi: Math.max(...rpms) };
   }, [curve, peak]);
 
+  const sampleRateHz = useMemo(() => {
+    if (!rawSamples || rawSamples.length < 2) return null;
+    const span = rawSamples[rawSamples.length - 1].t_ms - rawSamples[0].t_ms;
+    if (span <= 0) return null;
+    return ((rawSamples.length - 1) / span) * 1000;
+  }, [rawSamples]);
+
   if (!run || !curve) {
     return (
       <div className="flex items-center justify-center py-16">
-        <p className="text-zinc-500 text-sm">Loading…</p>
+        <p className="t-annotation">Loading…</p>
       </div>
     );
   }
@@ -307,318 +477,341 @@ export function RunReviewScreen() {
       })()
     : null;
 
+  const rpms = curve.points.map((p) => p.rpm);
+  const rpmMin = rpms.length > 0 ? Math.min(...rpms) : 0;
+  const rpmMax = rpms.length > 0 ? Math.max(...rpms) : 0;
+  const rollout = calibration?.rollout_m_per_rev ?? null;
+  const topSpeedKmh =
+    rawSamples && rawSamples.length > 0
+      ? mpsToKmh(Math.max(...rawSamples.map((s) => s.speed_mps)))
+      : null;
+
   return (
-    <div className="space-y-5">
-      <div className="flex items-center gap-3 flex-wrap">
-        <h1 className="text-2xl font-bold text-zinc-100">Run review</h1>
-        {analyzed && <RunQualityBadge quality={analyzed.quality} />}
-      </div>
-
-      {integrity && integrity.verdict !== 'ok' && (
-        <SignalVerdictBanner
-          integrity={integrity}
-          action={
-            integrity.verdict === 'corrupt' ? (
-              <button
-                onClick={discard}
-                className="w-full bg-red-500 hover:bg-red-400 active:bg-red-600 text-zinc-950 font-semibold py-3 rounded-xl transition-colors text-sm"
-              >
-                Discard and ride it again
-              </button>
-            ) : undefined
-          }
+    <CrossRefProvider>
+      <Plate>
+        <TitleBlock
+          ident={vehicle?.name ?? undefined}
+          title={title || 'Run review'}
+          actions={analyzed ? <RunQualityBadge quality={analyzed.quality} /> : undefined}
+          meta={[
+            { label: 'Gear', value: run.gear_label },
+            {
+              label: 'Rollout',
+              value: rollout != null ? `${rollout.toFixed(4)} m/rev` : <Na title="Calibration not loaded" />,
+            },
+            { label: 'Started', value: formatShortDateTime(run.started_at) },
+            {
+              label: 'Top speed',
+              value: topSpeedKmh != null ? `${topSpeedKmh.toFixed(0)} km/h` : <Na />,
+            },
+          ]}
         />
-      )}
 
-      {/* Desktop: data & chart in the wide left column, editable metadata and
-          actions in the right rail. Mobile keeps the single-column order. */}
-      <div className="space-y-5 lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-6 lg:items-start lg:space-y-0">
-        {/* LEFT: data & visualization */}
-        <div className="space-y-5">
-
-      {/* Peak stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-          <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Peak power</p>
-          <p className="tabular-nums">
-            <span className="text-3xl font-bold text-amber-400">
-              {peak ? formatPower(peak.wheel_power_kw, units.unit, { unitSuffix: false }) : 'n/a'}
-            </span>
-            <span className="text-sm text-zinc-400 ml-1">{units.unit}</span>
-          </p>
-          <p className="text-zinc-600 text-xs mt-1">
-            {peak ? formatPower(peak.wheel_power_kw, opp) : 'n/a'}
-          </p>
-        </div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-          <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Peak torque</p>
-          <p className="tabular-nums">
-            <span className="text-3xl font-bold text-zinc-100">
-              {peakTorque ? peakTorque.wheel_torque_nm.toFixed(0) : 'n/a'}
-            </span>
-            <span className="text-sm text-zinc-400 ml-1">Nm</span>
-          </p>
-          <p className="text-zinc-600 text-xs mt-1">
-            {peakTorque ? `@ ${peakTorque.rpm.toFixed(0)} RPM` : 'n/a'}
-          </p>
-        </div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-          <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Power band</p>
-          <p className="tabular-nums">
-            <span className="text-2xl font-bold text-zinc-100">
-              {powerBand
-                ? powerBand.lo === powerBand.hi
-                  ? `${powerBand.lo}`
-                  : `${powerBand.lo}-${powerBand.hi}`
-                : 'n/a'}
-            </span>
-            <span className="text-sm text-zinc-400 ml-1">RPM</span>
-          </p>
-          <p className="text-zinc-600 text-xs mt-1">≥80% of peak</p>
-        </div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-          <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Δ vs best</p>
-          {isFirstRun ? (
-            <>
-              <p className="text-lg font-bold text-amber-400">First run</p>
-              <p className="text-zinc-600 text-xs mt-1">Personal best</p>
-            </>
-          ) : isNewBest ? (
-            <>
-              <p className="text-2xl font-bold text-emerald-400 tabular-nums">{diffDisplay}</p>
-              <p className="text-emerald-500 text-xs mt-1">New personal best</p>
-            </>
-          ) : (
-            <>
-              <p className="text-2xl font-bold text-zinc-400 tabular-nums">{diffDisplay ?? 'n/a'}</p>
-              <p className="text-zinc-600 text-xs mt-1">vs your best</p>
-            </>
-          )}
-        </div>
-      </div>
-
-      {analyzed && <AccelTimesCard accel={analyzed.accel_times} />}
-
-      {/* Chart mode toggle + expert switch */}
-      <div className="flex items-center justify-center gap-3 flex-wrap">
-        <SegmentedControl<CurveDisplayMode>
-          options={CHART_MODE_OPTIONS}
-          value={chartMode}
-          onChange={setChartMode}
-          ariaLabel="Chart mode"
-        />
-        <label className="flex items-center gap-2 text-xs font-semibold text-zinc-500 uppercase tracking-widest">
-          Expert
-          <ToggleSwitch checked={expert} onChange={setExpert} ariaLabel="Expert view" />
-        </label>
-      </div>
-
-      {/* Chart */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden p-2">
-        <PowerCurveChart
-          series={[{ label: 'Power', points: curve.points }]}
-          mode={chartMode}
-          unit={units.unit}
-        />
-      </div>
-
-      {rawSamples && rawSamples.length > 1 && <RawTraceCard samples={rawSamples} />}
-
-      {expert && analyzed && (
-        <ExpertView
-          roadLoad={analyzed.road_load}
-          breakdown={analyzed.breakdown}
-          peakRpm={peak?.rpm ?? null}
-          unit={units.unit}
-        />
-      )}
-
-        </div>
-        {/* RIGHT: metadata, conditions & actions */}
-        <div className="space-y-5">
-
-      {/* Raw sensor recording */}
-      {recordingMatchesRun && lastRecording && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
-          <div>
-            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Raw sensor recording</p>
-            <p className="text-zinc-400 text-xs mt-1.5 font-mono">{describeRecording(lastRecording)}</p>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={downloadRecording}
-              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium py-2.5 rounded-xl transition-colors text-sm border border-zinc-700"
-            >
-              Download JSON
-            </button>
-            <button
-              onClick={useRecordingForReplay}
-              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium py-2.5 rounded-xl transition-colors text-sm border border-zinc-700"
-            >
-              Use for replay
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Title */}
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="run-title" className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Title</label>
-        <input
-          id="run-title"
-          type="text"
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-500 transition-colors text-sm"
-          value={title}
-          placeholder="Give this run a name"
-          onChange={(e) => setTitle(e.target.value)}
-        />
-      </div>
-
-      {/* Notes */}
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="run-notes" className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Notes</label>
-        <textarea
-          id="run-notes"
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-500 transition-colors text-sm resize-none"
-          rows={3}
-          value={notes}
-          placeholder="Modifications, observations…"
-          onChange={(e) => setNotes(e.target.value)}
-        />
-      </div>
-
-      {/* Conditions */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Conditions</p>
-          {hasAnyCondition(run.conditions) && (
-            <button
-              type="button"
-              onClick={() => setConditionsOpen(true)}
-              className="text-xs text-amber-400 hover:text-amber-300 font-medium"
-            >
-              Edit
-            </button>
-          )}
-        </div>
-        {hasAnyCondition(run.conditions) ? (
-          <ConditionsChips conditions={run.conditions} size="md" />
-        ) : (
-          <div className="space-y-3">
-            <p className="text-zinc-500 text-xs">
-              Log temp, wind, tires, or surface to make this run comparable later.
-            </p>
-            <button
-              type="button"
-              onClick={() => setConditionsOpen(true)}
-              className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium py-2.5 rounded-xl transition-colors text-sm border border-zinc-700"
-            >
-              Add conditions
-            </button>
-          </div>
+        {integrity && integrity.verdict !== 'ok' && (
+          <SignalVerdictBanner
+            integrity={integrity}
+            action={
+              integrity.verdict === 'corrupt' ? (
+                <PlateButton variant="procedure" className="w-full" onClick={discard}>
+                  Discard and ride it again
+                </PlateButton>
+              ) : undefined
+            }
+          />
         )}
-      </div>
 
-      {/* Public share link */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
-        <div>
-          <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Public link</p>
-          <p className="text-zinc-500 text-xs mt-1.5">
-            {run.share_token
-              ? 'Anyone with this URL can view the run, no sign-in required.'
-              : 'Generate a read-only URL anyone can open.'}
-          </p>
-        </div>
-        {run.share_token ? (
-          <>
-            <div className="flex items-stretch gap-2">
-              <input
-                type="text"
-                readOnly
-                value={shareUrlFor(run.share_token)}
-                onFocus={(e) => e.currentTarget.select()}
-                className="flex-1 min-w-0 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-zinc-200 text-xs font-mono focus:outline-none focus:border-amber-500"
-                aria-label="Public share URL"
+        {/* Desktop: the sheet in the wide left column, the marginal apparatus
+            (metadata, conditions, actions) in the right rail. Mobile keeps the
+            single-column reading order. */}
+        <div className="space-y-10 lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-8 lg:items-start lg:space-y-0">
+          <div className="space-y-10">
+            <Zone label="Peak readings" note="wheel power, this run">
+              <div className="px-3 py-4">
+                <Readout
+                  size="xl"
+                  tone="procedure"
+                  label="Peak power"
+                  unit={units.unit}
+                  value={
+                    peak ? (
+                      formatPower(peak.wheel_power_kw, units.unit, { unitSuffix: false })
+                    ) : (
+                      <Na title="No positive drive power in this run" />
+                    )
+                  }
+                  note={
+                    peak
+                      ? `${formatPower(peak.wheel_power_kw, opp)} at ${peak.rpm.toFixed(0)} RPM`
+                      : 'No bin carried positive power'
+                  }
+                />
+              </div>
+
+              {/* A ruled list, not a three-up tile grid: these are supporting
+                  readings under one primary figure, and the rules say so at
+                  every width without a breakpoint changing their meaning. */}
+              <dl className="rule-t">
+                <div className="flex items-baseline justify-between gap-4 px-3 py-2.5">
+                  <div>
+                    <dt className="t-annotation">Peak torque</dt>
+                    <dd className="t-annotation mt-1">
+                      {peakTorque ? `at ${peakTorque.rpm.toFixed(0)} RPM` : 'not derived'}
+                    </dd>
+                  </div>
+                  <dd className="t-data text-lg">
+                    {peakTorque ? (
+                      <>
+                        {peakTorque.wheel_torque_nm.toFixed(0)}
+                        <span className="t-annotation ml-1">Nm</span>
+                      </>
+                    ) : (
+                      <Na />
+                    )}
+                  </dd>
+                </div>
+                <div className="rule-t flex items-baseline justify-between gap-4 px-3 py-2.5">
+                  <div>
+                    <dt className="t-annotation">Power band</dt>
+                    <dd className="t-annotation mt-1">at or above 80% of peak</dd>
+                  </div>
+                  <dd className="t-data text-lg">
+                    {powerBand ? (
+                      <>
+                        {powerBand.lo === powerBand.hi
+                          ? `${powerBand.lo}`
+                          : `${powerBand.lo}-${powerBand.hi}`}
+                        <span className="t-annotation ml-1">RPM</span>
+                      </>
+                    ) : (
+                      <Na />
+                    )}
+                  </dd>
+                </div>
+                <div className="rule-t flex items-baseline justify-between gap-4 px-3 py-2.5">
+                  <div>
+                    <dt className="t-annotation">Δ vs your best</dt>
+                    <dd className="t-annotation mt-1">
+                      {isFirstRun
+                        ? 'nothing to compare against yet'
+                        : isNewBest
+                          ? 'new personal best'
+                          : 'against this vehicle'}
+                    </dd>
+                  </div>
+                  <dd
+                    className="t-data text-lg"
+                    style={isNewBest ? { color: 'var(--color-gain)' } : undefined}
+                  >
+                    {isFirstRun ? 'First run' : (diffDisplay ?? <Na />)}
+                  </dd>
+                </div>
+              </dl>
+            </Zone>
+
+            <section aria-label="Power curve" className="space-y-3">
+              <div className="flex flex-wrap items-center justify-end gap-4">
+                <SegmentedControl<CurveDisplayMode>
+                  options={CHART_MODE_OPTIONS}
+                  value={chartMode}
+                  onChange={setChartMode}
+                  compact
+                  ariaLabel="Chart mode"
+                />
+                <label className="t-label flex items-center gap-2">
+                  Expert
+                  <ToggleSwitch checked={expert} onChange={setExpert} ariaLabel="Expert view" />
+                </label>
+              </div>
+
+              <CurvePlan
+                points={curve.points}
+                mode={chartMode}
+                unit={units.unit}
+                rpmMin={rpmMin}
+                rpmMax={rpmMax}
               />
-              <button
-                onClick={copyShareLink}
-                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium px-3 rounded-xl transition-colors text-xs border border-zinc-700 whitespace-nowrap"
-              >
-                Copy
-              </button>
-            </div>
-            <button
-              onClick={revokeShareLink}
-              disabled={shareBusy}
-              className="w-full bg-zinc-800 hover:bg-red-900/60 text-zinc-400 hover:text-red-300 font-medium py-2 rounded-xl transition-colors text-xs border border-zinc-700 disabled:opacity-50"
+
+              {rawSamples && rawSamples.length > 1 && (
+                <TraceProfile samples={rawSamples} rolloutMPerRev={rollout} />
+              )}
+            </section>
+
+            <Zone label="RPM bins" note="the curve as numbers, 100 RPM apart">
+              <BinTable points={curve.points} unit={units.unit} />
+            </Zone>
+
+            {analyzed && <AccelTimesCard accel={analyzed.accel_times} />}
+
+            {expert && analyzed && (
+              <ExpertView
+                roadLoad={analyzed.road_load}
+                breakdown={analyzed.breakdown}
+                peakRpm={peak?.rpm ?? null}
+                unit={units.unit}
+              />
+            )}
+
+            <NotesBox title="What this measurement is worth">
+              Wheel power here is estimated from GPS acceleration, the mass you entered, the
+              calibrated gearing, and standing road-load assumptions. It is not a calibrated
+              rolling-road dyno figure, and no driveline loss is added back. Treat it as a
+              comparative reading: the honest question it answers is whether this run is better
+              than your last one under the same conditions, not what the engine makes.
+            </NotesBox>
+
+            <RevisionBar
+              entries={[
+                { label: 'Pipeline', value: `v${curve.pipeline_version}` },
+                {
+                  label: 'Sample rate',
+                  value: sampleRateHz != null ? `${sampleRateHz.toFixed(1)} Hz` : <Na />,
+                },
+                { label: 'Run started', value: formatShortDateTime(run.started_at) },
+                { label: 'Bins', value: String(curve.points.length) },
+              ]}
+            />
+          </div>
+
+          <div className="space-y-10">
+            {recordingMatchesRun && lastRecording && (
+              <Zone label="Raw sensor recording" note={describeRecording(lastRecording)}>
+                <div className="flex gap-2 px-3 py-2.5">
+                  <PlateButton className="flex-1" onClick={downloadRecording}>
+                    Download JSON
+                  </PlateButton>
+                  <PlateButton className="flex-1" onClick={useRecordingForReplay}>
+                    Use for replay
+                  </PlateButton>
+                </div>
+              </Zone>
+            )}
+
+            <Zone label="Run record" framed={false}>
+              <div className="space-y-4">
+                <PlateField id="run-title" label="Title">
+                  <input
+                    id="run-title"
+                    type="text"
+                    className="field"
+                    value={title}
+                    placeholder="Give this run a name"
+                    onChange={(e) => setTitle(e.target.value)}
+                  />
+                </PlateField>
+
+                <PlateField id="run-notes" label="Notes">
+                  <textarea
+                    id="run-notes"
+                    className="field resize-none"
+                    rows={3}
+                    value={notes}
+                    placeholder="Modifications, observations"
+                    onChange={(e) => setNotes(e.target.value)}
+                  />
+                </PlateField>
+              </div>
+            </Zone>
+
+            <Zone
+              label="Conditions"
+              actions={
+                hasAnyCondition(run.conditions) ? (
+                  <PlateButton onClick={() => setConditionsOpen(true)} style={{ minHeight: 32 }}>
+                    Edit
+                  </PlateButton>
+                ) : undefined
+              }
             >
-              Revoke link
-            </button>
-          </>
-        ) : (
-          <button
-            onClick={createShareLink}
-            disabled={shareBusy}
-            className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium py-2.5 rounded-xl transition-colors text-sm border border-zinc-700 disabled:opacity-50"
-          >
-            {shareBusy ? 'Creating…' : 'Get public link'}
-          </button>
-        )}
-      </div>
+              {hasAnyCondition(run.conditions) ? (
+                <div className="px-3 py-2.5">
+                  <ConditionsChips conditions={run.conditions} size="md" />
+                </div>
+              ) : (
+                <div className="space-y-3 px-3 py-2.5">
+                  <p className="t-body text-[0.8125rem] leading-6">
+                    Log temp, wind, tires, or surface to make this run comparable later.
+                  </p>
+                  <PlateButton className="w-full" onClick={() => setConditionsOpen(true)}>
+                    Add conditions
+                  </PlateButton>
+                </div>
+              )}
+            </Zone>
 
-      {/* Actions */}
-      <div className="space-y-3">
-        <div className="flex gap-3">
-          {/* A corrupt run demotes Save to a secondary action rather than
-              removing it: the samples are still the rider's, and there are
-              honest reasons to keep one (comparing artifacts, filing a bug).
-              What it must not stay is the obvious default. */}
-          <button
-            onClick={save}
-            className={`flex-1 font-semibold py-3.5 rounded-xl transition-colors ${
-              corruptRun
-                ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-400 border border-zinc-700'
-                : 'bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-zinc-950'
-            }`}
-          >
-            {corruptRun ? 'Save anyway' : 'Save run'}
-          </button>
-          <button
-            onClick={discard}
-            className={`flex-1 font-medium py-3.5 rounded-xl transition-colors ${
-              corruptRun
-                ? 'bg-red-500 hover:bg-red-400 active:bg-red-600 text-zinc-950 font-semibold'
-                : 'bg-zinc-800 hover:bg-red-900/60 text-zinc-400 hover:text-red-300 border border-zinc-700'
-            }`}
-          >
-            Discard
-          </button>
-        </div>
-        <div className="flex gap-3">
-          <button
-            onClick={exportCsv}
-            className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium py-2.5 rounded-xl transition-colors text-sm border border-zinc-700"
-          >
-            Export CSV
-          </button>
-          <button
-            onClick={share}
-            className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium py-2.5 rounded-xl transition-colors text-sm border border-zinc-700"
-          >
-            Share
-          </button>
-        </div>
-      </div>
+            <Zone label="Public link">
+              <p className="t-body px-3 py-2.5 text-[0.8125rem] leading-6">
+                {run.share_token
+                  ? 'Anyone with this URL can view the run, no sign-in required.'
+                  : 'Generate a read-only URL anyone can open.'}
+              </p>
+              {run.share_token ? (
+                <div className="rule-t space-y-2 px-3 py-2.5">
+                  <div className="flex items-stretch gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={shareUrlFor(run.share_token)}
+                      onFocus={(e) => e.currentTarget.select()}
+                      className="field min-w-0 flex-1 text-xs"
+                      aria-label="Public share URL"
+                    />
+                    <PlateButton onClick={copyShareLink}>Copy</PlateButton>
+                  </div>
+                  <PlateButton className="w-full" onClick={revokeShareLink} disabled={shareBusy}>
+                    Revoke link
+                  </PlateButton>
+                </div>
+              ) : (
+                <div className="rule-t px-3 py-2.5">
+                  <PlateButton className="w-full" onClick={createShareLink} disabled={shareBusy}>
+                    {shareBusy ? 'Creating…' : 'Get public link'}
+                  </PlateButton>
+                </div>
+              )}
+            </Zone>
 
+            <Zone label="Decision" framed={false}>
+              <div className="space-y-3">
+                {/* A corrupt run demotes Save to a secondary action rather than
+                    removing it: the samples are still the rider's, and there are
+                    honest reasons to keep one (comparing artifacts, filing a bug).
+                    What it must not stay is the obvious default. */}
+                <div className="flex gap-3">
+                  <PlateButton
+                    className="flex-1"
+                    variant={corruptRun ? 'outline' : 'procedure'}
+                    onClick={save}
+                  >
+                    {corruptRun ? 'Save anyway' : 'Save run'}
+                  </PlateButton>
+                  <PlateButton
+                    className="flex-1"
+                    variant={corruptRun ? 'procedure' : 'outline'}
+                    onClick={discard}
+                  >
+                    Discard
+                  </PlateButton>
+                </div>
+                <div className="flex gap-3">
+                  <PlateButton className="flex-1" onClick={exportCsv}>
+                    Export CSV
+                  </PlateButton>
+                  <PlateButton className="flex-1" onClick={share}>
+                    Share
+                  </PlateButton>
+                </div>
+              </div>
+            </Zone>
+          </div>
         </div>
-      </div>
 
-      <ConditionsModal
-        open={conditionsOpen}
-        initial={run.conditions}
-        onClose={() => setConditionsOpen(false)}
-        onSave={saveConditions}
-      />
-    </div>
+        <ConditionsModal
+          open={conditionsOpen}
+          initial={run.conditions}
+          onClose={() => setConditionsOpen(false)}
+          onSave={saveConditions}
+        />
+      </Plate>
+    </CrossRefProvider>
   );
 }

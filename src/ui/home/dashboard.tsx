@@ -5,6 +5,7 @@ import { runRepository } from '@/api/repositories/run-repository';
 import { useUnits } from '@/app/units-context';
 import { formatRelativeTime } from '@/shared/format-time';
 import { StatTile } from '@/ui/components/stat-tile';
+import { Zone } from '@/ui/plate';
 import type { Run, Vehicle } from '@/shared/types';
 
 // Shared DynoRun dashboard data + widgets, used by both the DynoRun home
@@ -78,39 +79,48 @@ export function useGarageData() {
 export function HeroStats({ peak, totalRuns, vehicleCount }: { peak: PeakInfo | null; totalRuns: number; vehicleCount: number }) {
   const { format } = useUnits();
   return (
-    <div className="grid grid-cols-3 gap-2">
-      <StatTile label="All-time peak" value={peak ? format(peak.kw) : 'n/a'} subtitle={peak?.vehicleName} accent />
-      <StatTile label="Total runs" value={String(totalRuns)} />
-      <StatTile label="Cars" value={String(vehicleCount)} subtitle="in garage" />
-    </div>
+    <Zone label="At a glance" note="DynoRun, all vehicles">
+      <div className="grid grid-cols-3">
+        <StatTile
+          label="All-time peak"
+          value={peak ? format(peak.kw) : 'n/a'}
+          subtitle={peak?.vehicleName ?? 'No complete run yet'}
+          accent
+        />
+        <div className="rule-l">
+          <StatTile label="Total runs" value={String(totalRuns)} />
+        </div>
+        <div className="rule-l">
+          <StatTile label="Cars" value={String(vehicleCount)} subtitle="in garage" />
+        </div>
+      </div>
+    </Zone>
   );
 }
 
 export function RecentActivity({ rows }: { rows: RecentRow[] }) {
   const { format } = useUnits();
   return (
-    <div className="space-y-2">
-      <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Recent activity</p>
-      <div className="space-y-2">
-        {rows.map(({ run, vehicleName }) => {
-          const title = run.title ?? `${run.gear_label} · ${formatRelativeTime(run.started_at)}`;
-          return (
-            <Link
-              key={run.id}
-              to={`/runs/${run.id}/review`}
-              className="block bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover:border-zinc-700 transition-colors"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="text-zinc-400 text-xs truncate">{vehicleName}</p>
-                  <p className="text-zinc-100 text-sm font-medium mt-0.5 truncate">{title}</p>
-                </div>
-                <p className="tabular-nums text-amber-400 text-sm font-semibold shrink-0">{format(run.peak_power_kw)}</p>
-              </div>
-            </Link>
-          );
-        })}
-      </div>
-    </div>
+    <Zone label="Recent activity" note={`Last ${rows.length}`}>
+      {rows.map(({ run, vehicleName }, i) => {
+        const title = run.title ?? `${run.gear_label}, ${formatRelativeTime(run.started_at)}`;
+        return (
+          <Link
+            key={run.id}
+            to={`/runs/${run.id}/review`}
+            className={`flex items-center justify-between gap-3 px-3 py-2.5 no-underline transition-colors hover:bg-[var(--color-sunk)] ${i > 0 ? 'rule-t' : ''}`}
+            style={{ color: 'var(--color-ink)' }}
+          >
+            <span className="min-w-0 flex-1">
+              <span className="t-annotation block truncate">{vehicleName}</span>
+              <span className="t-data mt-0.5 block truncate text-sm">{title}</span>
+            </span>
+            <span className="t-data shrink-0 text-sm" style={{ color: 'var(--color-procedure)' }}>
+              {format(run.peak_power_kw)}
+            </span>
+          </Link>
+        );
+      })}
+    </Zone>
   );
 }

@@ -18,43 +18,59 @@ interface Props {
  * Only rendered for 'corrupt' and 'suspect'. A clean run says nothing here: the
  * raw-trace card below already reports the all-clear, and a green banner on
  * every good run would train riders to skim past the red one.
+ *
+ * This is the plate's advisory box, so it takes caution ink whichever verdict
+ * it carries. Corrupt and suspect are separated by the word and by the frame
+ * weight, not by inventing a second alarm colour.
  */
 export function SignalVerdictBanner({ integrity, action }: Props) {
   if (integrity.verdict === 'ok') return null;
   const corrupt = integrity.verdict === 'corrupt';
 
-  const tone = corrupt
-    ? 'border-red-500/50 bg-red-500/10'
-    : 'border-amber-500/40 bg-amber-500/10';
-  const title = corrupt ? 'text-red-300' : 'text-amber-300';
-
   return (
-    <div className={`border rounded-2xl p-4 space-y-3 ${tone}`} role="alert">
-      <div className="flex items-start gap-2.5">
-        <span className={`font-bold shrink-0 ${title}`} aria-hidden="true">!</span>
-        <div className="space-y-1.5">
-          <p className={`font-semibold text-sm ${title}`}>{integrity.headline}</p>
-          <p className="text-zinc-300 text-xs leading-relaxed">{integrity.advice}</p>
+    <div
+      role="alert"
+      className="box px-3 py-3"
+      style={{
+        borderColor: 'var(--color-caution)',
+        borderWidth: corrupt ? 'var(--rule-frame)' : 'var(--rule-hair)',
+        background: 'var(--color-caution-tint)',
+      }}
+      data-verdict={integrity.verdict}
+    >
+      <div className="flex items-start gap-3">
+        <span
+          aria-hidden="true"
+          className="mt-1 h-3.5 w-3.5 shrink-0"
+          style={{ background: 'var(--color-caution)' }}
+        />
+        <div className="min-w-0">
+          <p className="t-label" style={{ color: 'var(--color-ink)' }}>
+            {integrity.headline}
+          </p>
+          <p className="t-body mt-1.5 text-[0.8125rem] leading-6" style={{ color: 'var(--color-ink)' }}>
+            {integrity.advice}
+          </p>
         </div>
       </div>
 
-      <ul className="space-y-1 text-[11px] tabular-nums">
+      <ul className="rule-t mt-3 pt-2.5">
         {integrity.faults.map((f, i) => (
-          <li key={`${f.kind}-${f.t_ms}-${i}`} className="flex gap-2 text-zinc-400">
-            <span className="text-zinc-600 shrink-0 w-12 text-right">
+          <li key={`${f.kind}-${f.t_ms}-${i}`} className="flex gap-3 py-1 text-xs">
+            <span className="t-data w-14 shrink-0 text-right text-xs">
               {(f.t_ms / 1000).toFixed(1)} s
             </span>
-            <span>
-              <span className="text-zinc-300">{FAULT_LABEL[f.kind] ?? f.kind}</span>
+            <span style={{ color: 'var(--color-ink-2)' }}>
+              <span className="t-data text-xs">{FAULT_LABEL[f.kind] ?? f.kind}</span>
               {': '}
               {f.detail}
-              {!f.analysed && <span className="text-zinc-600"> (outside the measured window)</span>}
+              {!f.analysed && <span className="t-annotation ml-1">outside the measured window</span>}
             </span>
           </li>
         ))}
       </ul>
 
-      {action}
+      {action && <div className="mt-3">{action}</div>}
     </div>
   );
 }

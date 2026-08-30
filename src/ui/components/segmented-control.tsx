@@ -2,11 +2,17 @@ interface SegmentedControlProps<T extends string> {
   options: ReadonlyArray<{ value: T; label: string }>;
   value: T;
   onChange: (value: T) => void;
-  /** When true, use a more compact size, for embedding in card headers. */
+  /** When true, use a more compact size, for embedding in zone headers. */
   compact?: boolean;
   ariaLabel?: string;
 }
 
+/**
+ * The plate's segmented strip: one ruled frame, hairline dividers, the selected
+ * cell inverted to solid ink. Visually identical to `PlateSegmented`, but it
+ * keeps the tablist/tab roles its call sites (and their tests) already depend
+ * on, so a lap selector and a units switch still read as the same instrument.
+ */
 export function SegmentedControl<T extends string>({
   options,
   value,
@@ -14,10 +20,14 @@ export function SegmentedControl<T extends string>({
   compact = false,
   ariaLabel,
 }: SegmentedControlProps<T>) {
-  const sizing = compact ? 'text-[11px] py-1.5' : 'text-xs py-2';
   return (
-    <div role="tablist" aria-label={ariaLabel} className="inline-flex bg-zinc-800 rounded-xl p-1 border border-zinc-700">
-      {options.map((opt) => {
+    <div
+      role="tablist"
+      aria-label={ariaLabel}
+      className="box-frame inline-flex"
+      style={{ isolation: 'isolate' }}
+    >
+      {options.map((opt, i) => {
         const selected = opt.value === value;
         return (
           <button
@@ -25,12 +35,14 @@ export function SegmentedControl<T extends string>({
             type="button"
             role="tab"
             aria-selected={selected}
+            data-active={selected}
             onClick={() => onChange(opt.value)}
-            className={`flex-1 px-3 ${sizing} rounded-lg font-semibold uppercase tracking-wider transition-colors ${
-              selected
-                ? 'bg-amber-500 text-zinc-950 shadow-sm'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
+            className={`ctl border-0 ${i > 0 ? 'rule-l' : ''}`}
+            style={
+              compact
+                ? { minHeight: 32, padding: '0.25rem 0.625rem', fontSize: '0.6875rem' }
+                : { minHeight: 40, padding: '0.375rem 0.75rem' }
+            }
           >
             {opt.label}
           </button>

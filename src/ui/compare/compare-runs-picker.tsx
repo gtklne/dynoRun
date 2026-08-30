@@ -2,6 +2,15 @@ import type { Run } from '@/shared/types';
 import { formatRelativeTime } from '@/shared/format-time';
 import { convertPower, formatPower, type PowerUnit } from '@/shared/format-power';
 import { ConditionsChips } from '@/ui/run/conditions-chips';
+import {
+  MinimaTable,
+  Na,
+  seriesInk,
+  SERIES_DASH,
+  usePlateInk,
+  type MinimaColumn,
+  type PlateInk,
+} from '@/ui/plate';
 
 interface Props {
   runs: Run[];
@@ -13,6 +22,12 @@ interface Props {
   bestSelectedKw: number | null;
   /** ID of the run that owns `bestSelectedKw`: skip its own delta row. */
   bestSelectedRunId: string | null;
+  /**
+   * Position of each selected run in the overlay, so a row carries the exact
+   * swatch its curve is drawn with. Without it a reader has to match runs to
+   * lines by guessing, which is the one job a legend exists to remove.
+   */
+  seriesIndexById?: Map<string, number>;
 }
 
 function formatDeltaKw(deltaKw: number, unit: PowerUnit): string {
@@ -20,6 +35,36 @@ function formatDeltaKw(deltaKw: number, unit: PowerUnit): string {
   const decimals = unit === 'kW' ? 1 : 0;
   const sign = v > 0 ? '+' : v < 0 ? '−' : '±';
   return `${sign}${Math.abs(v).toFixed(decimals)} ${unit}`;
+}
+
+/** The overlay swatch: the ink AND the dash the curve is actually drawn with. */
+function Swatch({ index, ink }: { index: number; ink: PlateInk }) {
+  const colors = seriesInk(ink);
+  const dash = SERIES_DASH[index % SERIES_DASH.length];
+  return (
+    <svg width="26" height="10" viewBox="0 0 26 10" aria-hidden="true" className="shrink-0">
+      <line
+        x1="0"
+        y1="5"
+        x2="26"
+        y2="5"
+        stroke={colors[index % colors.length]}
+        strokeWidth="2.5"
+        strokeDasharray={dash.length ? dash.join(' ') : undefined}
+      />
+    </svg>
+  );
+}
+
+/** An unselected row shows an empty ruled cell where its swatch would go. */
+function EmptySwatch() {
+  return (
+    <span
+      aria-hidden="true"
+      className="inline-block h-3.5 w-3.5 shrink-0"
+      style={{ border: 'var(--rule-hair) solid var(--color-rule)' }}
+    />
+  );
 }
 
 export function CompareRunsPicker({
@@ -30,69 +75,99 @@ export function CompareRunsPicker({
   bestRunId,
   bestSelectedKw,
   bestSelectedRunId,
+  seriesIndexById,
 }: Props) {
-  return (
-    <div className="space-y-2">
-      {runs.map((r) => {
-        const checked = selectedIds.has(r.id);
-        const isBest = r.id === bestRunId;
-        const headline = `${r.gear_label} · ${formatRelativeTime(r.started_at)} · ${formatPower(r.peak_power_kw, unit)}`;
-        const secondary = r.title ?? (r.notes || null);
-        const showDelta =
-          bestSelectedKw != null &&
-          r.peak_power_kw != null &&
-          r.id !== bestSelectedRunId;
-        const deltaKw =
-          showDelta && r.peak_power_kw != null && bestSelectedKw != null
-            ? r.peak_power_kw - bestSelectedKw
-            : null;
-        const deltaColor =
-          deltaKw == null
-            ? ''
-            : deltaKw > 0
-              ? 'text-emerald-400'
-              : deltaKw < 0
-                ? 'text-rose-400'
-                : 'text-zinc-500';
+  const ink = usePlateInk();
+
+  const columns: MinimaColumn<Run>[] = [
+    {
+      key: 'overlay',
+      head: 'On plot',
+      cell: (r) => {
+        const idx = seriesIndexById?.get(r.id);
+        const on = selectedIds.has(r.id);
         return (
           <button
-            key={r.id}
             type="button"
-            onClick={() => onToggle(r.id)}
-            aria-label={headline}
-            className={`w-full text-left bg-zinc-900 border rounded-2xl p-4 flex items-center gap-3 transition-colors ${
-              checked ? 'border-amber-600/60 bg-amber-950/20' : 'border-zinc-800 hover:border-zinc-700'
-            }`}
+            aria-pressed={on}
+            aria-label={`Overlay ${r.gear_label}, ${formatRelativeTime(r.started_at)}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle(r.id);
+            }}
+            className="flex items-center justify-center p-1"
           >
-            <div className={`w-5 h-5 rounded-md flex-shrink-0 border-2 flex items-center justify-center transition-colors ${
-              checked ? 'bg-amber-500 border-amber-500' : 'border-zinc-600'
-            }`}>
-              {checked && (
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className={`text-sm font-medium truncate ${checked ? 'text-zinc-100' : 'text-zinc-300'}`}>
-                {headline}
-                {deltaKw != null && (
-                  <span className={`ml-2 text-xs font-semibold ${deltaColor}`}>
-                    {formatDeltaKw(deltaKw, unit)}
-                  </span>
-                )}
-                {isBest && <span className="text-amber-400 ml-2">★ Best</span>}
-              </p>
-              {secondary && (
-                <p className="text-zinc-500 text-xs mt-0.5 italic truncate">{secondary}</p>
-              )}
-              <div className="mt-1">
-                <ConditionsChips conditions={r.conditions} size="sm" />
-              </div>
-            </div>
+            {on && idx != null ? <Swatch index={idx} ink={ink} /> : <EmptySwatch />}
           </button>
         );
-      })}
-    </div>
+      },
+    },
+    {
+      key: 'run',
+      head: 'Run',
+      cell: (r) => {
+        const secondary = r.title ?? (r.notes || null);
+        return (
+          <span className="block min-w-0">
+            <span className="t-data block truncate text-sm">
+              {r.gear_label} / {formatRelativeTime(r.started_at)}
+            </span>
+            {secondary && <span className="t-annotation mt-1 block truncate">{secondary}</span>}
+            <span className="mt-1.5 block">
+              <ConditionsChips conditions={r.conditions} size="sm" />
+            </span>
+          </span>
+        );
+      },
+    },
+    {
+      key: 'peak',
+      head: 'Peak',
+      numeric: true,
+      cell: (r) =>
+        r.peak_power_kw == null ? <Na title="No peak recorded" /> : formatPower(r.peak_power_kw, unit),
+    },
+    {
+      key: 'delta',
+      head: 'Vs best selected',
+      numeric: true,
+      cell: (r) => {
+        const showDelta =
+          bestSelectedKw != null && r.peak_power_kw != null && r.id !== bestSelectedRunId;
+        if (!showDelta || r.peak_power_kw == null || bestSelectedKw == null) {
+          return <Na title="No selected run to measure against" />;
+        }
+        const deltaKw = r.peak_power_kw - bestSelectedKw;
+        const style =
+          deltaKw > 0
+            ? { color: 'var(--color-gain)' }
+            : deltaKw < 0
+              ? { color: 'var(--color-caution)' }
+              : undefined;
+        return <span style={style}>{formatDeltaKw(deltaKw, unit)}</span>;
+      },
+    },
+    {
+      key: 'best',
+      head: 'Best',
+      cell: (r) =>
+        r.id === bestRunId ? (
+          <span className="t-label" style={{ color: 'var(--color-procedure)' }}>
+            Best
+          </span>
+        ) : (
+          <Na title="Not the strongest run on file" />
+        ),
+    },
+  ];
+
+  return (
+    <MinimaTable
+      columns={columns}
+      rows={runs}
+      rowKey={(r) => r.id}
+      onSelect={(r) => onToggle(r.id)}
+      empty="No complete runs with a stored curve yet."
+    />
   );
 }

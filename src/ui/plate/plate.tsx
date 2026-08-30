@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 
 /**
  * The plate apparatus. Every screen in this product is an instrument approach
@@ -164,14 +165,23 @@ export function NotesBox({ title = 'Notes', children }: { title?: string; childr
 export function Advisory({
   children,
   tone = 'caution',
+  urgent = false,
 }: {
   children: ReactNode;
   tone?: 'caution' | 'plain';
+  /**
+   * Interrupts the reader instead of waiting to be noticed. Reserve it for an
+   * advisory whose next tap writes a wrong number, not for one that merely
+   * describes conditions: an assertive region that fires routinely trains the
+   * reader to ignore the one that matters.
+   */
+  urgent?: boolean;
 }) {
   const caution = tone === 'caution';
   return (
     <div
-      role="status"
+      role={urgent ? 'alert' : 'status'}
+      aria-live={urgent ? 'assertive' : 'polite'}
       className="box flex items-start gap-3 px-3 py-2.5"
       style={
         caution
@@ -205,5 +215,110 @@ export function RevisionBar({ entries }: { entries: { label: string; value: Reac
         </p>
       ))}
     </footer>
+  );
+}
+
+/**
+ * A labelled row: name and note on the left, control or value on the right,
+ * hairline between rows. Settings, the tool index and every list of named
+ * choices are this shape, and three screens had each grown their own copy.
+ *
+ * `to`/`href` turn it into a navigation row, which is why the chevron lives
+ * here: a row that leads somewhere says so, and it says so the same way
+ * everywhere.
+ */
+export function PlateRow({
+  label,
+  note,
+  value,
+  to,
+  href,
+  onClick,
+  children,
+}: {
+  label: string;
+  note?: ReactNode;
+  value?: ReactNode;
+  to?: string;
+  href?: string;
+  onClick?: () => void;
+  children?: ReactNode;
+}) {
+  const navigates = Boolean(to || href || onClick);
+
+  const body = (
+    <>
+      <div className="min-w-0 flex-1">
+        <p className="t-label" style={{ color: 'var(--color-ink)' }}>
+          {label}
+        </p>
+        {note && <p className="t-annotation mt-1 normal-case tracking-normal">{note}</p>}
+      </div>
+      {value !== undefined && <span className="t-data shrink-0 text-sm">{value}</span>}
+      {children}
+      {navigates && <Chevron />}
+    </>
+  );
+
+  const shell = 'rule-b flex items-center gap-4 px-3 py-3 text-left no-underline';
+
+  if (to) {
+    return (
+      <Link to={to} className={`${shell} transition-colors hover:bg-[var(--color-sunk)]`}>
+        {body}
+      </Link>
+    );
+  }
+  if (href) {
+    return (
+      <a href={href} className={`${shell} transition-colors hover:bg-[var(--color-sunk)]`}>
+        {body}
+      </a>
+    );
+  }
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={`${shell} w-full transition-colors hover:bg-[var(--color-sunk)]`}
+      >
+        {body}
+      </button>
+    );
+  }
+  return <div className={shell}>{body}</div>;
+}
+
+/**
+ * The one directional glyph in the system, drawn at the same stroke weight as
+ * every other icon. Three files had drawn their own; a chevron that differs by
+ * a quarter pixel between screens is exactly the sloppiness this world removes.
+ */
+export function Chevron({
+  direction = 'right',
+  size = 14,
+}: {
+  direction?: 'right' | 'left' | 'up' | 'down';
+  size?: number;
+}) {
+  const rotation = { right: 0, down: 90, left: 180, up: 270 }[direction];
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden="true"
+      className="shrink-0"
+      style={{ transform: `rotate(${rotation}deg)`, color: 'var(--color-ink-3)' }}
+    >
+      <polyline
+        points="5.5 2.5 11 8 5.5 13.5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="square"
+      />
+    </svg>
   );
 }

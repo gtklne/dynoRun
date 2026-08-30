@@ -159,8 +159,8 @@ describe('GripCompareScreen', () => {
     getSession.mockResolvedValue(s);
 
     await renderScreen();
-    fireEvent.click(screen.getByRole('tab', { name: /^Grip$/i }));
-    fireEvent.click(screen.getByRole('tab', { name: /^Demand$/i }));
+    fireEvent.click(screen.getByRole('radio', { name: /^Grip$/i }));
+    fireEvent.click(screen.getByRole('radio', { name: /^Demand$/i }));
     expect(screen.getByText(/grip score in points/i)).toBeInTheDocument();
     cleanup();
   });

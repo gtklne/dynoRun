@@ -3,6 +3,7 @@ import { buildRawTrace, accelInG } from '@/analysis/raw-trace';
 import { PEAK_ACCEL_SUSPICIOUS_MS2 } from '@/analysis/run-quality';
 import type { RawSpeedSample } from '@/analysis/types';
 import { RawSpeedChart } from '@/ui/components/raw-speed-chart';
+import { ProfileView } from '@/ui/plate';
 
 // Below this the fix rate is too coarse for a derivative to mean much: the
 // smoothing window spans about one real fix, so it filters interpolation
@@ -20,6 +21,11 @@ const MIN_USEFUL_FIX_RATE_HZ = 2;
 
 interface Props {
   samples: RawSpeedSample[];
+  /**
+   * Seconds into the trace to mark, published by the power curve's cursor.
+   * This is the profile half of the plate's cross-reference.
+   */
+  cursorTimeS?: number | null;
 }
 
 interface Note {
@@ -27,6 +33,10 @@ interface Note {
   text: string;
 }
 
+/**
+ * One marginal figure. `data-tone` carries whether the reading is a fault, so
+ * caution ink is spent only on the numbers a rider can act on.
+ */
 function Stat({ label, value, sub, tone }: {
   label: string;
   value: string;
@@ -34,12 +44,16 @@ function Stat({ label, value, sub, tone }: {
   tone: 'ok' | 'warn';
 }) {
   return (
-    <div>
-      <p className="text-zinc-500 text-[11px] uppercase tracking-wider">{label}</p>
-      <p className={`tabular-nums font-bold text-lg ${tone === 'warn' ? 'text-red-400' : 'text-zinc-100'}`}>
+    <div className="rule-l px-3 py-2.5 first:border-l-0">
+      <p className="t-annotation">{label}</p>
+      <p
+        className="t-data mt-1 text-lg"
+        data-tone={tone}
+        style={tone === 'warn' ? { color: 'var(--color-caution)' } : undefined}
+      >
         {value}
       </p>
-      {sub && <p className="text-zinc-600 text-[11px] tabular-nums">{sub}</p>}
+      {sub && <p className="t-annotation mt-0.5">{sub}</p>}
     </div>
   );
 }
@@ -55,7 +69,7 @@ function Stat({ label, value, sub, tone }: {
  * is quoted from. Plotting the raw fixes is the only view where that failure
  * is visible rather than inferred.
  */
-export function RawTraceCard({ samples }: Props) {
+export function RawTraceCard({ samples, cursorTimeS = null }: Props) {
   const trace = useMemo(() => buildRawTrace(samples), [samples]);
 
   const coarse = trace.points.length > 1 && trace.fix_rate_hz < MIN_USEFUL_FIX_RATE_HZ;
@@ -93,56 +107,63 @@ export function RawTraceCard({ samples }: Props) {
   const spikeWarn = trace.peak_raw_accel_ms2 > PEAK_ACCEL_SUSPICIOUS_MS2;
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-      <div className="px-4 pt-4">
-        <h2 className="text-sm font-semibold text-zinc-200">Raw GPS trace</h2>
-        <p className="text-zinc-500 text-xs mt-0.5">
-          Every speed the receiver reported, before any filtering. The pale dashed line is what
-          the pipeline derived power from: where it sits on top of the raw trace, smoothing
-          changed nothing.
-        </p>
+    <ProfileView label="Raw GPS trace" axis="speed and fix-to-fix accel vs time (s)">
+      <p className="rule-b t-body px-3 py-2.5 text-[0.8125rem] leading-6">
+        Every speed the receiver reported, before any filtering. The dashed line is what the
+        pipeline derived power from: where it sits on top of the raw trace, smoothing changed
+        nothing.
+      </p>
+
+      <div className="rule-b p-2">
+        <RawSpeedChart
+          trace={trace}
+          accelCeilingMs2={PEAK_ACCEL_SUSPICIOUS_MS2}
+          cursorTimeS={cursorTimeS}
+        />
       </div>
 
-      <div className="p-2">
-        <RawSpeedChart trace={trace} accelCeilingMs2={PEAK_ACCEL_SUSPICIOUS_MS2} />
+      <div className="rule-b grid grid-cols-2 sm:grid-cols-4">
+        <Stat label="Fixes" value={String(trace.points.length)} tone="ok" />
+        <Stat
+          label="Fix rate"
+          value={`${trace.fix_rate_hz.toFixed(1)} Hz`}
+          sub={coarse ? 'platform ceiling' : undefined}
+          tone="ok"
+        />
+        <Stat
+          label="Repeated"
+          value={String(trace.frozen_count)}
+          sub="stale speed values"
+          tone={trace.frozen_count > 0 ? 'warn' : 'ok'}
+        />
+        <Stat
+          label="Peak step"
+          value={`${trace.peak_raw_accel_ms2.toFixed(1)} m/s²`}
+          sub={`${accelInG(trace.peak_raw_accel_ms2).toFixed(2)} g`}
+          tone={spikeWarn ? 'warn' : 'ok'}
+        />
       </div>
 
-      <div className="px-4 pb-4 space-y-3">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Stat label="Fixes" value={String(trace.points.length)} tone="ok" />
-          <Stat
-            label="Fix rate"
-            value={`${trace.fix_rate_hz.toFixed(1)} Hz`}
-            sub={coarse ? 'platform ceiling' : undefined}
-            tone="ok"
-          />
-          <Stat
-            label="Repeated"
-            value={String(trace.frozen_count)}
-            sub="stale speed values"
-            tone={trace.frozen_count > 0 ? 'warn' : 'ok'}
-          />
-          <Stat
-            label="Peak step"
-            value={`${trace.peak_raw_accel_ms2.toFixed(1)} m/s²`}
-            sub={`${accelInG(trace.peak_raw_accel_ms2).toFixed(2)} g`}
-            tone={spikeWarn ? 'warn' : 'ok'}
-          />
-        </div>
-
+      <div className="space-y-2.5 px-3 py-3">
         {trailing > 0 && (
-          <p className="text-zinc-500 text-xs">
+          <p className="t-body text-[0.8125rem] leading-6">
             The pipeline used the first {trace.trim_index + 1} of {trace.points.length} fixes. It
             cuts at peak speed, so the {trailing} after it were recorded but never analysed.
           </p>
         )}
 
         {warnings.length > 0 && (
-          <ul className="space-y-2 pt-1">
+          <ul className="space-y-2">
             {warnings.map((w) => (
-              <li key={w.key} className="text-xs text-zinc-300 flex gap-2">
-                <span className="text-red-400 shrink-0">!</span>
-                <span>{w.text}</span>
+              <li key={w.key} className="flex gap-2.5">
+                <span
+                  aria-hidden="true"
+                  className="mt-1.5 h-2.5 w-2.5 shrink-0"
+                  style={{ background: 'var(--color-caution)' }}
+                />
+                <span className="t-body text-[0.8125rem] leading-6" style={{ color: 'var(--color-ink)' }}>
+                  {w.text}
+                </span>
               </li>
             ))}
           </ul>
@@ -152,7 +173,7 @@ export function RawTraceCard({ samples }: Props) {
           // At one fix per second a clean signal still cannot pin a peak, so the
           // all-clear has to say what it actually checked rather than bless the
           // number. Promising more here would undo the whole point of the card.
-          <p className="text-emerald-400 text-xs">
+          <p className="t-body text-[0.8125rem] leading-6" style={{ color: 'var(--color-gain)' }}>
             {coarse
               ? 'No frozen fixes, dropouts, or impossible steps. Nothing in this signal is fabricated, though at this fix rate the peak is still a coarse read.'
               : 'No frozen fixes, dropouts, or impossible steps. The speed signal supports this curve.'}
@@ -160,9 +181,11 @@ export function RawTraceCard({ samples }: Props) {
         )}
 
         {notes.map((n) => (
-          <p key={n.key} className="text-zinc-500 text-xs">{n.text}</p>
+          <p key={n.key} className="t-annotation" style={{ lineHeight: 1.6, letterSpacing: '0.04em' }}>
+            {n.text}
+          </p>
         ))}
       </div>
-    </div>
+    </ProfileView>
   );
 }

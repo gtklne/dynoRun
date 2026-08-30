@@ -1,3 +1,5 @@
+import { Advisory, Na, Zone } from '@/ui/plate';
+
 export const GPS_ACCURACY_GOOD_M = 10;
 export const GPS_REQUIRED_GOOD_MS = 2_000;
 export const GPS_POOR_WARN_MS = 15_000;
@@ -21,17 +23,42 @@ interface GpsWarmupCardProps {
   poorWarnMs?: number;
 }
 
-function accuracyColor(m: number | null, goodM: number): string {
-  if (m === null) return 'text-zinc-500';
-  if (m <= goodM) return 'text-emerald-400';
-  if (m <= goodM * 2) return 'text-amber-400';
-  return 'text-red-400';
+/**
+ * A reading is either inside the tolerance or outside it, and that is the only
+ * distinction worth spending ink on. Caution marks a value that will spoil the
+ * measurement; everything acceptable stays in plain ink, so the one number the
+ * driver has to act on is the one that is not black.
+ */
+function toneStyle(bad: boolean) {
+  return bad ? { color: 'var(--color-caution)' } : undefined;
 }
 
-function qualityColor(q: number): string {
-  if (q >= 0.7) return 'text-emerald-400';
-  if (q >= 0.4) return 'text-amber-400';
-  return 'text-red-400';
+function Row({
+  label,
+  value,
+  unit,
+  bad = false,
+}: {
+  label: string;
+  value: string | null;
+  unit: string;
+  bad?: boolean;
+}) {
+  return (
+    <div className="rule-t flex items-baseline justify-between px-3 py-2 first:border-t-0">
+      <dt className="t-annotation">{label}</dt>
+      <dd className="t-data text-sm" style={toneStyle(bad)}>
+        {value === null ? (
+          <Na />
+        ) : (
+          <>
+            {value}
+            <span className="t-annotation ml-1">{unit}</span>
+          </>
+        )}
+      </dd>
+    </div>
+  );
 }
 
 export function GpsWarmupCard({
@@ -51,88 +78,87 @@ export function GpsWarmupCard({
   const locked = goodFor_ms >= requiredGoodMs;
   const showPoorWarning = !locked && warmupFor_ms > poorWarnMs;
 
+  const status = noFixYet
+    ? 'Waiting for first fix'
+    : locked
+      ? 'Locked'
+      : showPoorWarning
+        ? 'Poor conditions'
+        : 'Acquiring lock';
+
+  const accuracy = telemetry?.accuracy_m ?? null;
+  const progress = Math.min(100, (goodFor_ms / requiredGoodMs) * 100);
+
   return (
-    <div
-      className={`bg-zinc-900 border rounded-2xl overflow-hidden transition-colors ${
-        locked ? 'border-emerald-800/40' : showPoorWarning ? 'border-red-800/50' : 'border-zinc-800'
-      }`}
-    >
-      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-zinc-800 bg-zinc-950/60">
-        <div
-          className={`w-1.5 h-1.5 rounded-full ${
-            locked ? 'bg-emerald-400' : showPoorWarning ? 'bg-red-500' : 'bg-amber-500 animate-pulse'
-          }`}
-        />
-        <span
-          className={`text-xs font-semibold uppercase tracking-widest ${
-            locked ? 'text-emerald-400' : showPoorWarning ? 'text-red-400' : 'text-amber-400'
-          }`}
-        >
-          {noFixYet ? 'Waiting for first fix' : locked ? 'GPS locked' : showPoorWarning ? 'Poor GPS conditions' : 'Acquiring GPS lock'}
-        </span>
-      </div>
-
+    <div className="space-y-2">
       {showPoorWarning && (
-        <div className="px-4 py-3 bg-red-950/30 border-b border-red-800/40">
-          <p className="text-red-300 text-xs leading-relaxed">
-            Accuracy has stayed worse than {goodAccuracyM} m for over {Math.floor(poorWarnMs / 1000)}s.
-            Moving to open sky usually helps. Starting now will produce unreliable {poorOutcome}.
-          </p>
-        </div>
+        <Advisory>
+          Accuracy has stayed worse than {goodAccuracyM} m for over{' '}
+          {Math.floor(poorWarnMs / 1000)} s. Moving to open sky usually helps. Starting now will
+          produce unreliable {poorOutcome}.
+        </Advisory>
       )}
 
-      <div className="px-4 py-3 space-y-2">
-        <div className="flex items-baseline justify-between py-1 border-b border-zinc-800/60">
-          <span className="text-zinc-500 text-xs uppercase tracking-wider font-medium">Accuracy</span>
-          <span className={`tabular-nums text-sm font-mono font-semibold ${accuracyColor(telemetry?.accuracy_m ?? null, goodAccuracyM)}`}>
-            {telemetry?.accuracy_m != null ? telemetry.accuracy_m.toFixed(1) : 'n/a'}
-            <span className="text-zinc-500 text-xs font-normal ml-1">m</span>
-          </span>
-        </div>
-        <div className="flex items-baseline justify-between py-1 border-b border-zinc-800/60">
-          <span className="text-zinc-500 text-xs uppercase tracking-wider font-medium">Signal Quality</span>
-          <span className={`tabular-nums text-sm font-mono font-semibold ${telemetry ? qualityColor(telemetry.quality) : 'text-zinc-500'}`}>
-            {telemetry ? Math.round(telemetry.quality * 100) : 'n/a'}
-            <span className="text-zinc-500 text-xs font-normal ml-1">%</span>
-          </span>
-        </div>
-        <div className="flex items-baseline justify-between py-1 border-b border-zinc-800/60">
-          <span className="text-zinc-500 text-xs uppercase tracking-wider font-medium">Fix Rate</span>
-          <span className="tabular-nums text-sm font-mono font-semibold text-zinc-100">
-            {telemetry?.fix_rate_hz != null ? telemetry.fix_rate_hz.toFixed(1) : 'n/a'}
-            <span className="text-zinc-500 text-xs font-normal ml-1">Hz</span>
-          </span>
-        </div>
-        <div className="flex items-baseline justify-between py-1">
-          <span className="text-zinc-500 text-xs uppercase tracking-wider font-medium">Current Speed</span>
-          <span className="tabular-nums text-sm font-mono font-semibold text-zinc-100">
-            {currentSpeedKmh != null ? currentSpeedKmh.toFixed(1) : 'n/a'}
-            <span className="text-zinc-500 text-xs font-normal ml-1">km/h</span>
-          </span>
-        </div>
-      </div>
+      <Zone label="GPS signal" note={status}>
+        <dl>
+          <Row
+            label="Accuracy"
+            value={accuracy != null ? accuracy.toFixed(1) : null}
+            unit="m"
+            bad={accuracy != null && accuracy > goodAccuracyM}
+          />
+          <Row
+            label="Signal quality"
+            value={telemetry ? String(Math.round(telemetry.quality * 100)) : null}
+            unit="%"
+            bad={telemetry != null && telemetry.quality < 0.4}
+          />
+          <Row
+            label="Fix rate"
+            value={telemetry?.fix_rate_hz != null ? telemetry.fix_rate_hz.toFixed(1) : null}
+            unit="Hz"
+          />
+          <Row
+            label="Current speed"
+            value={currentSpeedKmh != null ? currentSpeedKmh.toFixed(1) : null}
+            unit="km/h"
+          />
+        </dl>
 
-      {!locked && (
-        <div className="px-4 pb-3 pt-1">
-          <div className="flex items-baseline justify-between mb-1.5">
-            <span className="text-zinc-600 text-[11px] uppercase tracking-wider">Lock progress</span>
-            <span className="text-zinc-500 text-[11px] font-mono tabular-nums">
-              {(goodFor_ms / 1000).toFixed(1)}s / {(requiredGoodMs / 1000).toFixed(0)}s
-            </span>
-          </div>
-          <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+        {!locked && (
+          <div className="rule-t px-3 py-2.5">
+            <div className="mb-1.5 flex items-baseline justify-between">
+              <span className="t-annotation">Lock progress</span>
+              <span className="t-data text-xs">
+                {(goodFor_ms / 1000).toFixed(1)} s / {(requiredGoodMs / 1000).toFixed(0)} s
+              </span>
+            </div>
             <div
-              className={`h-full rounded-full transition-all duration-300 ${
-                goodSince ? 'bg-emerald-500' : showPoorWarning ? 'bg-red-600' : 'bg-amber-500'
-              }`}
-              style={{ width: `${Math.min(100, (goodFor_ms / requiredGoodMs) * 100)}%` }}
-            />
+              className="h-2.5 w-full"
+              role="progressbar"
+              aria-label="GPS lock progress"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(progress)}
+              style={{ border: 'var(--rule-hair) solid var(--color-rule)' }}
+            >
+              {/* Scaled rather than width-animated: a width transition on a
+                  bar that updates four times a second thrashes layout. */}
+              <div
+                className="h-full w-full origin-left"
+                style={{
+                  transform: `scaleX(${progress / 100})`,
+                  background: showPoorWarning ? 'var(--color-caution)' : 'var(--color-ink)',
+                  transition: 'transform 300ms var(--ease-plate)',
+                }}
+              />
+            </div>
+            <p className="t-annotation mt-1.5">
+              Need {(requiredGoodMs / 1000).toFixed(0)} s of accuracy at or under {goodAccuracyM} m
+            </p>
           </div>
-          <p className="text-zinc-600 text-[11px] mt-1.5">
-            Need {(requiredGoodMs / 1000).toFixed(0)}s of accuracy ≤ {goodAccuracyM} m
-          </p>
-        </div>
-      )}
+        )}
+      </Zone>
     </div>
   );
 }

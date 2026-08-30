@@ -1,20 +1,25 @@
 import { useMemo } from 'react';
 import type { GripComparison } from '@/analysis/grip/compare';
+import { usePlateInk } from '@/ui/plate';
 import { deltaColor } from './compare-colors';
 import {
   distanceFrame,
   drawCursor,
   drawDistanceLabels,
+  drawMaskedRegion,
+  drawPlotFrame,
   drawTurnTicks,
   niceStep,
   seekFromClick,
 } from './compare-chart-frame';
-import { CANVAS_FONT, useCanvasDraw } from './use-canvas-draw';
+import { plateFont, useCanvasDraw } from './use-canvas-draw';
 
 interface Props {
   cmp: GripComparison;
   /** lap key → series colour */
   colorOf: Map<string, string>;
+  /** lap key → series dash, so identity survives a colour-blind reader */
+  dashOf?: Map<string, number[]>;
   /** keys to draw (reference is the zero line and is never drawn as a series) */
   keys: string[];
   /** shared cursor position, metres along the reference */
@@ -35,9 +40,10 @@ const SLOPE_FS = 0.1; // s per 100 m that saturates the ramp
  * This is the one chart that answers "where did the lap go". A trace sloping
  * upward is losing time *right there*; a flat trace is matching the reference
  * even if it is already a second behind. Reading the slope rather than the
- * height is the whole skill, so the gradient fill is keyed to slope sign.
+ * height is the whole skill, so the band fill is keyed to slope sign.
  */
-export function CompareDeltaChart({ cmp, colorOf, keys, cursor, onSeek, height = 210 }: Props) {
+export function CompareDeltaChart({ cmp, colorOf, dashOf, keys, cursor, onSeek, height = 210 }: Props) {
+  const ink = usePlateInk();
   // memoised so the deps array is stable: a fresh array identity on every parent
   // render (setSubjectKey, setChannel, setLoading…) re-ran the whole draw
   const series = useMemo(
@@ -54,29 +60,44 @@ export function CompareDeltaChart({ cmp, colorOf, keys, cursor, onSeek, height =
     maxAbs *= 1.12;
     const Y = (v: number) => f.y1 - ((v + maxAbs) / (2 * maxAbs)) * (f.y1 - f.y0);
 
+    // Stretches of axis at least one drawn lap never rode. Hatched, not blank:
+    // a blank margin reads as "nothing happened there", which is the exact
+    // misreading the NaN mask in `grid.dt` exists to prevent.
+    let inM = 0;
+    let outM = cmp.refLength;
+    for (const l of series) {
+      inM = Math.max(inM, l.section.sIn);
+      outM = Math.min(outM, l.section.sOut);
+    }
+    if (series.length) {
+      if (inM > 1) drawMaskedRegion(ctx, f, ink, 0, inM);
+      if (outM < cmp.refLength - 1) drawMaskedRegion(ctx, f, ink, outM, cmp.refLength);
+    }
+
     // y grid
     const step = niceStep(maxAbs, 2.5);
-    ctx.font = `9px ${CANVAS_FONT}`;
+    ctx.font = plateFont(9);
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
     for (let v = -Math.floor(maxAbs / step) * step; v <= maxAbs; v += step) {
       const y = Y(v);
-      ctx.strokeStyle = Math.abs(v) < 1e-9 ? 'rgba(228,228,231,0.35)' : 'rgba(255,255,255,0.055)';
-      ctx.setLineDash(Math.abs(v) < 1e-9 ? [4, 3] : []);
+      const zero = Math.abs(v) < 1e-9;
+      ctx.strokeStyle = zero ? ink.ink : ink.ruleFaint;
+      ctx.setLineDash(zero ? [4, 3] : []);
       ctx.beginPath();
       ctx.moveTo(f.x0, y);
       ctx.lineTo(f.x1, y);
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillStyle = Math.abs(v) < 1e-9 ? '#a1a1aa' : '#6b6b74';
-      ctx.fillText(Math.abs(v) < 1e-9 ? 'ref' : `${v > 0 ? '+' : '−'}${Math.abs(v).toFixed(2)}s`, f.x0 - 5, y);
+      ctx.fillStyle = zero ? ink.ink2 : ink.ink3;
+      ctx.fillText(zero ? 'REF' : `${v > 0 ? '+' : '−'}${Math.abs(v).toFixed(2)}s`, f.x0 - 5, y);
     }
 
-    drawTurnTicks(ctx, f, cmp.corners);
+    drawTurnTicks(ctx, f, cmp.corners, ink);
 
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillStyle = '#6b6b74';
+    ctx.fillStyle = ink.ink3;
     ctx.fillText('LOSING', f.x0 + 3, f.y0 + 2);
     ctx.textBaseline = 'bottom';
     ctx.fillText('GAINING', f.x0 + 3, f.y1 - 2);
@@ -96,11 +117,11 @@ export function CompareDeltaChart({ cmp, colorOf, keys, cursor, onSeek, height =
         const b = Math.min(SLOPE_BUCKETS - 1, Math.round(((norm + 1) / 2) * (SLOPE_BUCKETS - 1)));
         (buckets[b] ??= []).push(k);
       }
-      ctx.globalAlpha = 0.16;
+      ctx.globalAlpha = 0.18;
       for (let b = 0; b < buckets.length; b++) {
         const ks = buckets[b];
         if (!ks) continue;
-        ctx.fillStyle = deltaColor(((b / (SLOPE_BUCKETS - 1)) * 2 - 1) * SLOPE_FS, SLOPE_FS);
+        ctx.fillStyle = deltaColor(ink, ((b / (SLOPE_BUCKETS - 1)) * 2 - 1) * SLOPE_FS, SLOPE_FS);
         ctx.beginPath();
         for (const k of ks) {
           ctx.moveTo(f.X(cmp.s[k - 1]), Y(0));
@@ -112,7 +133,8 @@ export function CompareDeltaChart({ cmp, colorOf, keys, cursor, onSeek, height =
         ctx.fill();
       }
       ctx.globalAlpha = 1;
-      ctx.strokeStyle = colorOf.get(l.key) ?? '#e4e4e7';
+      ctx.strokeStyle = colorOf.get(l.key) ?? ink.ink;
+      ctx.setLineDash(dashOf?.get(l.key) ?? []);
       ctx.lineWidth = 2;
       ctx.beginPath();
       let open = false;
@@ -124,13 +146,14 @@ export function CompareDeltaChart({ cmp, colorOf, keys, cursor, onSeek, height =
         else { ctx.moveTo(x, y); open = true; }
       }
       ctx.stroke();
+      ctx.setLineDash([]);
 
       // where the lap left the reference layout, say so rather than leave a gap
       if (l.sectionFraction < 0.98) {
         for (const edge of [l.section.sIn, l.section.sOut]) {
           if (edge <= 0 || edge >= cmp.refLength) continue;
           ctx.save();
-          ctx.strokeStyle = colorOf.get(l.key) ?? '#e4e4e7';
+          ctx.strokeStyle = colorOf.get(l.key) ?? ink.ink;
           ctx.setLineDash([2, 3]);
           ctx.globalAlpha = 0.7;
           ctx.lineWidth = 1;
@@ -143,26 +166,27 @@ export function CompareDeltaChart({ cmp, colorOf, keys, cursor, onSeek, height =
       }
     }
 
-    drawDistanceLabels(ctx, f);
-    drawCursor(ctx, f, cursor);
+    drawPlotFrame(ctx, f, ink);
+    drawDistanceLabels(ctx, f, ink);
+    drawCursor(ctx, f, cursor, ink);
 
     // read-out dots where the cursor crosses each trace
     for (const l of series) {
       const k = nearestIndex(cmp.s, cursor);
       if (Number.isNaN(l.grid.dt[k])) continue;
-      ctx.fillStyle = colorOf.get(l.key) ?? '#e4e4e7';
+      ctx.fillStyle = colorOf.get(l.key) ?? ink.ink;
       ctx.beginPath();
       ctx.arc(f.X(cursor), Y(l.grid.dt[k]), 3.5, 0, 7);
       ctx.fill();
     }
-  }, [cmp, series, colorOf, cursor, height]);
+  }, [cmp, series, colorOf, dashOf, cursor, height, ink]);
 
   return (
     <canvas
       ref={ref}
       onClick={(e) => ref.current && onSeek(seekFromClick(e, ref.current, cmp.refLength))}
-      className="block w-full cursor-crosshair rounded-lg bg-zinc-950"
-      style={{ height }}
+      className="block w-full cursor-crosshair"
+      style={{ height, background: 'var(--color-sunk)' }}
     />
   );
 }

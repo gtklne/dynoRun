@@ -6,6 +6,9 @@ const HOLD_MS = 1500;
  * Press-and-hold trigger for ending a hands-free session. A plain tap must
  * NOT finish it, with the phone in a pocket or tank bag, stray touches are
  * expected; only a deliberate sustained press counts.
+ *
+ * The progress is a solid ink fill sweeping across the plate rather than a
+ * meter beside it: with gloves on, the control itself has to be the readout.
  */
 export function HoldToFinishButton({ onFinish, label = 'Hold to finish' }: { onFinish: () => void; label?: string }) {
   const [progress, setProgress] = useState(0);
@@ -47,20 +50,21 @@ export function HoldToFinishButton({ onFinish, label = 'Hold to finish' }: { onF
 
   return (
     <button
+      type="button"
       onPointerDown={begin}
       onPointerUp={cancel}
       onPointerLeave={cancel}
       onPointerCancel={cancel}
       onContextMenu={(e) => e.preventDefault()}
-      className="relative w-full overflow-hidden bg-red-600 active:bg-red-700 text-white font-bold py-6 rounded-xl text-lg select-none touch-none"
+      aria-label={label}
+      className="ctl ctl-procedure ctl-major relative touch-none select-none overflow-hidden"
     >
       <span
-        className="absolute inset-y-0 left-0 bg-red-900/70 transition-none"
-        style={{ width: `${progress * 100}%` }}
+        aria-hidden="true"
+        className="absolute inset-y-0 left-0"
+        style={{ width: `${progress * 100}%`, background: 'var(--color-ink)' }}
       />
-      <span className="relative">
-        {progress > 0 ? 'Keep holding…' : label}
-      </span>
+      <span className="relative">{progress > 0 ? 'Keep holding...' : label}</span>
     </button>
   );
 }

@@ -1,11 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { vehicleRepository } from '@/api/repositories/vehicle-repository';
 import { runRepository } from '@/api/repositories/run-repository';
 import type { Vehicle, Run, RunStatus } from '@/shared/types';
 import { formatRelativeTime } from '@/shared/format-time';
 import { useUnits } from '@/app/units-context';
 import { SegmentedControl } from '@/ui/components/segmented-control';
+import {
+  Advisory,
+  MinimaTable,
+  Na,
+  PlateButton,
+  PlateLink,
+  TitleBlock,
+  Zone,
+  type MinimaColumn,
+} from '@/ui/plate';
 
 interface RowVm {
   run: Run;
@@ -23,16 +33,11 @@ const SORT_OPTIONS: ReadonlyArray<{ value: SortKey; label: string }> = [
   { value: 'peak', label: 'Highest peak' },
 ];
 
-interface StatusTone {
-  dot: string;
-  label: string;
-}
-
-const STATUS_TONES: Record<RunStatus, StatusTone> = {
-  complete: { dot: 'bg-emerald-400', label: 'Complete' },
-  in_progress: { dot: 'bg-sky-400', label: 'In progress' },
-  degraded: { dot: 'bg-amber-400', label: 'Degraded' },
-  aborted: { dot: 'bg-red-400', label: 'Aborted' },
+const STATUS_LABEL: Record<RunStatus, string> = {
+  complete: 'Complete',
+  in_progress: 'In progress',
+  degraded: 'Degraded',
+  aborted: 'Aborted',
 };
 
 function vehicleCounts(rows: RowVm[]): Map<string, number> {
@@ -71,6 +76,24 @@ function filterAndSort(
   return filtered.slice().sort((a, b) => b.run.started_at.localeCompare(a.run.started_at));
 }
 
+function ClearIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="square"
+      aria-hidden="true"
+    >
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
 interface VehicleChipsProps {
   vehicles: Vehicle[];
   counts: Map<string, number>;
@@ -79,93 +102,59 @@ interface VehicleChipsProps {
   onSelect: (id: string) => void;
 }
 
+/**
+ * The vehicle filter is a ruled strip of cells, one frame around the lot, so it
+ * reads as one instrument control rather than a scattering of pills. Selection
+ * inverts to solid ink, the same state language every other control uses.
+ */
 function VehicleChips({ vehicles, counts, totalCount, selectedId, onSelect }: VehicleChipsProps) {
-  const chipClass = (active: boolean) =>
-    `shrink-0 rounded-full px-3 py-1.5 text-xs font-medium border transition-colors ${
-      active
-        ? 'bg-amber-500 text-zinc-950 border-amber-500'
-        : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:border-zinc-700 hover:text-zinc-100'
-    }`;
+  const shown = vehicles.filter((v) => (counts.get(v.id) ?? 0) > 0);
   return (
-    <div
-      role="tablist"
-      aria-label="Filter by vehicle"
-      className="flex gap-2 overflow-x-auto -mx-1 px-1 pb-1"
-    >
-      <button
-        type="button"
-        role="tab"
-        aria-selected={selectedId === ALL_VEHICLES}
-        onClick={() => onSelect(ALL_VEHICLES)}
-        className={chipClass(selectedId === ALL_VEHICLES)}
+    <div className="-mx-1 overflow-x-auto px-1 pb-1">
+      <div
+        role="tablist"
+        aria-label="Filter by vehicle"
+        className="box-frame inline-flex"
+        style={{ isolation: 'isolate' }}
       >
-        All <span className="opacity-70 tabular-nums">· {totalCount}</span>
-      </button>
-      {vehicles.map((v) => {
-        const count = counts.get(v.id) ?? 0;
-        if (count === 0) return null;
-        const active = selectedId === v.id;
-        return (
-          <button
-            key={v.id}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => onSelect(v.id)}
-            className={chipClass(active)}
-          >
-            <span className="truncate max-w-[10rem] inline-block align-bottom">{v.name}</span>
-            <span className="opacity-70 tabular-nums"> · {count}</span>
-          </button>
-        );
-      })}
+        <button
+          type="button"
+          role="tab"
+          aria-selected={selectedId === ALL_VEHICLES}
+          data-active={selectedId === ALL_VEHICLES}
+          onClick={() => onSelect(ALL_VEHICLES)}
+          className="ctl border-0"
+          style={{ minHeight: 36, padding: '0.25rem 0.75rem', fontSize: '0.6875rem' }}
+        >
+          All <span className="tabular-nums">· {totalCount}</span>
+        </button>
+        {shown.map((v) => {
+          const count = counts.get(v.id) ?? 0;
+          const active = selectedId === v.id;
+          return (
+            <button
+              key={v.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              data-active={active}
+              onClick={() => onSelect(v.id)}
+              className="ctl rule-l border-0"
+              style={{ minHeight: 36, padding: '0.25rem 0.75rem', fontSize: '0.6875rem' }}
+            >
+              <span className="inline-block max-w-[10rem] truncate align-bottom">{v.name}</span>
+              <span className="tabular-nums"> · {count}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-interface RunRowProps {
-  row: RowVm;
-}
-
-function RunRow({ row }: RunRowProps) {
-  const { format } = useUnits();
-  const { run, vehicle } = row;
-  const status = STATUS_TONES[run.status];
-  return (
-    <Link
-      to={`/runs/${run.id}/review`}
-      className="block bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover:border-zinc-700 transition-colors"
-    >
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 min-w-0">
-            <span
-              className={`w-1.5 h-1.5 rounded-full shrink-0 ${status.dot}`}
-              aria-label={status.label}
-              title={status.label}
-            />
-            <p className="text-zinc-100 font-medium text-sm truncate">
-              {run.title ?? `${vehicle?.name ?? 'Unknown vehicle'} · ${run.gear_label}`}
-            </p>
-          </div>
-          <p className="text-zinc-500 text-xs mt-0.5 truncate">
-            {vehicle?.name ?? 'n/a'} · {run.gear_label} · {formatRelativeTime(run.started_at)}
-          </p>
-        </div>
-        <div className="text-right shrink-0">
-          <p className="tabular-nums text-amber-400 font-semibold text-sm">
-            {format(run.peak_power_kw)}
-          </p>
-          {run.peak_power_rpm != null && (
-            <p className="text-zinc-600 text-[11px] mt-0.5">@ {run.peak_power_rpm.toFixed(0)} RPM</p>
-          )}
-        </div>
-      </div>
-    </Link>
-  );
-}
-
 export function AllRunsScreen() {
+  const navigate = useNavigate();
+  const { format } = useUnits();
   const [rows, setRows] = useState<RowVm[] | null>(null);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -219,118 +208,187 @@ export function AllRunsScreen() {
     setSort('newest');
   };
 
+  const columns: MinimaColumn<RowVm>[] = [
+    {
+      key: 'run',
+      head: 'Run',
+      cell: ({ run, vehicle }) => (
+        <span className="block min-w-0">
+          <span className="t-data block truncate text-sm">
+            {run.title ?? `${vehicle?.name ?? 'Unknown vehicle'} / ${run.gear_label}`}
+          </span>
+          <span className="t-annotation mt-1 block truncate">
+            {vehicle?.name ?? 'Unknown vehicle'} / {run.gear_label}
+          </span>
+        </span>
+      ),
+    },
+    {
+      key: 'when',
+      head: 'When',
+      cell: ({ run }) => formatRelativeTime(run.started_at),
+    },
+    {
+      key: 'peak',
+      head: 'Peak',
+      numeric: true,
+      cell: ({ run }) =>
+        run.peak_power_kw == null ? <Na title="No peak recorded" /> : format(run.peak_power_kw),
+    },
+    {
+      key: 'rpm',
+      head: 'At RPM',
+      numeric: true,
+      cell: ({ run }) =>
+        run.peak_power_rpm == null ? (
+          <Na title="Peak RPM not recorded" />
+        ) : (
+          run.peak_power_rpm.toFixed(0)
+        ),
+    },
+    {
+      key: 'status',
+      head: 'Status',
+      cell: ({ run }) => STATUS_LABEL[run.status],
+    },
+    {
+      key: 'sheet',
+      head: 'Sheet',
+      cell: ({ run }) => (
+        <Link
+          to={`/runs/${run.id}/review`}
+          className="t-label no-underline hover:underline"
+          onClick={(e) => e.stopPropagation()}
+        >
+          Review
+        </Link>
+      ),
+    },
+  ];
+
   if (rows === null && !error) {
     return (
       <div className="flex items-center justify-center py-16">
-        <p className="text-zinc-500 text-sm">Loading…</p>
+        <p className="t-annotation">Loading…</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold text-zinc-100">Runs</h1>
-        <p className="text-zinc-500 text-sm mt-1">
-          {totalCount === 0
-            ? 'No complete runs yet.'
-            : `${totalCount} complete run${totalCount === 1 ? '' : 's'} across all vehicles`}
-        </p>
-      </div>
+    <div className="plate-stack">
+      <TitleBlock
+        title="Runs"
+        meta={[
+          { label: 'Complete runs', value: totalCount },
+          { label: 'Vehicles', value: distinctVehicles.length },
+          { label: 'Showing', value: visible.length },
+          { label: 'Sorted by', value: sort === 'peak' ? 'Highest peak' : 'Newest' },
+        ]}
+      />
 
-      {error && (
-        <div className="bg-red-950/40 border border-red-800/60 rounded-2xl p-3">
-          <p className="text-red-300 text-xs">{error}</p>
-        </div>
-      )}
+      {error && <Advisory>{error}</Advisory>}
 
       {totalCount === 0 && !error && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center space-y-3">
-          <p className="text-zinc-300 text-sm font-medium">Start your first run</p>
-          <p className="text-zinc-500 text-xs">
-            Add a vehicle and calibrate a gear to record your power curve.
-          </p>
-          <Link
-            to="/garage"
-            className="inline-block bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold text-sm px-4 py-2 rounded-xl transition-colors"
-          >
-            Go to garage
-          </Link>
-        </div>
+        <Zone label="Run log">
+          <div className="hatch px-3 py-10 text-center">
+            <p className="t-label" style={{ color: 'var(--color-ink)' }}>
+              Start your first run
+            </p>
+            <p className="t-annotation mx-auto mt-2 max-w-sm">
+              Add a vehicle and calibrate a gear to record your power curve.
+            </p>
+            <div className="mt-4 flex justify-center">
+              <PlateLink to="/garage" variant="procedure">
+                Go to garage
+              </PlateLink>
+            </div>
+          </div>
+        </Zone>
       )}
 
-      {totalCount > 0 && showFilters && (
-        <div className="sticky top-0 z-10 -mx-4 px-4 lg:mx-0 lg:px-0 pt-2 pb-3 bg-zinc-950/95 backdrop-blur border-b border-zinc-900 space-y-3">
-          <div className="relative">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by title"
-              aria-label="Search runs by title"
-              className="w-full bg-zinc-900 border border-zinc-800 focus:border-zinc-700 focus:outline-none rounded-xl text-zinc-100 text-sm px-3 py-2 pr-9 placeholder:text-zinc-600"
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch('')}
-                aria-label="Clear search"
-                className="absolute inset-y-0 right-0 px-3 text-zinc-500 hover:text-zinc-200 text-lg leading-none"
-              >
-                ×
-              </button>
-            )}
-          </div>
+      {totalCount > 0 && (
+        <div>
+          {showFilters && (
+            <div
+              className="sticky top-0 z-10 -mx-4 space-y-3 px-4 pb-3 pt-2 lg:mx-0 lg:px-0"
+              style={{ background: 'var(--color-sheet)' }}
+            >
+              <div className="flex items-stretch">
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search by title"
+                  aria-label="Search runs by title"
+                  className="field"
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch('')}
+                    aria-label="Clear search"
+                    className="ctl shrink-0 px-3"
+                    style={{ borderLeft: 'none', minHeight: 44 }}
+                  >
+                    <ClearIcon />
+                  </button>
+                )}
+              </div>
 
-          {showChips && (
-            <VehicleChips
-              vehicles={distinctVehicles}
-              counts={counts}
-              totalCount={totalCount}
-              selectedId={vehicleFilter}
-              onSelect={setVehicleFilter}
-            />
+              {showChips && (
+                <VehicleChips
+                  vehicles={distinctVehicles}
+                  counts={counts}
+                  totalCount={totalCount}
+                  selectedId={vehicleFilter}
+                  onSelect={setVehicleFilter}
+                />
+              )}
+
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <SegmentedControl
+                  options={SORT_OPTIONS}
+                  value={sort}
+                  onChange={setSort}
+                  ariaLabel="Sort runs"
+                  compact
+                />
+                {filtersActive && (
+                  <button type="button" onClick={clearFilters} className="t-label hover:underline">
+                    Reset
+                  </button>
+                )}
+              </div>
+            </div>
           )}
 
-          <div className="flex items-center justify-between gap-2">
-            <SegmentedControl
-              options={SORT_OPTIONS}
-              value={sort}
-              onChange={setSort}
-              ariaLabel="Sort runs"
-              compact
-            />
-            {filtersActive && (
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="text-zinc-500 hover:text-zinc-200 text-xs font-medium"
-              >
-                Reset
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {totalCount > 0 && visible.length === 0 && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 text-center space-y-3">
-          <p className="text-zinc-300 text-sm">No runs match your filters</p>
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="text-amber-400 hover:text-amber-300 text-xs font-semibold underline underline-offset-4"
+          <Zone
+            label="Run log"
+            note={
+              visible.length === totalCount
+                ? `${totalCount} complete run${totalCount === 1 ? '' : 's'} across all vehicles`
+                : `${visible.length} of ${totalCount} shown`
+            }
+            className="mt-4"
           >
-            Clear filters
-          </button>
-        </div>
-      )}
-
-      {visible.length > 0 && (
-        <div className="space-y-2 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-3 lg:space-y-0">
-          {visible.map((row) => (
-            <RunRow key={row.run.id} row={row} />
-          ))}
+            {visible.length === 0 ? (
+              <div className="hatch px-3 py-10 text-center">
+                <p className="t-label" style={{ color: 'var(--color-ink)' }}>
+                  No runs match your filters
+                </p>
+                <div className="mt-4 flex justify-center">
+                  <PlateButton onClick={clearFilters}>Clear filters</PlateButton>
+                </div>
+              </div>
+            ) : (
+              <MinimaTable
+                columns={columns}
+                rows={visible}
+                rowKey={({ run }) => run.id}
+                onSelect={({ run }) => navigate(`/runs/${run.id}/review`)}
+              />
+            )}
+          </Zone>
         </div>
       )}
     </div>

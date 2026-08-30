@@ -4,6 +4,16 @@ import { recordingRepository } from '@/api/repositories/recording-repository';
 import { isSensorRecording } from '@/sensors/recording';
 import { setPendingReplay, useReplayState } from '@/sensors/replay-state';
 import type { RecordingSummary } from '@/api/repositories/types';
+import {
+  Advisory,
+  MinimaTable,
+  Na,
+  NotesBox,
+  PlateButton,
+  TitleBlock,
+  Zone,
+  type MinimaColumn,
+} from '@/ui/plate';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString();
@@ -14,6 +24,25 @@ function formatDuration(ms: number): string {
   const m = Math.floor(total_s / 60);
   const s = total_s % 60;
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+
+function ImportIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="square"
+      aria-hidden="true"
+    >
+      <polyline points="8 11 12 7 16 11" />
+      <line x1="12" y1="7" x2="12" y2="17" />
+      <path d="M4 17v3h16v-3" />
+    </svg>
+  );
 }
 
 export function ReplayLabIndex() {
@@ -60,89 +89,88 @@ export function ReplayLabIndex() {
     navigate('/replay/local');
   }
 
-  return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold text-zinc-100">Replay Lab</h1>
-        <p className="text-zinc-500 text-sm mt-1">
-          Re-run any recording in real time: watch the dyno play out without driving. Replays are
-          ephemeral: nothing is saved.
-        </p>
-      </div>
+  const columns: MinimaColumn<RecordingSummary>[] = [
+    { key: 'kind', head: 'Kind', cell: (r) => <span className="t-label">{r.kind}</span> },
+    {
+      key: 'label',
+      head: 'Label',
+      cell: (r) => (
+        <span className="block max-w-[24ch] truncate">{r.label ?? formatDate(r.recorded_at)}</span>
+      ),
+    },
+    {
+      key: 'gear',
+      head: 'Gear',
+      cell: (r) => (r.gear_label ? r.gear_label : <Na title="Not captured in a gear" />),
+    },
+    {
+      key: 'rpm',
+      head: 'RPM',
+      numeric: true,
+      cell: (r) => (r.user_rpm != null ? r.user_rpm.toFixed(0) : <Na title="No target RPM" />),
+    },
+    { key: 'recorded', head: 'Recorded', cell: (r) => formatDate(r.recorded_at) },
+    { key: 'duration', head: 'Duration', numeric: true, cell: (r) => formatDuration(r.duration_ms) },
+    { key: 'gps', head: 'GPS fixes', numeric: true, cell: (r) => r.gps_count },
+    { key: 'motion', head: 'Motion fixes', numeric: true, cell: (r) => r.motion_count },
+  ];
 
-      {/* Quick sources */}
-      <div className="grid grid-cols-1 gap-2">
+  return (
+    <div className="plate-stack">
+      <TitleBlock
+        title="Replay Lab"
+        meta={[
+          { label: 'Stored', value: recordings === null ? <Na /> : recordings.length },
+          { label: 'In memory', value: last ? `${last.kind} recording` : <Na title="Nothing recorded this session" /> },
+          { label: 'Persistence', value: 'Replays are never saved' },
+        ]}
+      />
+
+      {error && <Advisory>{error}</Advisory>}
+
+      <Zone label="Start a replay" note="Re-run a recording in real time, without driving">
         {last && (
-          <button
-            onClick={replayLast}
-            className="flex items-center justify-between gap-3 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-800/40 rounded-2xl p-4 text-left transition-colors"
-          >
-            <div>
-              <p className="text-amber-300 text-sm font-semibold">Replay last recording</p>
-              <p className="text-zinc-500 text-xs mt-0.5">
-                {last.kind} · {last.gps_fixes.length} GPS · {(last.duration_ms / 1000).toFixed(1)}s (in memory)
+          <div className="rule-b flex flex-wrap items-center justify-between gap-3 px-3 py-3">
+            <div className="min-w-0">
+              <p className="t-data text-sm">Last recording, still in memory</p>
+              <p className="t-annotation mt-1">
+                {last.kind} / {last.gps_fixes.length} GPS fixes / {(last.duration_ms / 1000).toFixed(1)} s
               </p>
             </div>
-            <span className="text-amber-400" aria-hidden>→</span>
-          </button>
+            <PlateButton variant="procedure" onClick={replayLast}>
+              Replay it
+            </PlateButton>
+          </div>
         )}
 
-        <label className="flex items-center justify-center gap-2 border-2 border-dashed border-zinc-700 rounded-2xl p-4 cursor-pointer hover:border-zinc-500 transition-colors">
-          <svg className="text-zinc-500" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="16 16 12 12 8 16" />
-            <line x1="12" y1="12" x2="12" y2="21" />
-            <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3" />
-          </svg>
-          <span className="text-zinc-300 text-sm font-medium">Upload recording JSON</span>
+        <label className="hatch flex cursor-pointer items-center justify-center gap-2.5 px-3 py-6 transition-colors hover:bg-[var(--color-sunk)]">
+          <ImportIcon />
+          <span className="t-label" style={{ color: 'var(--color-ink)' }}>
+            Upload a recording JSON file
+          </span>
           <input type="file" accept="application/json" onChange={onUpload} className="sr-only" />
         </label>
-      </div>
+      </Zone>
 
-      {error && (
-        <div className="bg-red-950/40 border border-red-800/60 rounded-2xl p-3">
-          <p className="text-red-300 text-xs">{error}</p>
-        </div>
-      )}
-
-      {/* Stored recordings */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Stored recordings</p>
+      <Zone label="Stored recordings">
         {recordings === null ? (
-          <div className="text-zinc-500 text-sm text-center py-8">Loading…</div>
-        ) : recordings.length === 0 ? (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center">
-            <p className="text-zinc-400 text-sm">No recordings yet.</p>
-            <p className="text-zinc-600 text-xs mt-1">Calibrations and runs are captured automatically.</p>
-          </div>
+          <p className="t-annotation px-3 py-8 text-center">Loading...</p>
         ) : (
-          <div className="space-y-2 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-3 lg:space-y-0">
-            {recordings.map((r) => (
-              <button
-                key={r.id}
-                onClick={() => navigate(`/replay/${r.id}`)}
-                className="w-full text-left bg-zinc-900 hover:bg-zinc-800/80 border border-zinc-800 rounded-2xl p-3 transition-colors flex items-center justify-between gap-3"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded ${
-                      r.kind === 'run' ? 'bg-amber-500/15 text-amber-400' : 'bg-emerald-500/15 text-emerald-400'
-                    }`}>
-                      {r.kind}
-                    </span>
-                    {r.gear_label && <span className="text-zinc-400 text-xs font-mono">{r.gear_label}</span>}
-                    {r.user_rpm != null && <span className="text-zinc-500 text-xs font-mono">{r.user_rpm.toFixed(0)} RPM</span>}
-                  </div>
-                  <p className="text-zinc-300 text-sm mt-1.5 truncate">{r.label ?? formatDate(r.recorded_at)}</p>
-                  <p className="text-zinc-600 text-[11px] font-mono mt-1">
-                    {formatDuration(r.duration_ms)} · {r.gps_count} GPS · {r.motion_count} motion
-                  </p>
-                </div>
-                <span className="text-zinc-500" aria-hidden>→</span>
-              </button>
-            ))}
-          </div>
+          <MinimaTable
+            columns={columns}
+            rows={recordings}
+            rowKey={(r) => r.id}
+            onSelect={(r) => navigate(`/replay/${r.id}`)}
+            empty="No recordings yet. Calibrations and runs are captured automatically."
+          />
         )}
-      </div>
+      </Zone>
+
+      <NotesBox>
+        A replay drives the app from a recorded sensor log at whatever rate you choose, so the same
+        ride can be re-analysed after a change to the maths. Nothing a replay produces is written
+        back: the curve it derives exists only for as long as the page is open.
+      </NotesBox>
     </div>
   );
 }

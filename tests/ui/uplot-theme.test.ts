@@ -19,11 +19,11 @@ describe('legendValue', () => {
     expect(legendValue('Nm', 1)(u, -12.34)).toBe('-12.3 Nm');
   });
 
-  it('renders an em dash when the cursor is off the data', () => {
+  it('renders n/a when the cursor is off the data', () => {
     expect(legendValue('kW')(u, null)).toBe('n/a');
   });
 
-  it('renders an em dash for non-finite values', () => {
+  it('renders n/a for non-finite values', () => {
     expect(legendValue('kW')(u, NaN)).toBe('n/a');
     expect(legendValue('kW')(u, Infinity)).toBe('n/a');
   });

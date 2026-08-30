@@ -7,6 +7,7 @@ import type { Calibration } from '@/shared/types';
 import type { CalibrationState } from '@/run/types';
 import { setLastRecording } from '@/sensors/replay-state';
 import { recordingRepository } from '@/api/repositories/recording-repository';
+import { Advisory, Na, NoReading, NotesBox, PlateButton, Readout, Zone } from '@/ui/plate';
 import {
   GpsWarmupCard,
   isGpsLocked,
@@ -32,34 +33,36 @@ function headingLabel(deg: number): string {
   return dirs[Math.round(deg / 45) % 8];
 }
 
-function qualityColor(q: number): string {
-  if (q >= 0.7) return 'text-emerald-400';
-  if (q >= 0.4) return 'text-amber-400';
-  return 'text-red-400';
-}
-
-function accuracyColor(m: number | null): string {
-  if (m === null) return 'text-zinc-500';
-  if (m <= GPS_ACCURACY_GOOD_M) return 'text-emerald-400';
-  if (m <= 20) return 'text-amber-400';
-  return 'text-red-400';
+/**
+ * Out of tolerance takes caution ink; everything acceptable stays in plain ink.
+ * Spending a second colour on "this reading is fine" would leave the one value
+ * the driver has to act on competing with four that need no attention.
+ */
+function outOfTolerance(bad: boolean) {
+  return bad ? { color: 'var(--color-caution)' } : undefined;
 }
 
 interface TelemetryRowProps {
   label: string;
-  value: string;
+  value: string | null;
   unit?: string;
-  valueClass?: string;
+  bad?: boolean;
 }
 
-function TelemetryRow({ label, value, unit, valueClass = 'text-zinc-100' }: TelemetryRowProps) {
+function TelemetryRow({ label, value, unit, bad = false }: TelemetryRowProps) {
   return (
-    <div className="flex items-baseline justify-between py-1.5 border-b border-zinc-800/60 last:border-0">
-      <span className="text-zinc-500 text-xs uppercase tracking-wider font-medium">{label}</span>
-      <span className={`tabular-nums text-sm font-mono font-semibold ${valueClass}`}>
-        {value}
-        {unit && <span className="text-zinc-500 text-xs font-normal ml-1">{unit}</span>}
-      </span>
+    <div className="rule-t flex items-baseline justify-between px-3 py-2 first:border-t-0">
+      <dt className="t-annotation">{label}</dt>
+      <dd className="t-data text-sm" style={outOfTolerance(bad)}>
+        {value === null ? (
+          <Na />
+        ) : (
+          <>
+            {value}
+            {unit && <span className="t-annotation ml-1">{unit}</span>}
+          </>
+        )}
+      </dd>
     </div>
   );
 }
@@ -183,18 +186,13 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
   const canStart = state.kind === 'idle' && (gpsLocked || forceStart);
 
   return (
-    <div className="space-y-5">
-      {/* Instruction card */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-1">
-        <p className="text-zinc-100 font-medium text-sm">
-          Hold steady at {gear.user_rpm.toLocaleString()} RPM in {gear.gear_label}
-        </p>
-        <p className="text-zinc-500 text-xs">
-          Cruise at a constant speed in {gear.gear_label} gear. The app captures your speed when it stabilizes.
-        </p>
-      </div>
+    <>
+      <NotesBox title="What to do">
+        Hold steady at {gear.user_rpm.toLocaleString()} RPM in {gear.gear_label}. Cruise at a
+        constant speed on a flat road: the app captures your speed once it stabilises, and that one
+        pair of numbers becomes the gear ratio.
+      </NotesBox>
 
-      {/* Warmup card: visible during idle state (GPS lock acquisition) */}
       {state.kind === 'idle' && (
         <GpsWarmupCard
           telemetry={live ? { accuracy_m: live.accuracy_m, quality: live.quality, fix_rate_hz: live.fix_rate_hz } : null}
@@ -206,131 +204,132 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
         />
       )}
 
-      {/* Measuring state: telemetry debug panel */}
       {state.kind === 'measuring' && (
-        <div className="bg-zinc-900 border border-amber-800/40 rounded-2xl overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-zinc-800 bg-zinc-950/60">
-            <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-            <span className="text-amber-400 text-xs font-semibold uppercase tracking-widest">Measuring</span>
-          </div>
-
-          <div className="px-4 pt-4 pb-3 border-b border-zinc-800">
-            <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Current Speed</p>
-            <div className="flex items-baseline gap-2">
-              <span className="text-5xl font-bold tabular-nums text-zinc-100 font-mono">
-                {displaySpeed != null ? displaySpeed.toFixed(1) : 'n/a'}
-              </span>
-              <span className="text-lg text-zinc-500">km/h</span>
+        <>
+          <Zone
+            label="Measuring"
+            note={`${gear.gear_label}, target ${gear.user_rpm.toLocaleString()} RPM`}
+          >
+            <div className="rule-b px-3 py-4">
+              {displaySpeed == null ? (
+                <NoReading label="Current speed" reason="No fix yet" />
+              ) : (
+                <Readout
+                  label="Current speed"
+                  value={displaySpeed.toFixed(1)}
+                  unit="km/h"
+                  size="xl"
+                />
+              )}
             </div>
-          </div>
 
-          <div className="px-4 py-1 border-b border-zinc-800">
-            <p className="text-zinc-600 text-xs uppercase tracking-wider pt-2 pb-1">GPS Signal</p>
-            <TelemetryRow
-              label="Accuracy"
-              value={live?.accuracy_m != null ? live.accuracy_m.toFixed(1) : 'n/a'}
-              unit="m"
-              valueClass={accuracyColor(live?.accuracy_m ?? null)}
-            />
-            <TelemetryRow
-              label="Signal Quality"
-              value={live ? Math.round(live.quality * 100).toString() : 'n/a'}
-              unit="%"
-              valueClass={live ? qualityColor(live.quality) : 'text-zinc-500'}
-            />
-            <TelemetryRow
-              label="Fix Rate"
-              value={live?.fix_rate_hz != null ? live.fix_rate_hz.toFixed(1) : 'n/a'}
-              unit="Hz"
-            />
-            {live?.altitude_m != null && (
-              <TelemetryRow label="Altitude" value={live.altitude_m.toFixed(0)} unit="m" />
-            )}
-            {live?.heading_deg != null && (
+            <dl>
               <TelemetryRow
-                label="Heading"
-                value={`${live.heading_deg.toFixed(0)}° ${headingLabel(live.heading_deg)}`}
+                label="Accuracy"
+                value={live?.accuracy_m != null ? live.accuracy_m.toFixed(1) : null}
+                unit="m"
+                bad={live?.accuracy_m != null && live.accuracy_m > GPS_ACCURACY_GOOD_M}
               />
-            )}
-          </div>
+              <TelemetryRow
+                label="Signal quality"
+                value={live ? String(Math.round(live.quality * 100)) : null}
+                unit="%"
+                bad={live != null && live.quality < 0.4}
+              />
+              <TelemetryRow
+                label="Fix rate"
+                value={live?.fix_rate_hz != null ? live.fix_rate_hz.toFixed(1) : null}
+                unit="Hz"
+              />
+              {live?.altitude_m != null && (
+                <TelemetryRow label="Altitude" value={live.altitude_m.toFixed(0)} unit="m" />
+              )}
+              {live?.heading_deg != null && (
+                <TelemetryRow
+                  label="Heading"
+                  value={`${live.heading_deg.toFixed(0)}° ${headingLabel(live.heading_deg)}`}
+                />
+              )}
+            </dl>
+          </Zone>
 
-          <div className="px-4 py-3">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-zinc-600 text-xs uppercase tracking-wider">Stability</p>
-              <span className="text-zinc-500 text-xs font-mono tabular-nums">
-                {live ? (live.stability.elapsed_ms / 1000).toFixed(1) : '0.0'}s / {live ? (live.stability.window_ms / 1000).toFixed(0) : '5'}s
-              </span>
-            </div>
+          {tooSlow && (
+            <Advisory>
+              Steady, but too slow to calibrate. Get above{' '}
+              {live?.stability.min_speed_kmh.toFixed(0)} km/h in {gear.gear_label} and hold{' '}
+              {gear.user_rpm.toLocaleString()} RPM.
+            </Advisory>
+          )}
 
-            <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden mb-2">
+          <Zone
+            label="Stability"
+            note={`${live ? (live.stability.elapsed_ms / 1000).toFixed(1) : '0.0'} s of ${live ? (live.stability.window_ms / 1000).toFixed(0) : '5'} s`}
+          >
+            <div className="px-3 py-3">
               <div
-                className={`h-full rounded-full transition-all duration-300 ${
-                  tooSlow ? 'bg-zinc-600' : deltaOk ? 'bg-amber-500' : 'bg-red-700'
-                }`}
-                style={{ width: `${stabilityPct * 100}%` }}
-              />
-            </div>
+                className="h-2.5 w-full"
+                role="progressbar"
+                aria-label="Steady-hold progress"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(stabilityPct * 100)}
+                style={{ border: 'var(--rule-hair) solid var(--color-rule)' }}
+              >
+                {/* Scaled rather than width-animated: a bar that updates on
+                    every GPS fix should not thrash layout to do it. */}
+                <div
+                  className="h-full w-full origin-left"
+                  style={{
+                    transform: `scaleX(${stabilityPct})`,
+                    background: tooSlow
+                      ? 'var(--color-terrain)'
+                      : deltaOk
+                        ? 'var(--color-ink)'
+                        : 'var(--color-caution)',
+                    transition: 'transform 300ms var(--ease-plate)',
+                  }}
+                />
+              </div>
 
-            {tooSlow && (
-              <p className="text-amber-400 text-xs mb-2">
-                Steady, but too slow to calibrate. Get above{' '}
-                {live?.stability.min_speed_kmh.toFixed(0)} km/h in {gear.gear_label} and hold{' '}
-                {gear.user_rpm.toLocaleString()} RPM.
-              </p>
-            )}
-
-            <div className="flex items-baseline justify-between">
-              <span className="text-zinc-600 text-xs">Speed Δ</span>
-              <span className={`text-xs font-mono tabular-nums font-semibold ${deltaOk ? 'text-emerald-400' : 'text-red-400'}`}>
-                {live ? `±${(live.stability.speed_delta_kmh / 2).toFixed(2)} km/h` : 'n/a'}
-                <span className="text-zinc-600 font-normal ml-1">
-                  (max ±{live ? (live.stability.max_delta_kmh / 2).toFixed(1) : '0.5'})
+              <div className="mt-2.5 flex items-baseline justify-between">
+                <span className="t-annotation">Speed spread</span>
+                <span className="t-data text-sm" style={outOfTolerance(!deltaOk)}>
+                  {live ? `±${(live.stability.speed_delta_kmh / 2).toFixed(2)} km/h` : <Na />}
+                  <span className="t-annotation ml-1.5">
+                    max ±{live ? (live.stability.max_delta_kmh / 2).toFixed(1) : '0.5'}
+                  </span>
                 </span>
-              </span>
+              </div>
             </div>
-          </div>
-        </div>
+          </Zone>
+        </>
       )}
 
-      {/* Stable / captured state */}
       {state.kind === 'stable' && (
-        <div className="bg-zinc-900 border border-emerald-800/40 rounded-2xl p-6 flex flex-col items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
-            <svg className="text-emerald-400" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="20 6 9 17 4 12"/>
-            </svg>
+        <Zone label="Captured" note="Steady hold locked">
+          <div className="px-3 py-4">
+            <Readout
+              label="Captured speed"
+              value={state.captured_speed_kmh.toFixed(1)}
+              unit="km/h"
+              size="xl"
+              tone="procedure"
+            />
           </div>
-          <div className="text-center">
-            <p className="text-zinc-400 text-xs uppercase tracking-wider mb-1">Captured speed</p>
-            <p className="text-4xl font-bold text-zinc-100 tabular-nums">
-              {state.captured_speed_kmh.toFixed(1)}
-              <span className="text-lg font-normal text-zinc-400 ml-1">km/h</span>
-            </p>
-          </div>
-        </div>
+        </Zone>
       )}
 
-      {/* Actions */}
       <div className="space-y-3">
         {state.kind === 'idle' && (
           <>
-            <button
-              onClick={start}
-              disabled={!canStart}
-              className={`w-full font-semibold py-3.5 rounded-xl transition-colors lg:w-auto lg:px-8 ${
-                canStart
-                  ? showPoorWarning
-                    ? 'bg-red-600 hover:bg-red-500 active:bg-red-700 text-white'
-                    : 'bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-zinc-950'
-                  : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
-              }`}
-            >
+            <PlateButton variant="procedure" major onClick={start} disabled={!canStart}>
               {showPoorWarning && forceStart ? 'Start anyway' : 'Start measurement'}
-            </button>
+            </PlateButton>
             {showPoorWarning && !forceStart && (
               <button
+                type="button"
                 onClick={() => setForceStart(true)}
-                className="w-full text-zinc-500 hover:text-zinc-300 text-xs underline underline-offset-2"
+                className="t-annotation w-full py-2 underline underline-offset-4"
               >
                 Start anyway (calibration will be unreliable)
               </button>
@@ -338,21 +337,14 @@ export function CalibrationStepMeasure({ vehicleId, gear, onConfirmed, onCancel 
           </>
         )}
         {state.kind === 'stable' && (
-          <button
-            onClick={confirm}
-            className="w-full bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold py-3.5 rounded-xl transition-colors lg:w-auto lg:px-8"
-          >
+          <PlateButton variant="procedure" major onClick={confirm}>
             Save calibration
-          </button>
+          </PlateButton>
         )}
-        <button
-          type="button"
-          onClick={onCancel}
-          className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium py-3 rounded-xl transition-colors border border-zinc-700 text-sm lg:w-auto lg:px-8"
-        >
+        <PlateButton type="button" onClick={onCancel} className="w-full">
           Cancel
-        </button>
+        </PlateButton>
       </div>
-    </div>
+    </>
   );
 }

@@ -46,7 +46,8 @@ describe('RawTraceCard', () => {
 
     const note = getByText(/Phone GPS tops out near one fix per second/i);
     expect(note).toBeInTheDocument();
-    expect(note).toHaveClass('text-zinc-500');
+    // Annotation register: it can never be scanned as a finding.
+    expect(note).toHaveClass('t-annotation');
     expect(note.textContent).toMatch(/That is the ceiling, not a fault/i);
     expect(note.textContent).toMatch(/this whole run is 12 readings/i);
 
@@ -61,17 +62,20 @@ describe('RawTraceCard', () => {
 
     // The fix rate is a platform constant, so it is never painted as a fault.
     const rate = getByText('Fix rate').parentElement!;
-    expect(within(rate).getByText('1.0 Hz')).toHaveClass('text-zinc-100');
+    expect(within(rate).getByText('1.0 Hz')).toHaveAttribute('data-tone', 'ok');
     expect(within(rate).getByText('platform ceiling')).toBeInTheDocument();
 
     const repeated = getByText('Repeated').parentElement!;
-    expect(within(repeated).getByText('1')).toHaveClass('text-red-400');
+    expect(within(repeated).getByText('1')).toHaveAttribute('data-tone', 'warn');
 
     const step = getByText('Peak step').parentElement!;
-    expect(within(step).getByText('13.2 m/s²')).toHaveClass('text-red-400');
+    expect(within(step).getByText('13.2 m/s²')).toHaveAttribute('data-tone', 'warn');
     expect(within(step).getByText('1.34 g')).toBeInTheDocument();
 
-    expect(within(getByText('Fixes').parentElement!).getByText('12')).toHaveClass('text-zinc-100');
+    expect(within(getByText('Fixes').parentElement!).getByText('12')).toHaveAttribute(
+      'data-tone',
+      'ok',
+    );
   });
 
   it('gives a dense clean run a clean bill of health', () => {

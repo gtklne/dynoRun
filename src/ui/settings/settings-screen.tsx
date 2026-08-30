@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ensureGeolocation, type GeolocationStatus } from '@/app/geolocation-permission';
 import { WakeLock } from '@/app/wake-lock';
@@ -6,24 +6,29 @@ import { downloadJsonFile } from '@/app/export';
 import { getAccountExport } from '@/api/repositories/account-repository';
 import { useAuth } from '@/auth/auth-context';
 import { useUnits } from '@/app/units-context';
-import { SegmentedControl } from '@/ui/components/segmented-control';
 import { ToggleSwitch } from '@/ui/components/toggle-switch';
 import { useToast } from '@/ui/components/toast';
+import { Advisory, Na, Plate, PlateSegmented, RevisionBar, TitleBlock, Zone } from '@/ui/plate';
 import { DeleteAccountModal } from './delete-account-modal';
+import {
+  readPlatePreference,
+  storePlatePreference,
+  type PlatePreference,
+} from './plate-preference';
 import type { PowerUnit } from '@/shared/format-power';
 
 const COUNTDOWN_STORAGE_KEY = 'dynorun:countdown';
 
-const statusColor: Record<string, string> = {
-  granted: 'text-emerald-400',
-  prompt: 'text-amber-400',
-  denied: 'text-red-400',
-};
-
-const POWER_UNIT_OPTIONS: ReadonlyArray<{ value: PowerUnit; label: string }> = [
+const POWER_UNIT_OPTIONS: { value: PowerUnit; label: string }[] = [
   { value: 'kW', label: 'kW' },
   { value: 'hp', label: 'hp' },
   { value: 'PS', label: 'PS' },
+];
+
+const PLATE_OPTIONS: { value: PlatePreference; label: string }[] = [
+  { value: 'day', label: 'Day' },
+  { value: 'night', label: 'Night' },
+  { value: 'system', label: 'System' },
 ];
 
 function readCountdownInitial(): boolean {
@@ -34,6 +39,80 @@ function readCountdownInitial(): boolean {
   }
 }
 
+function ForwardIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="square"
+      aria-hidden="true"
+      className="shrink-0"
+    >
+      <line x1="4" y1="12" x2="20" y2="12" />
+      <polyline points="14 6 20 12 14 18" />
+    </svg>
+  );
+}
+
+/**
+ * One ruled line of the sheet: what the setting is on the left, the reading or
+ * the control on the right. Rows are separated by a hairline, never boxed
+ * individually, so a zone reads as one table rather than a stack of cards.
+ */
+function Row({
+  label,
+  note,
+  children,
+}: {
+  label: string;
+  note?: string;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="border-rule flex items-center justify-between gap-4 px-3 py-3 [&:not(:first-child)]:border-t">
+      <div className="min-w-0">
+        <p className="t-data text-sm">{label}</p>
+        {note && <p className="t-annotation mt-1">{note}</p>}
+      </div>
+      {children && <div className="shrink-0">{children}</div>}
+    </div>
+  );
+}
+
+/** A navigation line. Same rhythm as a Row, but the whole line is the target. */
+function NavRow({ to, label, note }: { to: string; label: string; note?: string }) {
+  return (
+    <Link
+      to={to}
+      className="border-rule flex items-center justify-between gap-4 px-3 py-3 no-underline transition-colors hover:bg-[var(--color-sunk)] [&:not(:first-child)]:border-t"
+      style={{ color: 'var(--color-ink)' }}
+    >
+      <span className="min-w-0">
+        <span className="t-data block text-sm">{label}</span>
+        {note && <span className="t-annotation mt-1 block">{note}</span>}
+      </span>
+      <ForwardIcon />
+    </Link>
+  );
+}
+
+/** A permission reading. Granted is a gain, anything else is an advisory. */
+function StatusReading({ value, good }: { value: string | null; good: boolean }) {
+  if (value === null) return <span className="t-annotation">Checking</span>;
+  return (
+    <span
+      className="t-label"
+      style={{ color: good ? 'var(--color-gain)' : 'var(--color-caution)' }}
+    >
+      {value}
+    </span>
+  );
+}
+
 export function SettingsScreen() {
   const navigate = useNavigate();
   const { user, isAdmin, signOut } = useAuth();
@@ -42,6 +121,7 @@ export function SettingsScreen() {
   const [geoStatus, setGeoStatus] = useState<GeolocationStatus | null>(null);
   const [wakeSupported, setWakeSupported] = useState<boolean>(false);
   const [countdownEnabled, setCountdownEnabled] = useState<boolean>(readCountdownInitial);
+  const [plate, setPlate] = useState<PlatePreference>(readPlatePreference);
   const [signingOut, setSigningOut] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -58,6 +138,11 @@ export function SettingsScreen() {
       localStorage.setItem(COUNTDOWN_STORAGE_KEY, String(countdownEnabled));
     } catch { /* noop */ }
   }, [countdownEnabled]);
+
+  function handlePlateChange(next: PlatePreference) {
+    setPlate(next);
+    storePlatePreference(next);
+  }
 
   async function handleSignOut() {
     setSigningOut(true);
@@ -92,195 +177,127 @@ export function SettingsScreen() {
   }
 
   return (
-    <div className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
-      <h1 className="text-2xl font-bold text-zinc-100 lg:col-span-2">Settings</h1>
+    <Plate className="plate-issue">
+      <TitleBlock
+        ident="wasgoht"
+        title="Settings"
+        meta={[
+          { label: 'Signed in as', value: user?.email ?? <Na /> },
+          { label: 'Role', value: isAdmin ? 'Admin' : 'User' },
+          { label: 'Version', value: '0.1.0' },
+          { label: 'Physics model', value: 'F = ma (comparative)' },
+        ]}
+      />
 
-      {/* Account */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Account</p>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3.5 border-b border-zinc-800 gap-3">
-            <span className="text-zinc-200 text-sm">Signed in as</span>
-            <span className="text-zinc-400 text-sm truncate">{user?.email ?? 'n/a'}</span>
-          </div>
-          {isAdmin && (
-            <Link
-              to="/admin"
-              className="flex items-center justify-between px-4 py-3.5 border-b border-zinc-800 gap-3 hover:bg-zinc-800/50 transition-colors"
-            >
-              <span className="text-zinc-200 text-sm">Admin panel</span>
-              <span className="text-amber-400 text-sm">→</span>
-            </Link>
-          )}
-          <div className="p-3">
+      <div className="grid gap-8 lg:grid-cols-2 lg:items-start lg:gap-x-8 lg:gap-y-10">
+        <Zone label="Account" note="This device">
+          <Row label="Signed in as" note="Every run and session is filed under this account">
+            <span className="t-data text-sm">{user?.email ?? <Na />}</span>
+          </Row>
+          {isAdmin && <NavRow to="/admin" label="Admin panel" note="User and content KPIs" />}
+          <div className="rule-t p-3">
             <button
               type="button"
               onClick={handleSignOut}
               disabled={signingOut}
-              className="w-full bg-zinc-800 hover:bg-red-900/60 text-zinc-300 hover:text-red-300 border border-zinc-700 rounded-lg py-2 text-sm font-medium transition-colors disabled:opacity-50"
+              className="ctl w-full"
             >
               {signingOut ? 'Signing out…' : 'Sign out'}
             </button>
           </div>
-        </div>
-      </div>
+        </Zone>
 
-      {/* Display */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Display</p>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-zinc-200 text-sm font-medium">Power units</p>
-            <p className="text-zinc-500 text-xs mt-0.5">Used everywhere power is shown.</p>
-          </div>
-          <SegmentedControl<PowerUnit>
-            options={POWER_UNIT_OPTIONS}
-            value={unit}
-            onChange={setUnit}
-            ariaLabel="Power units"
-          />
-        </div>
-      </div>
+        <Zone label="Display" note="How readings are set on every sheet">
+          <Row label="Power units" note="Used everywhere power is shown">
+            <PlateSegmented<PowerUnit>
+              label="Power units"
+              value={unit}
+              options={POWER_UNIT_OPTIONS}
+              onChange={setUnit}
+            />
+          </Row>
+          <Row label="Plate" note="Night inverts the sheet. System follows your device">
+            <PlateSegmented<PlatePreference>
+              label="Plate"
+              value={plate}
+              options={PLATE_OPTIONS}
+              onChange={handlePlateChange}
+            />
+          </Row>
+        </Zone>
 
-      {/* Driving */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Driving</p>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-zinc-200 text-sm font-medium">Countdown before run</p>
-            <p className="text-zinc-500 text-xs mt-0.5">3-2-1 before recording starts.</p>
-          </div>
-          <ToggleSwitch
-            checked={countdownEnabled}
-            onChange={setCountdownEnabled}
-            ariaLabel="Countdown before run"
-          />
-        </div>
-      </div>
+        <Zone label="Driving" note="Capture behaviour">
+          <Row label="Countdown before run" note="3-2-1 before recording starts">
+            <ToggleSwitch
+              checked={countdownEnabled}
+              onChange={setCountdownEnabled}
+              ariaLabel="Countdown before run"
+            />
+          </Row>
+        </Zone>
 
-      {/* Permissions */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Permissions</p>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3.5 border-b border-zinc-800">
-            <div>
-              <p className="text-zinc-200 text-sm font-medium">Location</p>
-              <p className="text-zinc-500 text-xs mt-0.5">Required for GPS speed measurements</p>
-            </div>
-            <span className={`text-xs font-semibold capitalize ${statusColor[geoStatus ?? ''] ?? 'text-zinc-400'}`}>
-              {geoStatus ?? 'Checking…'}
-            </span>
-          </div>
-          <div className="flex items-center justify-between px-4 py-3.5">
-            <div>
-              <p className="text-zinc-200 text-sm font-medium">Screen wake lock</p>
-              <p className="text-zinc-500 text-xs mt-0.5">Prevents screen from sleeping during a run</p>
-            </div>
-            <span className={`text-xs font-semibold ${wakeSupported ? 'text-emerald-400' : 'text-zinc-500'}`}>
-              {wakeSupported ? 'Supported' : 'Not available'}
-            </span>
-          </div>
-        </div>
-      </div>
+        <Zone label="Permissions" note="What this browser will allow">
+          <Row label="Location" note="Required for GPS speed measurements">
+            <StatusReading value={geoStatus} good={geoStatus === 'granted'} />
+          </Row>
+          <Row label="Screen wake lock" note="Prevents the screen sleeping during a run">
+            <StatusReading
+              value={wakeSupported ? 'Supported' : 'Not available'}
+              good={wakeSupported}
+            />
+          </Row>
+        </Zone>
 
-      {/* Privacy */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Privacy</p>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-zinc-200 text-sm font-medium">Download my data</p>
-              <p className="text-zinc-500 text-xs mt-0.5">Export everything tied to your account as JSON.</p>
-            </div>
-            <button
-              type="button"
-              onClick={handleExport}
-              disabled={exporting}
-              className="shrink-0 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 rounded-lg py-2 px-3 text-sm font-medium transition-colors disabled:opacity-50"
-            >
+        <Zone label="Privacy" note="Your data, on request">
+          <Row label="Download my data" note="Everything tied to your account, as JSON">
+            <button type="button" onClick={handleExport} disabled={exporting} className="ctl">
               {exporting ? 'Exporting…' : 'Download'}
             </button>
-          </div>
-        </div>
-      </div>
+          </Row>
+        </Zone>
 
-      {/* Legal */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Legal</p>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden px-4">
-          <Link
-            to="/privacy"
-            className="flex items-center justify-between py-2.5 text-zinc-300 hover:text-amber-400 text-sm font-medium transition-colors"
-          >
-            <span>Privacy Policy</span>
-            <span aria-hidden>→</span>
-          </Link>
-          <Link
-            to="/imprint"
-            className="flex items-center justify-between py-2.5 text-zinc-300 hover:text-amber-400 text-sm font-medium transition-colors border-t border-zinc-800/60"
-          >
-            <span>Imprint</span>
-            <span aria-hidden>→</span>
-          </Link>
-        </div>
-      </div>
+        <Zone label="Legal">
+          <NavRow to="/privacy" label="Privacy Policy" note="What is collected, and why" />
+          <NavRow to="/imprint" label="Imprint" note="Who operates this site" />
+        </Zone>
 
-      {/* Developer */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Developer</p>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-          <p className="text-zinc-400 text-xs mb-2">
-            Re-run a recorded run or calibration in real time to test the app without driving.
-          </p>
-          <Link
+        <Zone label="Developer" note="Test the app without driving">
+          <NavRow
             to="/replay"
-            className="flex items-center justify-between py-2.5 text-zinc-300 hover:text-amber-400 text-sm font-medium transition-colors"
-          >
-            <span>Replay Lab</span>
-            <span aria-hidden>→</span>
-          </Link>
-          <Link
-            to="/recordings"
-            className="flex items-center justify-between py-2.5 text-zinc-300 hover:text-amber-400 text-sm font-medium transition-colors border-t border-zinc-800/60"
-          >
-            <span>Manage raw recordings</span>
-            <span aria-hidden>→</span>
-          </Link>
-        </div>
+            label="Replay Lab"
+            note="Re-run a recorded run or calibration in real time"
+          />
+          <NavRow to="/recordings" label="Manage raw recordings" note="Stored sensor envelopes" />
+        </Zone>
+
+        <Zone label="Danger zone" note="Not reversible" className="lg:col-span-2">
+          <div className="p-3">
+            <Advisory>
+              Deleting your account permanently removes every vehicle, calibration, run,
+              recording and GPS sample filed under it. There is no undo and no backup copy
+              you can ask for.
+            </Advisory>
+          </div>
+          <Row label="Delete my account" note="Requires typing your email address to confirm">
+            <button
+              type="button"
+              onClick={() => setDeleteModalOpen(true)}
+              className="ctl"
+              style={{ borderColor: 'var(--color-caution)', color: 'var(--color-caution)' }}
+            >
+              Delete account
+            </button>
+          </Row>
+        </Zone>
       </div>
 
-      {/* About */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">About</p>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3.5 border-b border-zinc-800">
-            <span className="text-zinc-400 text-sm">Version</span>
-            <span className="text-zinc-300 text-sm font-medium">0.1.0</span>
-          </div>
-          <div className="flex items-center justify-between px-4 py-3.5">
-            <span className="text-zinc-400 text-sm">Physics model</span>
-            <span className="text-zinc-300 text-sm font-medium">F = ma (comparative)</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Danger zone */}
-      <div className="space-y-2 lg:col-span-2">
-        <p className="text-xs font-semibold text-red-500/80 uppercase tracking-widest">Danger zone</p>
-        <div className="bg-red-950/20 border border-red-900/50 rounded-2xl p-4 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-zinc-200 text-sm font-medium">Delete my account</p>
-            <p className="text-zinc-500 text-xs mt-0.5">Permanently deletes your account and all associated data.</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setDeleteModalOpen(true)}
-            className="shrink-0 bg-red-950/40 hover:bg-red-900/60 text-red-300 border border-red-900/60 rounded-lg py-2 px-3 text-sm font-medium transition-colors"
-          >
-            Delete account
-          </button>
-        </div>
-      </div>
+      <RevisionBar
+        entries={[
+          { label: 'App version', value: '0.1.0' },
+          { label: 'Physics model', value: 'F = ma, wheel power, no driveline correction' },
+          { label: 'Stored locally', value: 'Units, countdown, plate' },
+        ]}
+      />
 
       {user && (
         <DeleteAccountModal
@@ -290,6 +307,6 @@ export function SettingsScreen() {
           onDeleted={handleAccountDeleted}
         />
       )}
-    </div>
+    </Plate>
   );
 }

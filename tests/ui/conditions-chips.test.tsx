@@ -60,17 +60,19 @@ describe('ConditionsChips', () => {
     expect(wrapper.textContent).not.toContain('grade');
   });
 
-  it('applies distinct classNames for sm vs md size', () => {
+  it('renders each pill at the requested density, in distinct type registers', () => {
     const c: RunConditions = { ambient_temp_c: 20 };
     const { unmount } = render(<ConditionsChips conditions={c} size="sm" />);
     const smPill = screen.getByTestId('conditions-chips').firstElementChild;
-    expect(smPill?.className).toContain('text-[10px]');
-    expect(smPill?.className).not.toContain('rounded-full');
+    expect(smPill).toHaveAttribute('data-size', 'sm');
+    expect(smPill?.className).toContain('t-annotation');
+    expect(smPill?.className).not.toContain('t-data');
     unmount();
 
     render(<ConditionsChips conditions={c} size="md" />);
     const mdPill = screen.getByTestId('conditions-chips').firstElementChild;
-    expect(mdPill?.className).toContain('rounded-full');
-    expect(mdPill?.className).not.toContain('text-[10px]');
+    expect(mdPill).toHaveAttribute('data-size', 'md');
+    expect(mdPill?.className).toContain('t-data');
+    expect(mdPill?.className).not.toContain('t-annotation');
   });
 });

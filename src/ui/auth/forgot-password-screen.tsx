@@ -9,6 +9,7 @@ import {
   inputClass,
   primaryButtonClass,
 } from '@/ui/auth/auth-layout';
+import { PlateField } from '@/ui/plate';
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string;
 
@@ -51,62 +52,65 @@ export function ForgotPasswordScreen() {
   if (sent) {
     return (
       <AuthLayout>
-        <div className="w-full space-y-6 text-center">
-          <BrandHeader title="Check your email" subtitle="Password reset" />
-          <p className="text-zinc-400 text-sm">
-            If an account exists for <strong className="text-zinc-200">{email}</strong>, a reset
+        <BrandHeader title="Check your email" subtitle="Password reset" />
+        <div className="box-frame px-4 py-4 sm:px-5 sm:py-5">
+          <p className="t-body m-0">
+            If an account exists for{' '}
+            <strong className="t-data" style={{ fontWeight: 700 }}>{email}</strong>, a reset
             link is on its way. It expires in 1 hour.
           </p>
-          <Link to="/login" className="inline-block text-sm text-amber-400 hover:text-amber-300 underline">
-            Back to sign in
-          </Link>
+          <p className="mt-4">
+            <Link to="/login" className="ctl no-underline">Back to sign in</Link>
+          </p>
         </div>
+        <LegalFootnote />
       </AuthLayout>
     );
   }
 
   return (
     <AuthLayout>
-      <form onSubmit={handleSubmit} className="w-full space-y-6">
-        <BrandHeader title="Reset password" subtitle="We will email you a link." />
-        <div className="space-y-4">
-          <div className="space-y-1">
-            <label htmlFor="email" className="text-sm text-zinc-400">Email address</label>
-            <input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              autoComplete="email"
-              aria-invalid={Boolean(error)}
-              aria-describedby={error ? 'forgot-error' : undefined}
-              className={inputClass}
-            />
-          </div>
-          <TurnstileWidget
-            ref={turnstileRef}
-            siteKey={TURNSTILE_SITE_KEY}
-            onToken={setCaptchaToken}
-            onExpire={() => setCaptchaToken(null)}
-            onError={(reason) => {
-              setCaptchaToken(null);
-              if (reason === 'load') {
-                setError('The anti-bot check could not load. Disable your ad blocker for this page, or try another network.');
-              }
-            }}
+      <BrandHeader title="Reset password" subtitle="We will email you a link" />
+      <form onSubmit={handleSubmit} className="box-frame flex flex-col gap-4 px-4 py-4 sm:px-5 sm:py-5">
+        <PlateField label="Email address" id="email">
+          <input
+            id="email"
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            autoComplete="email"
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? 'forgot-error' : undefined}
+            className={inputClass}
           />
-          {error && <p id="forgot-error" role="alert" className="text-red-400 text-sm">{error}</p>}
-          <button type="submit" disabled={loading || !captchaToken} className={primaryButtonClass}>
-            {loading ? 'Sending…' : 'Send reset link'}
-          </button>
-          <p className="text-center text-sm text-zinc-500">
-            <Link to="/login" className="text-amber-400 hover:text-amber-300 underline">Back to sign in</Link>
+        </PlateField>
+        <TurnstileWidget
+          ref={turnstileRef}
+          siteKey={TURNSTILE_SITE_KEY}
+          onToken={setCaptchaToken}
+          onExpire={() => setCaptchaToken(null)}
+          onError={(reason) => {
+            setCaptchaToken(null);
+            if (reason === 'load') {
+              setError('The anti-bot check could not load. Disable your ad blocker for this page, or try another network.');
+            }
+          }}
+        />
+        {error && (
+          <p id="forgot-error" role="alert" className="t-body m-0 text-[0.8125rem] leading-6" style={{ color: 'var(--color-caution)' }}>
+            {error}
           </p>
-        </div>
-        <LegalFootnote />
+        )}
+        <button type="submit" disabled={loading || !captchaToken} className={primaryButtonClass}>
+          {loading ? 'Sending…' : 'Send reset link'}
+        </button>
+        <p className="rule-t t-annotation pt-3 text-center">
+          <Link to="/login" className="underline" style={{ color: 'var(--color-ink)' }}>Back to sign in</Link>
+        </p>
       </form>
+      <LegalFootnote />
     </AuthLayout>
   );
 }

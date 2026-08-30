@@ -8,6 +8,7 @@ import {
   inputClass,
   primaryButtonClass,
 } from '@/ui/auth/auth-layout';
+import { PlateField } from '@/ui/plate';
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -63,16 +64,17 @@ export function ResetPasswordScreen() {
   if (linkError || !token) {
     return (
       <AuthLayout>
-        <div className="w-full space-y-6 text-center">
-          <BrandHeader title="Link expired" subtitle="Password reset" />
-          <p className="text-zinc-400 text-sm">
+        <BrandHeader title="Link expired" subtitle="Password reset" />
+        <div className="box-frame px-4 py-4 sm:px-5 sm:py-5">
+          <p className="t-body m-0">
             This reset link is no longer valid. Reset links can only be used once and expire after
             an hour.
           </p>
-          <Link to="/forgot-password" className="inline-block text-sm text-amber-400 hover:text-amber-300 underline">
-            Request a new link
-          </Link>
+          <p className="mt-4">
+            <Link to="/forgot-password" className="ctl no-underline">Request a new link</Link>
+          </p>
         </div>
+        <LegalFootnote />
       </AuthLayout>
     );
   }
@@ -80,57 +82,61 @@ export function ResetPasswordScreen() {
   if (done) {
     return (
       <AuthLayout>
-        <div className="w-full space-y-6 text-center">
-          <BrandHeader title="Password changed" subtitle="You can sign in now." />
-          <Link to="/login" className="inline-block text-sm text-amber-400 hover:text-amber-300 underline">
-            Continue to sign in
-          </Link>
+        <BrandHeader title="Password changed" subtitle="You can sign in now" />
+        <div className="box-frame px-4 py-4 sm:px-5 sm:py-5">
+          <p className="t-body m-0">
+            Your password has been changed. Signing in with it is the next step.
+          </p>
+          <p className="mt-4">
+            <Link to="/login" className="ctl ctl-solid no-underline">Continue to sign in</Link>
+          </p>
         </div>
+        <LegalFootnote />
       </AuthLayout>
     );
   }
 
   return (
     <AuthLayout>
-      <form onSubmit={handleSubmit} className="w-full space-y-6">
-        <BrandHeader title="Choose a password" subtitle="Pick something new." />
-        <div className="space-y-4">
-          <div className="space-y-1">
-            <label htmlFor="password" className="text-sm text-zinc-400">New password</label>
-            <input
-              id="password"
-              type="password"
-              required
-              minLength={MIN_PASSWORD_LENGTH}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
-              autoComplete="new-password"
-              className={inputClass}
-            />
-          </div>
-          <div className="space-y-1">
-            <label htmlFor="confirm" className="text-sm text-zinc-400">Repeat password</label>
-            <input
-              id="confirm"
-              type="password"
-              required
-              minLength={MIN_PASSWORD_LENGTH}
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              autoComplete="new-password"
-              aria-invalid={Boolean(error)}
-              aria-describedby={error ? 'reset-error' : undefined}
-              className={inputClass}
-            />
-          </div>
-          {error && <p id="reset-error" role="alert" className="text-red-400 text-sm">{error}</p>}
-          <button type="submit" disabled={loading} className={primaryButtonClass}>
-            {loading ? 'Saving…' : 'Set new password'}
-          </button>
-        </div>
-        <LegalFootnote />
+      <BrandHeader title="Choose a password" subtitle="Password reset" />
+      <form onSubmit={handleSubmit} className="box-frame flex flex-col gap-4 px-4 py-4 sm:px-5 sm:py-5">
+        <PlateField label="New password" id="password" hint={`At least ${MIN_PASSWORD_LENGTH} characters`}>
+          <input
+            id="password"
+            type="password"
+            required
+            minLength={MIN_PASSWORD_LENGTH}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
+            autoComplete="new-password"
+            className={inputClass}
+          />
+        </PlateField>
+        <PlateField label="Repeat password" id="confirm">
+          <input
+            id="confirm"
+            type="password"
+            required
+            minLength={MIN_PASSWORD_LENGTH}
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            autoComplete="new-password"
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? 'reset-error' : undefined}
+            className={inputClass}
+          />
+        </PlateField>
+        {error && (
+          <p id="reset-error" role="alert" className="t-body m-0 text-[0.8125rem] leading-6" style={{ color: 'var(--color-caution)' }}>
+            {error}
+          </p>
+        )}
+        <button type="submit" disabled={loading} className={primaryButtonClass}>
+          {loading ? 'Saving…' : 'Set new password'}
+        </button>
       </form>
+      <LegalFootnote />
     </AuthLayout>
   );
 }

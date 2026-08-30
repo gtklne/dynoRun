@@ -9,6 +9,11 @@ interface CountdownOverlayProps {
   from?: number;
 }
 
+/**
+ * The whole sheet is replaced by one number, because this is read from the
+ * driver's seat at a glance and nothing else on screen can compete with it.
+ * No blur, no scrim over a half-legible page: an opaque plate.
+ */
 export function CountdownOverlay({ onComplete, onCancel, from = 3 }: CountdownOverlayProps) {
   const [count, setCount] = useState(from);
 
@@ -25,23 +30,28 @@ export function CountdownOverlay({ onComplete, onCancel, from = 3 }: CountdownOv
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 bg-zinc-950/95 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-6"
+      style={{ background: 'var(--color-sheet)' }}
       onClick={onCancel}
       role="dialog"
       aria-label="Run countdown"
     >
-      <p className="text-zinc-400 uppercase tracking-[0.3em] text-xs">Get ready</p>
-      <div
+      <p className="t-label">Get ready</p>
+      <p
         key={count}
-        className="text-[10rem] font-bold text-amber-400 tabular-nums animate-pulse"
-        style={{ lineHeight: 1 }}
+        className="t-readout-xl"
+        style={{ color: count > 0 ? 'var(--color-ink)' : 'var(--color-procedure)' }}
       >
         {count > 0 ? count : 'GO'}
-      </div>
+      </p>
       {onCancel && (
         <button
-          className="text-zinc-500 text-xs underline underline-offset-4"
-          onClick={(e) => { e.stopPropagation(); onCancel(); }}
+          type="button"
+          className="t-annotation underline underline-offset-4"
+          onClick={(e) => {
+            e.stopPropagation();
+            onCancel();
+          }}
         >
           Tap anywhere to cancel
         </button>

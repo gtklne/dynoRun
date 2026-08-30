@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { takePostLoginPath } from '@/auth/social-sign-in';
 import { safeCallbackPath } from '@/auth/callback-path';
+import { AuthLayout, BrandHeader } from '@/ui/auth/auth-layout';
 
 /**
  * Where a web social sign-in lands, purely to restore the destination.
@@ -30,8 +31,13 @@ export function ContinueScreen() {
   }, [navigate, params]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-950 p-6">
-      <p className="text-sm text-zinc-400">Signing you in…</p>
-    </div>
+    <AuthLayout>
+      <BrandHeader title="Signing you in" subtitle="Returning from your provider" />
+      <div className="box-frame px-4 py-4 sm:px-5 sm:py-5">
+        <p className="t-body m-0" role="status">
+          Restoring the page you asked for.
+        </p>
+      </div>
+    </AuthLayout>
   );
 }

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import type { GripComparison } from '@/analysis/grip/compare';
+import type { ComparedCorner, ComparedCornerStat, GripComparison } from '@/analysis/grip/compare';
 import { PAYOFF_HINT, PAYOFF_LABEL, turnPayoff, type TurnPayoff } from '@/analysis/grip/compare-stats';
-import { SegmentedControl } from '@/ui/components/segmented-control';
+import { MinimaTable, Na, PlateSegmented, usePlateInk, type MinimaColumn } from '@/ui/plate';
 import { deltaTextClass, formatDelta } from './compare-colors';
 import { scoreColor } from './colors';
 
@@ -15,18 +15,35 @@ interface Props {
   onSelectTurn: (s: number) => void;
 }
 
-const PAYOFF_STYLE: Record<TurnPayoff, string> = {
-  'unmeasured': 'text-zinc-600 italic',
-  'level': 'text-zinc-500',
-  'faster-more-g': 'text-sky-300',
-  'faster-other': 'text-sky-400',
-  'slower-backed-off': 'text-amber-400',
-  'slower-despite-g': 'text-rose-400',
-  'level-cheaper': 'text-sky-300',
-  'level-dearer': 'text-amber-400',
+/**
+ * A verdict is a reading, so it gets ink rather than decoration: gain where the
+ * subject came out ahead, caution where it gave something up, procedure where
+ * it paid demand and got nothing back.
+ */
+const PAYOFF_INK: Record<TurnPayoff, string> = {
+  unmeasured: 'var(--color-ink-3)',
+  level: 'var(--color-ink-2)',
+  'faster-more-g': 'var(--color-gain)',
+  'faster-other': 'var(--color-gain)',
+  'slower-backed-off': 'var(--color-caution)',
+  'slower-despite-g': 'var(--color-procedure)',
+  'level-cheaper': 'var(--color-gain)',
+  'level-dearer': 'var(--color-caution)',
 };
 
 type Order = 'loss' | 'track';
+
+interface Row {
+  c: ComparedCorner;
+  ref: ComparedCornerStat | undefined;
+  sub: ComparedCornerStat | undefined;
+  dTime: number;
+  dScore: number;
+  dSpeed: number;
+  dLean: number;
+  dLoad: number;
+  payoff: TurnPayoff;
+}
 
 /**
  * Turn-by-turn, reference against one subject lap. Every row is measured over
@@ -35,13 +52,14 @@ type Order = 'loss' | 'track';
  */
 export function CompareTurnTable({ cmp, refKey, subjectKey, anchorG, cursor, onSelectTurn }: Props) {
   const [order, setOrder] = useState<Order>('loss');
+  const ink = usePlateInk();
 
-  const rows = useMemo(() => {
+  const rows = useMemo<Row[]>(() => {
     const out = cmp.corners.map((c) => {
       const ref = c.stats.find((s) => s.key === refKey);
       const sub = c.stats.find((s) => s.key === subjectKey);
       // NaN when either lap left the layout before this turn, kept as NaN so
-      // the verdict reads "Not on this lap" instead of "Matched"
+      // the verdict reads "not on this lap" instead of "Matched"
       const dTime = sub && ref ? sub.deltaGain - ref.deltaGain : NaN;
       const dScore = sub && ref ? sub.apexScore - ref.apexScore : NaN;
       return {
@@ -70,24 +88,136 @@ export function CompareTurnTable({ cmp, refKey, subjectKey, anchorG, cursor, onS
 
   if (!cmp.corners.length) {
     return (
-      <p className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 text-center text-sm text-zinc-500">
-        No turns were detected on these laps. Lower “Min lean for a corner” in Settings if the track has only gentle bends.
-      </p>
+      <section aria-label="Turn by turn">
+        <h2 className="t-label mb-2">Turn by turn</h2>
+        <div className="box-frame hatch px-3 py-6 text-center">
+          <p className="t-annotation" style={{ color: 'var(--color-ink-2)' }}>
+            No turns were detected on these laps. Lower &ldquo;Min lean for a corner&rdquo; in Settings if the track
+            has only gentle bends.
+          </p>
+        </div>
+      </section>
     );
   }
 
+  /**
+   * A turn outside the subject's common section still has values; they are just
+   * measured on different tarmac. Printing them beside an n/a for time invites
+   * exactly the comparison the mask exists to prevent, so the whole row reads
+   * n/a.
+   */
+  const off = (r: Row) => r.payoff === 'unmeasured';
+
+  const delta = (value: number, dp: number, eps: number) => (
+    <span className={`ml-1.5 text-[11px] ${deltaTextClass(value, eps)}`}>{formatDelta(value, dp)}</span>
+  );
+
+  const columns: MinimaColumn<Row>[] = [
+    {
+      key: 'turn',
+      head: 'Turn',
+      cell: (r) => (
+        <span className="flex items-center gap-2">
+          <span
+            aria-hidden="true"
+            className={`h-3 w-3 shrink-0 ${off(r) ? 'hatch' : ''}`}
+            style={off(r) ? undefined : { background: scoreColor(ink, (r.sub?.apexScore ?? 0) / 100, anchorG) }}
+          />
+          T{r.c.turn}
+          <span className="t-annotation">{r.c.dir === 'L' ? 'Left' : 'Right'}</span>
+        </span>
+      ),
+    },
+    {
+      key: 'dt',
+      head: 'Δ time',
+      numeric: true,
+      cell: (r) =>
+        sameLap || off(r) ? (
+          <Na title={off(r) ? 'Not on the subject lap’s section of track' : 'Reference against itself'} />
+        ) : (
+          <span className={deltaTextClass(r.dTime)}>{formatDelta(r.dTime)}s</span>
+        ),
+    },
+    {
+      key: 'apex',
+      head: 'Apex demand',
+      numeric: true,
+      cell: (r) =>
+        off(r) ? (
+          <Na />
+        ) : (
+          <>
+            {Math.round(r.sub?.apexScore ?? 0)}
+            {!sameLap && Number.isFinite(r.dScore) && delta(r.dScore, 0, 3)}
+          </>
+        ),
+    },
+    {
+      key: 'spd',
+      head: 'Min speed',
+      numeric: true,
+      cell: (r) =>
+        off(r) ? (
+          <Na />
+        ) : (
+          <>
+            {Math.round((r.sub?.minSpeed ?? 0) * 3.6)}
+            {!sameLap && delta(r.dSpeed, 0, 1)}
+          </>
+        ),
+    },
+    {
+      key: 'lean',
+      head: 'Lean',
+      numeric: true,
+      cell: (r) =>
+        off(r) ? (
+          <Na />
+        ) : (
+          <>
+            {Math.round(r.sub?.maxLean ?? 0)}°
+            {!sameLap && <span className="t-annotation ml-1.5">{formatDelta(r.dLean, 0)}</span>}
+          </>
+        ),
+    },
+    {
+      key: 'load',
+      head: 'Transfer',
+      numeric: true,
+      cell: (r) =>
+        off(r) ? (
+          <Na />
+        ) : (
+          <>
+            {(r.sub?.peakLoad ?? 0).toFixed(1)}
+            {!sameLap && <span className="t-annotation ml-1.5">{formatDelta(r.dLoad, 1)}</span>}
+          </>
+        ),
+    },
+    {
+      key: 'payoff',
+      head: 'What happened',
+      cell: (r) => (
+        <span style={{ color: PAYOFF_INK[r.payoff] }} title={PAYOFF_HINT[r.payoff]}>
+          {sameLap ? `ref ${Math.round(r.ref?.apexScore ?? 0)} pts` : PAYOFF_LABEL[r.payoff]}
+        </span>
+      ),
+    },
+  ];
+
   return (
-    <section>
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+    <section aria-label="Turn by turn">
+      <div className="mb-2 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
         <div>
-          <h2 className="text-lg font-bold text-zinc-100">Turn by turn</h2>
-          <p className="mt-0.5 text-xs text-zinc-500">
+          <h2 className="t-label">Turn by turn</h2>
+          <p className="t-annotation mt-1" style={{ textTransform: 'none', letterSpacing: '0.02em' }}>
             {sameLap ? (
               <>Pick a second lap to see per-turn deltas.</>
             ) : worst.length ? (
               <>
                 Most time to find at{' '}
-                <b className="text-rose-400">{worst.map((r) => `T${r.c.turn}`).join(', ')}</b>
+                <b style={{ color: 'var(--color-procedure)' }}>{worst.map((r) => `T${r.c.turn}`).join(', ')}</b>
                 {': '}
                 {formatDelta(worst.reduce((s, r) => s + r.dTime, 0))}s of the gap sits there.
               </>
@@ -95,100 +225,31 @@ export function CompareTurnTable({ cmp, refKey, subjectKey, anchorG, cursor, onS
               <>No turn is losing more than 0.05 s. The gap is spread across the lap.</>
             )}
             {unmeasured > 0 && (
-              <> · {unmeasured} turn{unmeasured === 1 ? '' : 's'} not on the subject lap’s section of track.</>
+              <> · {unmeasured} turn{unmeasured === 1 ? '' : 's'} not on the subject lap&rsquo;s section of track.</>
             )}
           </p>
         </div>
-        <SegmentedControl
-          ariaLabel="Turn order"
-          compact
+        <PlateSegmented
+          label="Turn order"
+          value={order}
           options={[
             { value: 'loss', label: 'Biggest loss' },
             { value: 'track', label: 'Track order' },
           ]}
-          value={order}
-          onChange={(v) => setOrder(v as Order)}
+          onChange={setOrder}
         />
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-900">
-        <table className="w-full min-w-[640px] border-collapse text-left">
-          <thead>
-            <tr className="border-b border-zinc-800 text-[10px] uppercase tracking-wider text-zinc-500">
-              <th className="px-3 py-2 font-semibold">Turn</th>
-              <th className="px-3 py-2 text-right font-semibold">Δ time</th>
-              <th className="px-3 py-2 text-right font-semibold">Apex demand</th>
-              <th className="px-3 py-2 text-right font-semibold">Min speed</th>
-              <th className="px-3 py-2 text-right font-semibold">Lean</th>
-              <th className="px-3 py-2 text-right font-semibold">Transfer</th>
-              <th className="px-3 py-2 font-semibold">What happened</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(({ c, ref, sub, dTime, dScore, dSpeed, dLean, dLoad, payoff }) => {
-              // A turn outside the subject's common section has values. They are
-              // just measured on different tarmac. Printing them next to a "n/a" for
-              // time invites exactly the comparison the mask exists to prevent.
-              const off = payoff === 'unmeasured';
-              return (
-              <tr
-                key={c.turn}
-                onClick={() => onSelectTurn(c.s)}
-                className={`cursor-pointer border-b border-zinc-800/60 text-[13px] transition-colors last:border-0 hover:bg-zinc-800/40 ${
-                  activeTurn === c.turn ? 'bg-[#12161c]' : ''
-                } ${off ? 'opacity-50' : ''}`}
-              >
-                <td className="px-3 py-2.5">
-                  <span className="flex items-center gap-2">
-                    <span
-                      className="flex h-[22px] w-[22px] items-center justify-center rounded-md font-mono text-[11px] font-bold text-zinc-950"
-                      style={{ background: off ? '#52525b' : scoreColor((sub?.apexScore ?? 0) / 100, anchorG) }}
-                    >
-                      {c.turn}
-                    </span>
-                    <span className="text-[11px] text-zinc-500">{c.dir === 'L' ? 'Left' : 'Right'}</span>
-                  </span>
-                </td>
-                <td className={`px-3 py-2.5 text-right font-mono tabular-nums ${deltaTextClass(dTime)}`}>
-                  {sameLap || off ? 'n/a' : `${formatDelta(dTime)}s`}
-                </td>
-                <td className="px-3 py-2.5 text-right font-mono tabular-nums text-zinc-300">
-                  {off ? 'n/a' : Math.round(sub?.apexScore ?? 0)}
-                  {!sameLap && !off && Number.isFinite(dScore) && (
-                    <span className={`ml-1.5 text-[11px] ${deltaTextClass(-dScore, 3)}`}>
-                      {formatDelta(dScore, 0)}
-                    </span>
-                  )}
-                </td>
-                <td className="px-3 py-2.5 text-right font-mono tabular-nums text-zinc-300">
-                  {off ? 'n/a' : Math.round((sub?.minSpeed ?? 0) * 3.6)}
-                  {!sameLap && !off && (
-                    <span className={`ml-1.5 text-[11px] ${deltaTextClass(-dSpeed, 1)}`}>
-                      {formatDelta(dSpeed, 0)}
-                    </span>
-                  )}
-                </td>
-                <td className="px-3 py-2.5 text-right font-mono tabular-nums text-zinc-400">
-                  {off ? 'n/a' : `${Math.round(sub?.maxLean ?? 0)}°`}
-                  {!sameLap && !off && <span className="ml-1.5 text-[11px] text-zinc-500">{formatDelta(dLean, 0)}</span>}
-                </td>
-                <td className="px-3 py-2.5 text-right font-mono tabular-nums text-zinc-400">
-                  {off ? 'n/a' : (sub?.peakLoad ?? 0).toFixed(1)}
-                  {!sameLap && !off && <span className="ml-1.5 text-[11px] text-zinc-500">{formatDelta(dLoad, 1)}</span>}
-                </td>
-                <td className={`px-3 py-2.5 text-[12px] ${PAYOFF_STYLE[payoff]}`} title={PAYOFF_HINT[payoff]}>
-                  {sameLap ? `ref ${Math.round(ref?.apexScore ?? 0)} pts` : PAYOFF_LABEL[payoff]}
-                </td>
-              </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      <div className="box-frame">
+        <MinimaTable
+          columns={columns}
+          rows={rows}
+          rowKey={(r) => String(r.c.turn)}
+          selectedKey={activeTurn == null ? null : String(activeTurn)}
+          onSelect={(r) => onSelectTurn(r.c.s)}
+          caption="Demand is a score: g × 100, so 110 ≈ 1.10 g. Δ columns are the subject lap minus the reference, measured over the same stretch of track on both laps."
+        />
       </div>
-      <p className="mt-2 text-[11px] text-zinc-600">
-        Demand is a score: g × 100, so 110 ≈ 1.10 g. Δ columns are the subject lap minus the reference, measured over
-        the same stretch of track on both laps.
-      </p>
     </section>
   );
 }

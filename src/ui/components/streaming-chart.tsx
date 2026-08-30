@@ -1,9 +1,9 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
+import { usePlateInk } from '@/ui/plate';
 import {
   attachChartResize,
-  CURSOR_STROKE,
   HOVER_POINT_SIZE,
   legendValue,
   responsiveChartHeight,
@@ -11,8 +11,6 @@ import {
   themedCursor,
 } from '@/ui/components/uplot-theme';
 
-const SPEED_STROKE = '#22d3ee';
-const RPM_STROKE = '#f59e0b';
 const BASE_HEIGHT = 280;
 
 export interface StreamingChartHandle {
@@ -28,12 +26,18 @@ export const StreamingChart = forwardRef<StreamingChartHandle, StreamingChartPro
   function StreamingChart({ windowSeconds = 30 }, ref) {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const plotRef = useRef<uPlot | null>(null);
+    const ink = usePlateInk();
     const tsRef = useRef<number[]>([]);
     const speedsRef = useRef<number[]>([]);
     const rpmsRef = useRef<number[]>([]);
 
     useEffect(() => {
       if (!containerRef.current) return;
+      // Two channels on one strip: speed is the measurement, RPM is derived
+      // from it, so RPM takes the dashed line rather than a second full-weight
+      // stroke competing for the same glance.
+      const SPEED_STROKE = ink.ink;
+      const RPM_STROKE = ink.procedure;
       const opts: uPlot.Options = {
         width: containerRef.current.clientWidth,
         height: responsiveChartHeight(BASE_HEIGHT),
@@ -43,9 +47,9 @@ export const StreamingChart = forwardRef<StreamingChartHandle, StreamingChartPro
           rpm: {},
         },
         axes: [
-          themedAxis({ label: 'Time (s)' }),
-          themedAxis({ label: 'Speed (km/h)', scale: 'speed', decimals: 0 }),
-          themedAxis({ label: 'RPM', scale: 'rpm', side: 1, showGrid: false }),
+          themedAxis({ label: 'Time (s)', ink }),
+          themedAxis({ label: 'Speed (km/h)', scale: 'speed', decimals: 0, ink }),
+          themedAxis({ label: 'RPM', scale: 'rpm', side: 1, showGrid: false, ink }),
         ],
         series: [
           { value: legendValue('s', 1) },
@@ -61,18 +65,19 @@ export const StreamingChart = forwardRef<StreamingChartHandle, StreamingChartPro
             label: 'RPM',
             stroke: RPM_STROKE,
             width: 2,
+            dash: [7, 3],
             scale: 'rpm',
             value: legendValue('RPM', 0),
             points: { size: HOVER_POINT_SIZE, stroke: RPM_STROKE, fill: RPM_STROKE },
           },
         ],
-        cursor: themedCursor({ x: true, y: true, points: { stroke: CURSOR_STROKE } }),
+        cursor: themedCursor({ x: true, y: true }, ink),
       };
       const data: uPlot.AlignedData = [[], [], []];
       plotRef.current = new uPlot(opts, data, containerRef.current);
       const detach = attachChartResize(containerRef.current, plotRef.current, BASE_HEIGHT);
       return () => { detach(); plotRef.current?.destroy(); plotRef.current = null; };
-    }, []);
+    }, [ink]);
 
     useImperativeHandle(ref, () => ({
       pushSample(t_ms, speed_kmh, rpm) {
@@ -96,6 +101,6 @@ export const StreamingChart = forwardRef<StreamingChartHandle, StreamingChartPro
       },
     }), [windowSeconds]);
 
-    return <div ref={containerRef} />;
+    return <div ref={containerRef} data-plate-figures />;
   },
 );

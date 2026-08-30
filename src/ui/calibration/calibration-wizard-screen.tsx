@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { vehicleRepository } from '@/api/repositories/vehicle-repository';
+import { Plate, TitleBlock, Zone } from '@/ui/plate';
 import { CalibrationStepGear, type GearInput, type MeasureMode } from './calibration-step-gear';
 import { CalibrationStepMeasure } from './calibration-step-measure';
 import { CalibrationStepMeasureHandsFree } from './calibration-step-measure-handsfree';
@@ -9,13 +10,34 @@ import type { Calibration, VehicleKind } from '@/shared/types';
 
 type WizardStep = 'gear' | 'measure' | 'confirm';
 
-const STEPS: WizardStep[] = ['gear', 'measure', 'confirm'];
+const STEPS: { key: WizardStep; label: string }[] = [
+  { key: 'gear', label: 'Gear and target' },
+  { key: 'measure', label: 'Measure' },
+  { key: 'confirm', label: 'Confirm' },
+];
 
 // A rider cannot watch the screen or tap a confirm button mid-pull, so a
 // motorcycle starts on the hands-free capture. Still switchable either way: a
 // bike on a rolling road, or a car whose driver would rather not watch either.
 function defaultMeasureMode(kind: VehicleKind | null): MeasureMode {
   return kind === 'motorcycle' ? 'hands_free' : 'tap';
+}
+
+function DoneMark() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="square"
+      aria-hidden="true"
+    >
+      <polyline points="4 12 10 18 20 6" />
+    </svg>
+  );
 }
 
 export function CalibrationWizardScreen() {
@@ -26,6 +48,7 @@ export function CalibrationWizardScreen() {
   const [measureMode, setMeasureMode] = useState<MeasureMode>('tap');
   const [calibration, setCalibration] = useState<Calibration | null>(null);
   const [kind, setKind] = useState<VehicleKind | null>(null);
+  const [vehicleName, setVehicleName] = useState<string | null>(null);
   const [kindLoaded, setKindLoaded] = useState(false);
 
   // The gear step seeds its mode toggle from this, and useState only reads an
@@ -33,51 +56,60 @@ export function CalibrationWizardScreen() {
   useEffect(() => {
     let cancelled = false;
     vehicleRepository.get(vehicleId)
-      .then((v) => { if (!cancelled) setKind(v?.kind ?? null); })
+      .then((v) => {
+        if (cancelled) return;
+        setKind(v?.kind ?? null);
+        setVehicleName(v?.name ?? null);
+      })
       .catch(() => { /* fall back to the tap default */ })
       .finally(() => { if (!cancelled) setKindLoaded(true); });
     return () => { cancelled = true; };
   }, [vehicleId]);
 
-  const stepIndex = STEPS.indexOf(step);
+  const stepIndex = STEPS.findIndex((s) => s.key === step);
 
   return (
-    <div className="space-y-5 lg:max-w-3xl lg:mx-auto">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-zinc-100">New Calibration</h1>
-        <p className="text-zinc-500 text-sm mt-1">Sets up your gear ratio for dyno runs</p>
-      </div>
+    <Plate className="lg:mx-auto lg:max-w-3xl">
+      <TitleBlock
+        ident={vehicleName ?? undefined}
+        title="New calibration"
+        meta={[
+          { label: 'Procedure', value: 'Capture rollout from a steady hold' },
+          { label: 'Yields', value: 'rollout, m/rev' },
+        ]}
+      />
 
-      {/* Step indicator */}
-      <div className="flex items-center gap-2">
-        {STEPS.map((s, i) => (
-          <div key={s} className="flex items-center gap-2">
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-colors ${
-              i < stepIndex
-                ? 'bg-emerald-500 text-zinc-950'
-                : i === stepIndex
-                  ? 'bg-amber-500 text-zinc-950'
-                  : 'bg-zinc-800 text-zinc-500'
-            }`}>
-              {i < stepIndex ? (
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-              ) : (
-                i + 1
-              )}
-            </div>
-            {i < STEPS.length - 1 && (
-              <div className={`h-0.5 w-8 rounded-full transition-colors ${i < stepIndex ? 'bg-emerald-500' : 'bg-zinc-800'}`} />
-            )}
-          </div>
-        ))}
-        <span className="text-zinc-500 text-xs ml-1">Step {stepIndex + 1} of {STEPS.length}</span>
-      </div>
+      <Zone label="Steps" note={`Step ${stepIndex + 1} of ${STEPS.length}`}>
+        <ol className="flex">
+          {STEPS.map((s, i) => {
+            const current = i === stepIndex;
+            const done = i < stepIndex;
+            return (
+              <li
+                key={s.key}
+                aria-current={current ? 'step' : undefined}
+                className={`min-w-0 flex-1 px-3 py-2 ${i > 0 ? 'rule-l' : ''} ${done ? 'plate-sunk' : ''}`}
+                style={
+                  current
+                    ? { background: 'var(--color-ink)', color: 'var(--color-sheet)' }
+                    : undefined
+                }
+              >
+                <p className="t-annotation flex items-center gap-1.5" style={current ? { color: 'inherit' } : undefined}>
+                  {done && <DoneMark />}
+                  {i + 1}
+                </p>
+                <p className="t-label mt-1 truncate" style={current ? { color: 'inherit' } : undefined}>
+                  {s.label}
+                </p>
+              </li>
+            );
+          })}
+        </ol>
+      </Zone>
 
       {step === 'gear' && !kindLoaded && (
-        <p className="text-zinc-500 text-sm">Loading vehicle…</p>
+        <p className="t-annotation">Loading vehicle...</p>
       )}
       {step === 'gear' && kindLoaded && (
         <CalibrationStepGear
@@ -107,6 +139,6 @@ export function CalibrationWizardScreen() {
           onDone={() => navigate(`/vehicles/${vehicleId}`)}
         />
       )}
-    </div>
+    </Plate>
   );
 }

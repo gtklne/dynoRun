@@ -20,6 +20,12 @@
 // the output filename from it (scripts/prerender-landing.mjs), so the canonical this
 // document declares and the file nginx serves cannot drift apart.
 //
+// The page carries no raster product captures at all: the demonstration is drawn
+// natively by LandingScreen from the shipping analysis pipeline, so it can never
+// go stale against the app the way a screenshot does, and there is no image byte
+// on the critical path. The only raster left is the social card, which lives in
+// the metadata below rather than in the document body.
+//
 // The CSS is inlined rather than linked because nginx here only gzips text/html
 // (gzip_types is left at its default), so 60 kB of inlined CSS goes over the wire
 // at ~11 kB while the same bytes as /assets/index-*.css would go uncompressed,
@@ -50,11 +56,11 @@ export function renderLandingDocument({ css }: { css: string }): string {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#09090b" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#101316" media="(prefers-color-scheme: dark)" />
     <meta name="description" content="${DESCRIPTION}" />
     <link rel="canonical" href="${LANDING_URL}" />
-    <link rel="preload" as="image" href="/media/wasgoht-track-hero-768.avif" type="image/avif" media="(max-width: 767px)" />
-    <link rel="preload" as="image" href="/media/wasgoht-track-hero-1536.avif" type="image/avif" media="(min-width: 768px)" />
+    <link rel="preload" href="/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/favicon.svg" />

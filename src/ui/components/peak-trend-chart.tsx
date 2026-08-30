@@ -3,9 +3,9 @@ import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
 import { convertPower } from '@/shared/format-power';
 import { useUnits } from '@/app/units-context';
+import { usePlateInk } from '@/ui/plate';
 import {
   attachChartResize,
-  CURSOR_STROKE,
   HOVER_POINT_SIZE,
   legendValue,
   responsiveChartHeight,
@@ -35,9 +35,6 @@ interface ValidRun {
   label: string;
 }
 
-const SERIES_COLOR = '#fbbf24';
-const BEST_COLOR = '#a16207';
-
 function prepareRuns(runs: PeakTrendRun[]): ValidRun[] {
   const valid: ValidRun[] = [];
   for (const r of runs) {
@@ -62,6 +59,7 @@ export function PeakTrendChart({ runs, onSelectRun, height = 200 }: PeakTrendCha
   const validRef = useRef<ValidRun[]>([]);
   const onSelectRef = useRef<typeof onSelectRun>(onSelectRun);
   const { unit } = useUnits();
+  const ink = usePlateInk();
 
   useEffect(() => {
     onSelectRef.current = onSelectRun;
@@ -74,6 +72,12 @@ export function PeakTrendChart({ runs, onSelectRun, height = 200 }: PeakTrendCha
     if (valid.length < 2) return;
 
     validRef.current = valid;
+
+    // The trend is the line you actually rode; the personal best is a datum
+    // to read it against, so it takes terrain ink and a dash rather than a
+    // second colour competing with the data.
+    const SERIES_COLOR = ink.procedure;
+    const BEST_COLOR = ink.terrain;
 
     const xs = valid.map((v) => v.ts);
     const ys = valid.map((v) => convertPower(v.peak_kw, unit));
@@ -100,8 +104,8 @@ export function PeakTrendChart({ runs, onSelectRun, height = 200 }: PeakTrendCha
         y: { auto: true },
       },
       axes: [
-        themedAxis({}),
-        themedAxis({ label: `Peak (${unit})`, labelSize: 30, decimals: 0 }),
+        themedAxis({ ink }),
+        themedAxis({ label: `Peak (${unit})`, labelSize: 30, decimals: 0, ink }),
       ],
       series: [
         {},
@@ -121,12 +125,15 @@ export function PeakTrendChart({ runs, onSelectRun, height = 200 }: PeakTrendCha
           points: { show: false },
         },
       ],
-      cursor: themedCursor({
-        x: true,
-        y: false,
-        points: { show: true, stroke: CURSOR_STROKE },
-        drag: { x: false, y: false, setScale: false },
-      }),
+      cursor: themedCursor(
+        {
+          x: true,
+          y: false,
+          points: { show: true },
+          drag: { x: false, y: false, setScale: false },
+        },
+        ink,
+      ),
       legend: { show: true },
       hooks: {
         ready: [
@@ -154,15 +161,15 @@ export function PeakTrendChart({ runs, onSelectRun, height = 200 }: PeakTrendCha
     };
     // valid is derived from runs; recomputing on every prop change is intentional
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runs, unit, height]);
+  }, [runs, unit, height, ink]);
 
   if (valid.length < 2) {
     return (
-      <p className="text-zinc-600 text-sm text-center py-2">
+      <p className="t-annotation px-3 py-4 text-center">
         Not enough complete runs yet to show a trend.
       </p>
     );
   }
 
-  return <div ref={containerRef} data-testid="peak-trend-chart" />;
+  return <div ref={containerRef} data-testid="peak-trend-chart" data-plate-figures />;
 }

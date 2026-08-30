@@ -113,448 +113,513 @@
   }
 }
 
-/* ---------------------------------------------------------------- base --- */
+/* ===========================================================================
+   CASCADE LAYERS
+   ---------------------------------------------------------------------------
+   Everything below is layered on purpose, and it is load-bearing rather than
+   tidiness. Tailwind emits its utilities into @layer utilities, and an
+   UNLAYERED rule always beats a layered one no matter how weak its specificity.
+   So while `a { color: inherit }` sat unlayered, `text-[var(--color-sheet)]` on
+   an anchor silently did nothing, and the app shell's active tab rendered
+   ink on ink: invisible, with both computed colours identical. The same trap
+   made `.ctl`'s padding and text-transform unoverridable by utilities.
 
-* {
-  -webkit-tap-highlight-color: transparent;
-}
+   Layering base and components puts them back under the utilities, which is
+   the order every caller already assumes. Do not unwrap these blocks.
+   =========================================================================== */
 
-html,
-body,
-#root {
-  height: 100%;
-  background-color: var(--color-sheet);
-  color: var(--color-ink);
-}
+@layer base {
+  /* ---------------------------------------------------------------- base --- */
 
-html {
-  color-scheme: light dark;
-  /* The sheet is a printed document: it never bounces. */
-  overscroll-behavior-y: none;
-}
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
 
-body {
-  font-family: var(--font-sans);
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1, "ss01" 1;
-  -webkit-font-smoothing: antialiased;
-}
+  html,
+  body,
+  #root {
+    height: 100%;
+    background-color: var(--color-sheet);
+    color: var(--color-ink);
+  }
 
-/* Every numeral in this product is a measurement, so figures are tabular
-   everywhere by default rather than per-component. */
-table,
-[data-plate-figures] {
-  font-variant-numeric: tabular-nums;
-}
+  html {
+    color-scheme: light dark;
+    /* The sheet is a printed document: it never bounces. */
+    overscroll-behavior-y: none;
+  }
 
-/* iOS Safari zooms a focused control below 16px. */
-input,
-textarea,
-select {
-  font-size: 16px;
-}
+  body {
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1, "ss01" 1;
+    -webkit-font-smoothing: antialiased;
+  }
 
-/* The surfaces we did not draw still belong to the plate. */
-::selection {
-  background: var(--color-procedure);
-  color: var(--color-sheet);
-}
+  /* Every numeral in this product is a measurement, so figures are tabular
+     everywhere by default rather than per-component. */
+  table,
+  [data-plate-figures] {
+    font-variant-numeric: tabular-nums;
+  }
 
-:focus-visible {
-  outline: var(--rule-section) solid var(--color-procedure);
-  outline-offset: 2px;
-}
+  /* iOS Safari zooms a focused control below 16px. */
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
 
-::placeholder {
-  color: var(--color-ink-3);
-  opacity: 1;
-}
+  /* The surfaces we did not draw still belong to the plate. */
+  ::selection {
+    background: var(--color-procedure);
+    color: var(--color-sheet);
+  }
 
-:root {
-  accent-color: var(--color-procedure);
-  caret-color: var(--color-procedure);
-  scrollbar-color: var(--color-rule) transparent;
-  scrollbar-width: thin;
-}
+  :focus-visible {
+    outline: var(--rule-section) solid var(--color-procedure);
+    outline-offset: 2px;
+  }
 
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
+  ::placeholder {
+    color: var(--color-ink-3);
+    opacity: 1;
+  }
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+  :root {
+    accent-color: var(--color-procedure);
+    caret-color: var(--color-procedure);
+    scrollbar-color: var(--color-rule) transparent;
+    scrollbar-width: thin;
+  }
 
-::-webkit-scrollbar-thumb {
-  background: var(--color-rule);
-  border: 3px solid var(--color-sheet);
-}
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-terrain);
-}
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
 
-a {
-  color: inherit;
-  text-decoration-color: var(--color-terrain);
-  text-underline-offset: 3px;
-  text-decoration-thickness: 1px;
-}
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-rule);
+    border: 3px solid var(--color-sheet);
+  }
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-terrain);
+  }
+
+  a {
+    color: inherit;
+    text-decoration-color: var(--color-terrain);
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
   }
 }
 
-.pb-safe {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-.pt-safe {
-  padding-top: env(safe-area-inset-top, 0px);
-}
-
-/* ------------------------------------------------------------ lettering --- */
-/* One family. Each register is a width plus a weight plus a case, so the
-   hierarchy survives being printed in a single ink. */
-
-.t-annotation {
-  font-stretch: 75%;
-  font-weight: 600;
-  font-size: 0.6875rem;
-  line-height: 1.1;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--color-ink-3);
-}
-
-.t-label {
-  font-stretch: 87%;
-  font-weight: 700;
-  font-size: 0.75rem;
-  line-height: 1.15;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--color-ink-2);
-}
-
-.t-plate-title {
-  font-stretch: 87%;
-  font-weight: 800;
-  font-size: 1.0625rem;
-  line-height: 1.05;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--color-ink);
-}
-
-.t-body {
-  font-stretch: 100%;
-  font-weight: 400;
-  font-size: 0.9375rem;
-  line-height: 1.6;
-  color: var(--color-ink-2);
-  max-width: 68ch;
-}
-
-.t-data {
-  font-stretch: 100%;
-  font-weight: 550;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-ink);
-}
-
-/* The primary reading dwarfs its own label. Expanded because a chart's own
-   headline figures are: the width axis is doing the shouting, not a second
-   typeface. */
-.t-readout {
-  font-stretch: 112%;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.025em;
-  line-height: 0.86;
-  color: var(--color-ink);
-  font-size: clamp(2.25rem, 6vw, 4rem);
-}
-
-.t-readout-xl {
-  font-stretch: 118%;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.035em;
-  line-height: 0.84;
-  color: var(--color-ink);
-  font-size: clamp(3.5rem, 12vw, 6rem);
-}
-
-.t-display {
-  font-stretch: 108%;
-  font-weight: 800;
-  letter-spacing: -0.035em;
-  line-height: 0.94;
-  text-wrap: balance;
-  color: var(--color-ink);
-}
-
-/* --------------------------------------------------------------- plate --- */
-
-.plate {
-  background: var(--color-sheet);
-  border: var(--rule-frame) solid var(--color-ink);
-}
-
-.plate-sunk {
-  background: var(--color-sunk);
-}
-
-/* Boxes are ruled, never rounded, never shadowed. A frame is the plate's only
-   container; anything that needs separating gets a rule, not a card. */
-.box {
-  border: var(--rule-hair) solid var(--color-rule);
-  background: var(--color-sheet);
-}
-
-.box-frame {
-  border: var(--rule-frame) solid var(--color-ink);
-  background: var(--color-sheet);
-}
-
-.rule-t {
+@utility rule-t {
   border-top: var(--rule-hair) solid var(--color-rule);
 }
-.rule-b {
+@utility rule-b {
   border-bottom: var(--rule-hair) solid var(--color-rule);
 }
-.rule-l {
+@utility rule-l {
   border-left: var(--rule-hair) solid var(--color-rule);
 }
-.rule-r {
+@utility rule-r {
   border-right: var(--rule-hair) solid var(--color-rule);
 }
-.rule-section {
+@utility rule-none {
+  border: 0;
+}
+@utility rule-section {
   border-top: var(--rule-section) solid var(--color-ink);
 }
 
-/* Sections are cut blocks with real gaps, so the structure of a plate is
-   legible before a single value is read. */
-.plate-stack > * + * {
-  margin-top: 2.5rem;
-}
+@layer components {
+  /* ------------------------------------------------------------ lettering --- */
+  /* One family. Each register is a width plus a weight plus a case, so the
+     hierarchy survives being printed in a single ink. */
 
-@media (min-width: 768px) {
+  .t-annotation {
+    font-stretch: 75%;
+    font-weight: 600;
+    font-size: 0.6875rem;
+    line-height: 1.1;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--color-ink-3);
+  }
+
+  .t-label {
+    font-stretch: 87%;
+    font-weight: 700;
+    font-size: 0.75rem;
+    line-height: 1.15;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--color-ink-2);
+  }
+
+  .t-plate-title {
+    font-stretch: 87%;
+    font-weight: 800;
+    font-size: 1.0625rem;
+    line-height: 1.05;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--color-ink);
+  }
+
+  .t-body {
+    font-stretch: 100%;
+    font-weight: 400;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    color: var(--color-ink-2);
+    max-width: 68ch;
+  }
+
+  .t-data {
+    font-stretch: 100%;
+    font-weight: 550;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-ink);
+  }
+
+  /* The primary reading dwarfs its own label. Expanded because a chart's own
+     headline figures are: the width axis is doing the shouting, not a second
+     typeface. */
+  .t-readout {
+    font-stretch: 112%;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.025em;
+    line-height: 0.86;
+    color: var(--color-ink);
+    font-size: clamp(2.25rem, 6vw, 4rem);
+  }
+
+  .t-readout-xl {
+    font-stretch: 118%;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.035em;
+    line-height: 0.84;
+    color: var(--color-ink);
+    font-size: clamp(3.5rem, 12vw, 6rem);
+  }
+
+  .t-display {
+    font-stretch: 108%;
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    line-height: 0.94;
+    text-wrap: balance;
+    color: var(--color-ink);
+  }
+
+  /* --------------------------------------------------------------- plate --- */
+
+  .plate {
+    background: var(--color-sheet);
+    border: var(--rule-frame) solid var(--color-ink);
+  }
+
+  .plate-sunk {
+    background: var(--color-sunk);
+  }
+
+  /* Boxes are ruled, never rounded, never shadowed. A frame is the plate's only
+     container; anything that needs separating gets a rule, not a card. */
+  .box {
+    border: var(--rule-hair) solid var(--color-rule);
+    background: var(--color-sheet);
+  }
+
+  .box-frame {
+    border: var(--rule-frame) solid var(--color-ink);
+    background: var(--color-sheet);
+  }
+
+  /* Registered as real utilities, not plain classes, so `sm:rule-l` compiles.
+     As plain classes the variant silently produced nothing, which is invisible in
+     review: the divider just fails to appear at that breakpoint. */
+
+  /* Sections are cut blocks with real gaps, so the structure of a plate is
+     legible before a single value is read. */
   .plate-stack > * + * {
-    margin-top: 3.5rem;
+    margin-top: 2.5rem;
   }
-}
 
-/* -------------------------------------------------------------- hatch --- */
-/* Missing, masked or unmeasured data is hatched, never blank and never zero.
-   A blank region reads as "nothing happened"; a hatched one reads as "not
-   measured here", which is the honest statement and the product's whole
-   position. Mirrored in tokens.ts for canvas. */
-
-.hatch {
-  background-image: repeating-linear-gradient(
-    45deg,
-    transparent,
-    transparent 4px,
-    var(--color-rule) 4px,
-    var(--color-rule) 5px
-  );
-}
-
-.hatch-caution {
-  background-image: repeating-linear-gradient(
-    45deg,
-    transparent,
-    transparent 4px,
-    var(--color-caution) 4px,
-    var(--color-caution) 5px
-  );
-}
-
-/* ------------------------------------------------------------ controls --- */
-/* The active state inverts to solid ink: unmistakable through a visor, at
-   arm's length, in sunlight. Nothing about it depends on hue. */
-
-.ctl {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  border: var(--rule-frame) solid var(--color-ink);
-  background: var(--color-sheet);
-  color: var(--color-ink);
-  font-stretch: 87%;
-  font-weight: 700;
-  font-size: 0.8125rem;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  padding: 0.625rem 1rem;
-  min-height: 44px;
-  cursor: pointer;
-  transition: background-color 120ms var(--ease-plate),
-    color 120ms var(--ease-plate);
-}
-
-.ctl:hover:not(:disabled) {
-  background: var(--color-sunk);
-}
-
-.ctl-solid,
-.ctl[aria-pressed="true"],
-.ctl[data-active="true"] {
-  background: var(--color-ink);
-  color: var(--color-sheet);
-}
-
-.ctl-solid:hover:not(:disabled) {
-  background: var(--color-ink-2);
-}
-
-/* The one action that is yours: recording, arming, committing. */
-.ctl-procedure {
-  background: var(--color-procedure);
-  border-color: var(--color-procedure);
-  color: #ffffff;
-}
-
-.ctl-procedure:hover:not(:disabled) {
-  background: var(--color-ink);
-  border-color: var(--color-ink);
-  color: var(--color-sheet);
-}
-
-.ctl:disabled {
-  border-color: var(--color-rule);
-  color: var(--color-ink-3);
-  background: var(--color-sunk);
-  cursor: not-allowed;
-}
-
-/* Trackside: gloves, sun, one hand. The capture actions are plate-width and
-   monumental rather than button-sized. */
-.ctl-major {
-  width: 100%;
-  min-height: 76px;
-  font-size: 1.125rem;
-  font-stretch: 100%;
-  letter-spacing: 0.1em;
-}
-
-.field {
-  width: 100%;
-  border: var(--rule-hair) solid var(--color-rule);
-  background: var(--color-sheet);
-  color: var(--color-ink);
-  padding: 0.625rem 0.75rem;
-  min-height: 44px;
-  font-variant-numeric: tabular-nums;
-}
-
-.field:focus {
-  border-color: var(--color-ink);
-  outline: none;
-  box-shadow: inset 0 0 0 1px var(--color-ink);
-}
-
-.field:disabled {
-  background: var(--color-sunk);
-  color: var(--color-ink-3);
-}
-
-/* --------------------------------------------------------------- table --- */
-/* The minima table: rules do the separating, never zebra fills. */
-
-.minima {
-  width: 100%;
-  border-collapse: collapse;
-  font-variant-numeric: tabular-nums;
-}
-
-.minima th {
-  text-align: left;
-  font-stretch: 75%;
-  font-weight: 700;
-  font-size: 0.6875rem;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--color-ink-3);
-  padding: 0.4rem 0.625rem;
-  border-bottom: var(--rule-frame) solid var(--color-ink);
-  white-space: nowrap;
-}
-
-.minima td {
-  padding: 0.5rem 0.625rem;
-  border-bottom: var(--rule-hair) solid var(--color-rule-faint);
-  color: var(--color-ink);
-  font-weight: 500;
-}
-
-.minima tbody tr:hover td {
-  background: var(--color-sunk);
-}
-
-.minima tbody tr[data-selected="true"] td {
-  background: var(--color-procedure-tint);
-  color: var(--color-ink);
-}
-
-.minima .num {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-/* n/a is a real reading. It is set in the annotation register so it can never
-   be mistaken for a measured value. */
-.na {
-  color: var(--color-ink-3);
-  font-stretch: 75%;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-}
-
-/* --------------------------------------------------- cross-reference --- */
-/* The signature interaction. Plan and profile are two views of one procedure,
-   so a cursor in either reports the same instant in both, joined by a leader.
-   120ms is under the threshold where a dragged cursor feels detached. */
-
-.leader-line {
-  stroke: var(--color-ink);
-  stroke-width: 1;
-  fill: none;
-}
-
-.leader-dot {
-  fill: var(--color-ink);
-}
-
-.xref-cursor {
-  stroke: var(--color-procedure);
-  stroke-width: 1.5;
-}
-
-/* Plate issue: the sheet settles once on mount. One authored moment, from an
-   already-visible default so nothing is hidden by animation timing. */
-@keyframes plate-issue {
-  from {
-    opacity: 0.55;
-    transform: translateY(6px);
+  @media (min-width: 768px) {
+    .plate-stack > * + * {
+      margin-top: 3.5rem;
+    }
   }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
 
-.plate-issue {
-  animation: plate-issue 420ms var(--ease-plate) both;
+  /* -------------------------------------------------------------- hatch --- */
+  /* Missing, masked or unmeasured data is hatched, never blank and never zero.
+     A blank region reads as "nothing happened"; a hatched one reads as "not
+     measured here", which is the honest statement and the product's whole
+     position. Mirrored in tokens.ts for canvas. */
+
+  .hatch {
+    background-image: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 4px,
+      var(--color-rule) 4px,
+      var(--color-rule) 5px
+    );
+  }
+
+  .hatch-caution {
+    background-image: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 4px,
+      var(--color-caution) 4px,
+      var(--color-caution) 5px
+    );
+  }
+
+  /* ------------------------------------------------------------ controls --- */
+  /* The active state inverts to solid ink: unmistakable through a visor, at
+     arm's length, in sunlight. Nothing about it depends on hue. */
+
+  .ctl {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border: var(--rule-frame) solid var(--color-ink);
+    background: var(--color-sheet);
+    color: var(--color-ink);
+    font-stretch: 87%;
+    font-weight: 700;
+    font-size: 0.8125rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    padding: 0.625rem 1rem;
+    min-height: 44px;
+    cursor: pointer;
+    transition: background-color 120ms var(--ease-plate),
+      color 120ms var(--ease-plate);
+  }
+
+  .ctl:hover:not(:disabled) {
+    background: var(--color-sunk);
+  }
+
+  .ctl-solid,
+  .ctl[aria-pressed="true"],
+  .ctl[data-active="true"] {
+    background: var(--color-ink);
+    color: var(--color-sheet);
+  }
+
+  .ctl-solid:hover:not(:disabled) {
+    background: var(--color-ink-2);
+  }
+
+  /* The one action that is yours: recording, arming, committing. */
+  .ctl-procedure {
+    background: var(--color-procedure);
+    border-color: var(--color-procedure);
+    color: #ffffff;
+  }
+
+  .ctl-procedure:hover:not(:disabled) {
+    background: var(--color-ink);
+    border-color: var(--color-ink);
+    color: var(--color-sheet);
+  }
+
+  .ctl:disabled {
+    border-color: var(--color-rule);
+    color: var(--color-ink-3);
+    background: var(--color-sunk);
+    cursor: not-allowed;
+  }
+
+  /* Trackside: gloves, sun, one hand. The capture actions are plate-width and
+     monumental rather than button-sized. */
+  .ctl-major {
+    width: 100%;
+    min-height: 76px;
+    font-size: 1.125rem;
+    font-stretch: 100%;
+    letter-spacing: 0.1em;
+  }
+
+  .field {
+    width: 100%;
+    border: var(--rule-hair) solid var(--color-rule);
+    background: var(--color-sheet);
+    color: var(--color-ink);
+    padding: 0.625rem 0.75rem;
+    min-height: 44px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .field:focus {
+    border-color: var(--color-ink);
+    outline: none;
+    box-shadow: inset 0 0 0 1px var(--color-ink);
+  }
+
+  .field:disabled {
+    background: var(--color-sunk);
+    color: var(--color-ink-3);
+  }
+
+  /* --------------------------------------------------------------- table --- */
+  /* The minima table: rules do the separating, never zebra fills. */
+
+  .minima {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .minima th {
+    text-align: left;
+    font-stretch: 75%;
+    font-weight: 700;
+    font-size: 0.6875rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--color-ink-3);
+    padding: 0.4rem 0.625rem;
+    border-bottom: var(--rule-frame) solid var(--color-ink);
+    white-space: nowrap;
+  }
+
+  .minima td {
+    padding: 0.5rem 0.625rem;
+    border-bottom: var(--rule-hair) solid var(--color-rule-faint);
+    color: var(--color-ink);
+    font-weight: 500;
+  }
+
+  .minima tbody tr:hover td {
+    background: var(--color-sunk);
+  }
+
+  .minima tbody tr[data-selected="true"] td {
+    background: var(--color-procedure-tint);
+    color: var(--color-ink);
+  }
+
+  .minima .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* n/a is a real reading. It is set in the annotation register so it can never
+     be mistaken for a measured value. */
+  .na {
+    color: var(--color-ink-3);
+    font-stretch: 75%;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+  }
+
+  /* --------------------------------------------------- cross-reference --- */
+  /* The signature interaction. Plan and profile are two views of one procedure,
+     so a cursor in either reports the same instant in both, joined by a leader.
+     120ms is under the threshold where a dragged cursor feels detached. */
+
+  .leader-line {
+    stroke: var(--color-ink);
+    stroke-width: 1;
+    fill: none;
+  }
+
+  .leader-dot {
+    fill: var(--color-ink);
+  }
+
+  .xref-cursor {
+    stroke: var(--color-procedure);
+    stroke-width: 1.5;
+  }
+
+  /* Plate issue: the sheet settles once on mount. One authored moment, from an
+     already-visible default so nothing is hidden by animation timing. */
+  @keyframes plate-issue {
+    from {
+      opacity: 0.55;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .plate-issue {
+    animation: plate-issue 420ms var(--ease-plate) both;
+  }
+
+
+  /* ---------------------------------------------------------------- gauge --- */
+  /* A bounded reading against its limit: signal lock, a stability window, a hold
+     countdown. A ruled track with a solid ink fill, never a rounded pill and
+     never a progress ring, both of which the craft floor rules out as content
+     stand-ins. The fill is ink so it reads at a glance in sunlight; procedure
+     magenta marks only a gauge that has reached its threshold. */
+  .gauge {
+    position: relative;
+    height: 10px;
+    border: var(--rule-hair) solid var(--color-ink);
+    background: var(--color-sheet);
+    overflow: hidden;
+  }
+
+  .gauge-fill {
+    position: absolute;
+    inset: 0;
+    transform-origin: left center;
+    background: var(--color-ink);
+    transition: transform 160ms linear;
+  }
+
+  .gauge[data-reached='true'] .gauge-fill {
+    background: var(--color-procedure);
+  }
+
+  .gauge[data-blocked='true'] {
+    border-color: var(--color-caution);
+  }
+
+  .gauge[data-blocked='true'] .gauge-fill {
+    background: var(--color-caution);
+  }
+
+  .gauge-major {
+    height: 18px;
+  }
 }

@@ -1,6 +1,7 @@
 import type { GripAnalysis, GripLap } from '@/analysis/grip/types';
-import { rateColor } from './colors';
-import { CANVAS_FONT, useCanvasDraw } from './use-canvas-draw';
+import { usePlateInk } from '@/ui/plate';
+import { inkAlpha, rateColor } from './colors';
+import { plateFont, useCanvasDraw } from './use-canvas-draw';
 
 const PAD_L = 8, PAD_R = 8;
 const A_FS = 1.0; // longitudinal-g full scale
@@ -11,15 +12,21 @@ interface LoadTimelineProps {
   cursor: number;
   rateFS: number;
   onSeek: (localIndex: number) => void;
+  /** the cross-referenced instant, as a local index */
+  xref?: number | null;
+  /** publishes the sample under the pointer to the plate's cross-reference */
+  onHover?: (localIndex: number | null) => void;
 }
 
 /**
- * Two bands on a shared time axis. Top: longitudinal g (accel up, brake
- * down). Bottom: load-transfer rate. The payoff is seeing the top trace cross
- * zero exactly where the bottom spikes: the chassis loaded "through the
- * origin". Faint vertical lines mark corner apexes.
+ * The profile view: two bands on the lap's own time axis. Top, longitudinal g
+ * (accel up, brake down). Bottom, load-transfer rate. The payoff is seeing the
+ * top trace cross zero exactly where the bottom spikes: the chassis loaded
+ * "through the origin". Hairlines mark corner apexes.
  */
-export function LoadTimeline({ analysis, lap, cursor, rateFS, onSeek }: LoadTimelineProps) {
+export function LoadTimeline({ analysis, lap, cursor, rateFS, onSeek, xref = null, onHover }: LoadTimelineProps) {
+  const ink = usePlateInk();
+
   const ref = useCanvasDraw(({ ctx, w, h }) => {
     const d = analysis;
     ctx.clearRect(0, 0, w, h);
@@ -29,35 +36,56 @@ export function LoadTimeline({ analysis, lap, cursor, rateFS, onSeek }: LoadTime
     const X = (k: number) => PAD_L + (k / span) * (w - PAD_L - PAD_R);
     const topH = h * 0.5, gap = 8, botTop = topH + gap, botH = h - botTop - 4;
     const zeroY = topH * 0.5;
-    ctx.font = `10px ${CANVAS_FONT}`;
+    ctx.font = plateFont(9);
 
-    // apex ticks across both bands
-    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+    // apex hairlines across both bands
+    ctx.strokeStyle = ink.ruleFaint;
     ctx.lineWidth = 1;
     for (const c of lap.corners) {
       const x = X(c.ap - lap.start);
       ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
     }
 
-    // top band: longitudinal g
-    const g1 = ctx.createLinearGradient(0, 0, 0, topH);
-    g1.addColorStop(0, 'rgba(25,158,112,0.85)');
-    g1.addColorStop(0.5, 'rgba(120,120,110,0.15)');
-    g1.addColorStop(1, 'rgba(208,59,59,0.85)');
+    // top band: longitudinal g. Two flat tints split at the zero rule rather
+    // than one vertical gradient: drive and brake are two states, not a
+    // continuum, and the plate has no gradients.
+    const trace = () => {
+      ctx.beginPath();
+      ctx.moveTo(X(0), zeroY);
+      for (let k = 0; k < n; k++) {
+        const v = Math.max(-A_FS, Math.min(A_FS, d.along[lap.start + k]));
+        ctx.lineTo(X(k), zeroY - (v / A_FS) * (topH * 0.5 - 3));
+      }
+      ctx.lineTo(X(n - 1), zeroY);
+      ctx.closePath();
+    };
+    for (const half of [
+      { y: 0, height: zeroY, color: ink.gain },
+      { y: zeroY, height: topH - zeroY, color: ink.procedure },
+    ]) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, half.y, w, half.height);
+      ctx.clip();
+      trace();
+      ctx.fillStyle = inkAlpha(half.color, 0.22);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.strokeStyle = ink.ink;
+    ctx.lineWidth = 1.2;
     ctx.beginPath();
-    ctx.moveTo(X(0), zeroY);
     for (let k = 0; k < n; k++) {
       const v = Math.max(-A_FS, Math.min(A_FS, d.along[lap.start + k]));
-      ctx.lineTo(X(k), zeroY - (v / A_FS) * (topH * 0.5 - 3));
+      const y = zeroY - (v / A_FS) * (topH * 0.5 - 3);
+      k ? ctx.lineTo(X(k), y) : ctx.moveTo(X(k), y);
     }
-    ctx.lineTo(X(n - 1), zeroY);
-    ctx.closePath();
-    ctx.fillStyle = g1;
-    ctx.fill();
-    ctx.strokeStyle = '#2c2c2a';
+    ctx.stroke();
+
+    ctx.strokeStyle = ink.rule;
     ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(PAD_L, zeroY); ctx.lineTo(w - PAD_R, zeroY); ctx.stroke();
-    ctx.fillStyle = '#66655f';
+    ctx.fillStyle = ink.ink3;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     ctx.fillText('ACCEL', PAD_L + 2, 2);
@@ -66,10 +94,6 @@ export function LoadTimeline({ analysis, lap, cursor, rateFS, onSeek }: LoadTime
 
     // bottom band: transfer rate
     const baseY = botTop + botH;
-    const g2 = ctx.createLinearGradient(0, baseY, 0, botTop);
-    g2.addColorStop(0, 'rgba(61,74,99,0.55)');
-    g2.addColorStop(0.6, 'rgba(79,176,255,0.85)');
-    g2.addColorStop(1, 'rgba(255,255,255,0.95)');
     ctx.beginPath();
     ctx.moveTo(X(0), baseY);
     for (let k = 0; k < n; k++) {
@@ -78,37 +102,63 @@ export function LoadTimeline({ analysis, lap, cursor, rateFS, onSeek }: LoadTime
     }
     ctx.lineTo(X(n - 1), baseY);
     ctx.closePath();
-    ctx.fillStyle = g2;
+    ctx.fillStyle = inkAlpha(ink.terrain, 0.32);
     ctx.fill();
-    ctx.strokeStyle = '#2c2c2a';
+    ctx.strokeStyle = ink.ink;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    for (let k = 0; k < n; k++) {
+      const rr = Math.min(1, d.loadRate[lap.start + k] / rateFS);
+      k ? ctx.lineTo(X(k), baseY - rr * (botH - 2)) : ctx.moveTo(X(k), baseY - rr * (botH - 2));
+    }
+    ctx.stroke();
+    ctx.strokeStyle = ink.rule;
+    ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(PAD_L, baseY); ctx.lineTo(w - PAD_R, baseY); ctx.stroke();
-    ctx.fillStyle = '#66655f';
+    // the full-scale line, so a saturated spike is legible as saturated
+    ctx.strokeStyle = ink.caution;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.moveTo(PAD_L, baseY - (botH - 2)); ctx.lineTo(w - PAD_R, baseY - (botH - 2)); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = ink.ink3;
     ctx.textBaseline = 'top';
-    ctx.fillText('TRANSFER RATE (g/s)', PAD_L + 2, botTop + 1);
+    ctx.fillText(`TRANSFER RATE, FULL SCALE ${rateFS.toFixed(1)} G/S`, PAD_L + 2, botTop + 1);
+
+    // the cross-referenced instant, when it is not simply the cursor
+    if (xref != null && xref !== cursor) {
+      ctx.strokeStyle = ink.ink;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.moveTo(X(xref), 0); ctx.lineTo(X(xref), h); ctx.stroke();
+      ctx.setLineDash([]);
+    }
 
     // cursor
     const cx = X(cursor);
-    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.strokeStyle = ink.procedure;
     ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, h); ctx.stroke();
     const rr = Math.min(1, d.loadRate[lap.start + cursor] / rateFS);
-    ctx.fillStyle = rateColor(rr);
+    ctx.fillStyle = rateColor(ink, rr);
     ctx.beginPath(); ctx.arc(cx, baseY - rr * (botH - 2), 3.5, 0, 7); ctx.fill();
-  }, [analysis, lap, cursor, rateFS]);
+  }, [analysis, lap, cursor, rateFS, ink, xref]);
 
-  function onClick(e: React.MouseEvent<HTMLCanvasElement>) {
+  function localAt(clientX: number): number | null {
     const cv = ref.current;
-    if (!cv) return;
+    if (!cv) return null;
     const r = cv.getBoundingClientRect();
-    const f = (e.clientX - r.left - PAD_L) / (r.width - PAD_L - PAD_R);
-    onSeek(Math.round(Math.max(0, Math.min(1, f)) * (lap.end - lap.start)));
+    const f = (clientX - r.left - PAD_L) / (r.width - PAD_L - PAD_R);
+    return Math.round(Math.max(0, Math.min(1, f)) * (lap.end - lap.start));
   }
 
   return (
     <canvas
       ref={ref}
-      onClick={onClick}
-      className="block h-[150px] w-full cursor-crosshair rounded-lg bg-zinc-950"
+      onClick={(e) => { const i = localAt(e.clientX); if (i != null) onSeek(i); }}
+      onMouseMove={onHover ? (e) => onHover(localAt(e.clientX)) : undefined}
+      onMouseLeave={onHover ? () => onHover(null) : undefined}
+      className="block h-[150px] w-full cursor-crosshair"
+      style={{ background: 'var(--color-sunk)' }}
     />
   );
 }

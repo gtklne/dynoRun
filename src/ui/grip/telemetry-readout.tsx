@@ -1,6 +1,7 @@
 import type { GripAnalysis, GripLap } from '@/analysis/grip/types';
 import { frontWeightFraction } from '@/analysis/grip/load';
 import type { GripSettings } from '@/analysis/grip/settings';
+import { CrossRefReadout, Readout, usePlateInk } from '@/ui/plate';
 import type { GripMetricMode } from './metric-mode';
 import { metricModeName } from './metric-mode';
 import { rateColor, scoreColor } from './colors';
@@ -8,27 +9,23 @@ import { rateColor, scoreColor } from './colors';
 interface TelemetryReadoutProps {
   analysis: GripAnalysis;
   lap: GripLap;
+  /** local sample index the whole plate is cross-referenced to */
   cursor: number;
   metric: ArrayLike<number>;
   mode: GripMetricMode;
   settings: Pick<GripSettings, 'K' | 'tau' | 'rateFS' | 'anchorG'>;
 }
 
-function Stat({ k, v, u, big }: { k: string; v: string; u: string; big?: boolean }) {
-  return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5">
-      <div className="mb-1.5 text-[10.5px] font-medium uppercase tracking-wider text-zinc-500">{k}</div>
-      <div className={`font-mono leading-none text-zinc-100 tabular-nums ${big ? 'text-3xl' : 'text-[22px]'}`}>
-        {v}
-        <span className="text-[11px] text-zinc-500"> {u}</span>
-      </div>
-    </div>
-  );
-}
-
+/**
+ * What the plate reads at one instant. The channel line is the shared
+ * cross-reference readout, so the plan view, the profile view and the traction
+ * circle all report this same sample: three views of one procedure, never three
+ * charts with private hover states.
+ */
 export function TelemetryReadout({ analysis, lap, cursor, metric, mode, settings }: TelemetryReadoutProps) {
+  const ink = usePlateInk();
   const d = analysis;
-  const ci = lap.start + cursor;
+  const ci = Math.max(lap.start, Math.min(lap.end, lap.start + cursor));
   const u = metric[ci];
   const lean = d.leanS[ci];
   const along = d.along[ci];
@@ -36,53 +33,88 @@ export function TelemetryReadout({ analysis, lap, cursor, metric, mode, settings
   const loadScore = Math.round(settings.tau * d.loadRate[ci] * 100);
   const front = frontWeightFraction(d.alongRaw[ci], settings.K);
   const frontPct = Math.round(front * 100);
-  const rearPct = Math.round((1 - front) * 100);
+  const rearPct = 100 - frontPct;
   const lr = d.loadRate[ci];
   const nlr = Math.min(1, lr / settings.rateFS);
+  const tCur = d.ch.t[ci] - d.ch.t[lap.start];
+  const demandInk = scoreColor(ink, u, settings.anchorG);
 
   return (
-    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-      <Stat k="Speed" v={(d.spdS[ci] * 3.6).toFixed(0)} u="km/h" big />
-      <Stat k="Lean" v={Math.abs(lean).toFixed(0)} u={`°${lean < 0 ? ' L' : lean > 0 ? ' R' : ''}`} />
-      <Stat k="Lat g" v={Math.abs(d.alat[ci]).toFixed(2)} u="g" />
-      <Stat k="Long g" v={`${along >= 0 ? '+' : ''}${along.toFixed(2)}`} u={along >= 0 ? 'g accel' : 'g brake'} />
-
-      <div className="col-span-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5">
-        <div className="mb-1.5 text-[10.5px] font-medium uppercase tracking-wider text-zinc-500">
-          {metricModeName(mode)}
-          {mode === 'load' && (
-            <span className="normal-case tracking-normal text-zinc-600"> · grip {gripScore} ⊕ transient {loadScore}</span>
-          )}
-        </div>
-        <div className="font-mono text-3xl leading-none tabular-nums" style={{ color: scoreColor(u, settings.anchorG) }}>
-          {Math.round(u * 100)}
-          <span className="text-[11px] text-zinc-500"> pts (100 ≈ 1 g)</span>
-        </div>
-        <div className="relative mt-2 h-2.5 overflow-hidden rounded-md border border-zinc-800 bg-zinc-900">
-          <i
-            className="absolute inset-y-0 left-0 rounded-md"
-            style={{ width: `${Math.min(100, (u / settings.anchorG) * 100)}%`, background: scoreColor(u, settings.anchorG) }}
-          />
-        </div>
+    <div>
+      <div className="rule-b">
+        <CrossRefReadout
+          axisLabel="Lap time"
+          axisValue={`${tCur.toFixed(2)} s`}
+          channels={[
+            { name: 'Speed', value: (d.spdS[ci] * 3.6).toFixed(0), unit: 'km/h' },
+            {
+              name: 'Lean',
+              value: `${Math.abs(lean).toFixed(0)}°${lean < 0 ? ' L' : lean > 0 ? ' R' : ''}`,
+            },
+            { name: 'Lat g', value: Math.abs(d.alat[ci]).toFixed(2), unit: 'g' },
+            {
+              name: 'Long g',
+              value: `${along >= 0 ? '+' : ''}${along.toFixed(2)}`,
+              unit: along >= 0 ? 'g drive' : 'g brake',
+            },
+            { name: 'Transfer', value: lr.toFixed(2), unit: 'g/s', color: rateColor(ink, nlr) },
+          ]}
+        />
       </div>
 
-      <div className="col-span-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5">
-        <div className="mb-1.5 flex justify-between text-[10.5px] uppercase tracking-wider text-zinc-500">
-          <span>
-            rear <b className="font-mono text-[13px] normal-case tracking-normal text-zinc-100">{rearPct}%</b>
+      <div className="rule-b px-3 py-3">
+        <Readout
+          value={Math.round(u * 100)}
+          unit="pts"
+          label={metricModeName(mode)}
+          note={
+            mode === 'load'
+              ? `100 ≈ 1 g. Grip ${gripScore} combined with transient ${loadScore}.`
+              : '100 ≈ 1 g of steady-state demand.'
+          }
+        />
+        {/* the bar is the only place the demand ramp appears as a value, so the
+            reader can match the track map's colour to a number */}
+        <div
+          className="mt-3 h-2.5"
+          style={{ border: 'var(--rule-hair) solid var(--color-rule)', background: 'var(--color-sheet)' }}
+          role="presentation"
+        >
+          <div
+            style={{
+              width: `${Math.min(100, Math.max(0, (u / (settings.anchorG || 1)) * 100))}%`,
+              height: '100%',
+              background: demandInk,
+            }}
+          />
+        </div>
+        <p className="t-annotation mt-1.5">Full bar = tyre class {settings.anchorG.toFixed(2)} g</p>
+      </div>
+
+      <div className="px-3 py-3">
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="t-annotation">
+            Rear <span className="t-data ml-1 text-sm">{rearPct}%</span>
           </span>
-          <span className="inline-flex items-center gap-1.5 font-mono text-xs normal-case tracking-normal text-zinc-300">
-            <span className="h-2 w-2 rounded-full" style={{ background: rateColor(nlr) }} />
-            {lr.toFixed(2)} g/s transfer
-          </span>
-          <span>
-            <b className="font-mono text-[13px] normal-case tracking-normal text-zinc-100">{frontPct}%</b> front
+          <span className="t-annotation">Weight split</span>
+          <span className="t-annotation">
+            <span className="t-data mr-1 text-sm">{frontPct}%</span> Front
           </span>
         </div>
-        <div className="relative h-3 overflow-hidden rounded-md border border-zinc-800 bg-zinc-900">
-          <div className="absolute inset-y-0 bg-emerald-600/80" style={{ left: 0, width: `${rearPct}%` }} />
-          <div className="absolute inset-y-0 bg-sky-600/80" style={{ right: 0, width: `${frontPct}%` }} />
-          <div className="absolute inset-y-0 left-1/2 w-px bg-zinc-600" />
+        {/* Hue would only decorate here: the filled length is the rear share,
+            the empty remainder the front, and the centre rule is 50/50. */}
+        <div
+          className="relative mt-1.5 h-3"
+          style={{ border: 'var(--rule-hair) solid var(--color-rule)', background: 'var(--color-sheet)' }}
+        >
+          <div
+            style={{ width: `${rearPct}%`, height: '100%', background: 'var(--color-terrain)' }}
+          />
+          <span
+            aria-hidden="true"
+            className="absolute inset-y-0 left-1/2"
+            style={{ width: 1, background: 'var(--color-ink)' }}
+          />
         </div>
       </div>
     </div>

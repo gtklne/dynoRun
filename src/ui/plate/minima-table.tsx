@@ -23,6 +23,7 @@ export function MinimaTable<Row>({
   rows,
   rowKey,
   selectedKey,
+  selectedKeys,
   onSelect,
   empty,
   caption,
@@ -31,6 +32,8 @@ export function MinimaTable<Row>({
   rows: Row[];
   rowKey: (row: Row) => string;
   selectedKey?: string | null;
+  /** Multi-selection (compare pickers, pull pickers). Union with selectedKey. */
+  selectedKeys?: ReadonlySet<string>;
   onSelect?: (row: Row) => void;
   empty?: ReactNode;
   caption?: string;
@@ -61,7 +64,7 @@ export function MinimaTable<Row>({
         <tbody>
           {rows.map((row) => {
             const key = rowKey(row);
-            const selected = selectedKey === key;
+            const selected = selectedKey === key || selectedKeys?.has(key) === true;
             return (
               <tr
                 key={key}

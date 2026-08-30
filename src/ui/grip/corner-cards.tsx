@@ -1,5 +1,6 @@
 import type { GripCorner, GripLap } from '@/analysis/grip/types';
 import type { GripSettings } from '@/analysis/grip/settings';
+import { MinimaTable, Na, usePlateInk, type MinimaColumn } from '@/ui/plate';
 import type { GripMetricMode } from './metric-mode';
 import { rateColor, scoreColor } from './colors';
 
@@ -10,7 +11,7 @@ export interface CornerLiveStats {
   peakG: number;
 }
 
-interface CornerCardsProps {
+interface CornerMinimaProps {
   lap: GripLap;
   liveStats: Map<number, CornerLiveStats>;
   /** best apex demand per TRACK TURN across ALL laps (same metric) */
@@ -27,102 +28,149 @@ const score = (g: number) => Math.round(g * 100);
 /** A corner's own best across the session, or 0 when it has no turn identity. */
 const bestFor = (c: GripCorner, best: Map<number, number>) => (c.turn ? best.get(c.turn) ?? 0 : 0);
 
-export function CornerCards({ lap, liveStats, bestApexG, mode, settings, activeCorner, onSelect }: CornerCardsProps) {
+interface Row {
+  c: GripCorner;
+  apexG: number;
+  peakG: number;
+  best: number;
+  gap: number;
+  spare: boolean;
+  isBest: boolean;
+}
+
+/**
+ * The minima table: one boxed decision table, one row per corner, never a grid
+ * of cards. Rows are keyed on the TRACK turn, because a per-lap detection index
+ * pairs unrelated bends across laps (see turns.ts). A detection no other lap
+ * agrees with has no turn identity, so it is marked as an extra bend and its
+ * cross-lap columns read n/a rather than borrowing another turn's best.
+ */
+export function CornerMinima({
+  lap,
+  liveStats,
+  bestApexG,
+  mode,
+  settings,
+  activeCorner,
+  onSelect,
+}: CornerMinimaProps) {
+  const ink = usePlateInk();
   const label = mode === 'load' ? 'apex load' : 'apex grip';
+
+  const rows: Row[] = lap.corners.map((c) => {
+    const stats = liveStats.get(c.n);
+    const apexG = stats?.apexG ?? 0;
+    const peakG = stats?.peakG ?? 0;
+    const best = bestFor(c, bestApexG);
+    const gap = score(best) - score(apexG);
+    return {
+      c,
+      apexG,
+      peakG,
+      best,
+      gap,
+      spare: c.turn > 0 && gap >= settings.spareScore,
+      isBest: c.turn > 0 && best > 0 && score(apexG) >= score(best),
+    };
+  });
+
   // corners with the biggest proven gap to the rider's own best on other laps
-  const gaps = lap.corners
-    .map((c) => ({ c, gap: score(bestFor(c, bestApexG)) - score(liveStats.get(c.n)?.apexG ?? 0) }))
-    .filter((x) => x.gap >= settings.spareScore && x.c.turn > 0)
-    .sort((a, b) => b.gap - a.gap);
-  const opportunities = gaps.slice(0, 3).map((x) => `T${x.c.turn}`).join(', ');
+  const opportunities = rows
+    .filter((r) => r.spare)
+    .sort((a, b) => b.gap - a.gap)
+    .slice(0, 3)
+    .map((r) => `T${r.c.turn}`)
+    .join(', ');
+
+  const columns: MinimaColumn<Row>[] = [
+    {
+      key: 'turn',
+      head: 'Turn',
+      cell: (r) =>
+        r.c.turn ? (
+          <span className="flex items-center gap-2">
+            <span
+              aria-hidden="true"
+              className="h-3 w-3 shrink-0"
+              style={{ background: scoreColor(ink, r.apexG, settings.anchorG) }}
+            />
+            Turn {r.c.turn}
+          </span>
+        ) : (
+          <span className="flex items-center gap-2">
+            <span aria-hidden="true" className="hatch h-3 w-3 shrink-0" />
+            <span className="t-annotation">Extra bend</span>
+          </span>
+        ),
+    },
+    { key: 'dir', head: 'Dir', cell: (r) => (r.c.dir === 'L' ? 'Left' : 'Right') },
+    {
+      key: 'apex',
+      head: label,
+      numeric: true,
+      cell: (r) => (
+        <span style={{ color: scoreColor(ink, r.apexG, settings.anchorG) }}>{score(r.apexG)}</span>
+      ),
+    },
+    { key: 'peak', head: 'Peak', numeric: true, cell: (r) => score(r.peakG) },
+    {
+      key: 'best',
+      head: 'Best here',
+      numeric: true,
+      cell: (r) =>
+        r.c.turn && r.best > 0 ? (
+          score(r.best)
+        ) : (
+          <Na title={r.c.turn ? 'No other lap has taken this turn yet' : 'No turn identity, so no cross-lap best'} />
+        ),
+    },
+    {
+      key: 'verdict',
+      head: 'Against your best',
+      cell: (r) =>
+        r.spare ? (
+          <span style={{ color: 'var(--color-caution)' }}>{r.gap} spare</span>
+        ) : r.isBest ? (
+          <span style={{ color: 'var(--color-gain)' }}>Session best</span>
+        ) : r.c.turn && r.best > 0 ? (
+          <span className="t-annotation">Matched</span>
+        ) : (
+          <Na title="Not compared across laps" />
+        ),
+    },
+    { key: 'spd', head: 'Min speed', numeric: true, cell: (r) => `${Math.round(r.c.minSpeed * 3.6)} km/h` },
+    { key: 'lean', head: 'Lean', numeric: true, cell: (r) => `${Math.round(r.c.maxLean)}°` },
+    {
+      key: 'load',
+      head: 'Transfer',
+      numeric: true,
+      cell: (r) => (
+        <span style={{ color: rateColor(ink, Math.min(1, r.c.peakLoad / settings.rateFS)) }}>
+          {r.c.peakLoad.toFixed(1)} g/s
+        </span>
+      ),
+    },
+  ];
 
   return (
-    <section>
-      <div className="mb-3 mt-8 flex items-baseline justify-between">
-        <div>
-          <h2 className="text-lg font-bold text-zinc-100">Corner analysis</h2>
-          <p className="text-xs text-zinc-500">
-            {lap.corners.length ? (
-              <>
-                {lap.corners.length} corners · score = {label} ×100 (100 ≈ 1 g)
-                {opportunities && (
-                  <>
-                    {' '}· below your best at <b style={{ color: scoreColor(0, 1) }}>{opportunities}</b>
-                  </>
-                )}
-                {' · '}turn numbers are the same bend on every lap
-                {mode === 'load' && ' (grip + load transfer)'}
-              </>
-            ) : (
-              'No corners detected on this lap.'
-            )}
-          </p>
-        </div>
+    <section aria-label="Corner minima">
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h2 className="t-label">Corner minima</h2>
+        <p className="t-annotation">
+          {lap.corners.length} corners on this lap
+          {opportunities && <> · spare grip at {opportunities}</>}
+        </p>
       </div>
-
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(184px,1fr))] gap-3">
-        {lap.corners.map((c) => {
-          const stats = liveStats.get(c.n);
-          const apexG = stats?.apexG ?? 0;
-          const peakG = stats?.peakG ?? 0;
-          const best = bestFor(c, bestApexG);
-          const gap = score(best) - score(apexG);
-          const spare = gap >= settings.spareScore;
-          const isBest = best > 0 && score(apexG) >= score(best);
-          const active = activeCorner === c.ap;
-          return (
-            <button
-              key={c.n}
-              type="button"
-              onClick={() => onSelect(c)}
-              className={`relative overflow-hidden rounded-xl border bg-zinc-900 p-3 text-left transition-all hover:-translate-y-0.5 ${
-                active ? 'border-sky-500 bg-[#12161c]' : 'border-zinc-800 hover:border-zinc-600'
-              }`}
-            >
-              {spare && (
-                <span className="absolute right-3 top-2.5 text-[10px] font-bold uppercase tracking-wide" style={{ color: scoreColor(0, 1) }}>
-                  ▲ {gap} below best
-                </span>
-              )}
-              {isBest && !spare && (
-                <span className="absolute right-3 top-2.5 text-[10px] font-bold uppercase tracking-wide text-sky-400">
-                  ★ session best
-                </span>
-              )}
-              <div className="mb-2 flex items-center gap-2">
-                <span
-                  className="flex h-[26px] w-[26px] items-center justify-center rounded-lg font-mono text-xs font-bold text-zinc-950"
-                  style={{ background: scoreColor(apexG, settings.anchorG) }}
-                >
-                  {c.turn || '·'}
-                </span>
-                <span className="text-[11px] uppercase tracking-wider text-zinc-500">
-                  {c.turn ? `Turn ${c.turn}` : 'Extra bend'} · {c.dir === 'L' ? 'Left' : 'Right'}
-                </span>
-              </div>
-              <div className="font-mono text-[26px] leading-none" style={{ color: scoreColor(apexG, settings.anchorG) }}>
-                {score(apexG)}
-                <span className="text-[13px] text-zinc-500"> {label}</span>
-              </div>
-              <div className="mt-1 text-[11px] text-zinc-500">
-                peak {score(peakG)} through corner{best > 0 && <> · best here {score(best)}</>}
-              </div>
-              <div className="relative mt-2.5 h-[7px] overflow-hidden rounded border border-zinc-800 bg-zinc-950">
-                <i
-                  className="absolute inset-y-0 left-0 rounded"
-                  style={{ width: `${Math.min(100, (apexG / settings.anchorG) * 100)}%`, background: scoreColor(apexG, settings.anchorG) }}
-                />
-              </div>
-              <div className="mt-2.5 flex justify-between font-mono text-[11px] text-zinc-400">
-                <span>{Math.round(c.minSpeed * 3.6)} km/h</span>
-                <span>{Math.round(c.maxLean)}° lean</span>
-                <span style={{ color: rateColor(Math.min(1, c.peakLoad / settings.rateFS)) }}>
-                  ◍ {c.peakLoad.toFixed(1)} g/s
-                </span>
-              </div>
-            </button>
-          );
-        })}
+      <div className="box-frame">
+        <MinimaTable
+          columns={columns}
+          rows={rows}
+          rowKey={(r) => String(r.c.n)}
+          selectedKey={activeCorner == null ? null : String(rows.find((r) => r.c.ap === activeCorner)?.c.n ?? '')}
+          onSelect={(r) => onSelect(r.c)}
+          empty="No corners detected on this lap"
+          caption={`Score = ${label} × 100, so 100 ≈ 1 g. Turn numbers are the same bend on every lap${mode === 'load' ? '; dynamic load adds the transient to steady-state grip' : ''}.`}
+        />
       </div>
     </section>
   );

@@ -1,11 +1,14 @@
 import { ENVELOPE_BINS, envelopeRadius } from '@/analysis/grip/envelope';
-import { CANVAS_FONT, useCanvasDraw } from './use-canvas-draw';
+import { usePlateInk } from '@/ui/plate';
+import { plateFont, useCanvasDraw } from './use-canvas-draw';
 
 export interface EnvelopeSeries {
   key: string;
   label: string;
   env: Float32Array;
   color: string;
+  /** the dash that goes with `color`: identity is never hue alone here */
+  dash?: number[];
 }
 
 interface Props {
@@ -25,6 +28,7 @@ interface Props {
  * only grow the boundary.
  */
 export function CompareEnvelopes({ series, anchorG }: Props) {
+  const ink = usePlateInk();
   const ref = useCanvasDraw(({ ctx, w, h }) => {
     ctx.clearRect(0, 0, w, h);
     const cx = w / 2;
@@ -35,9 +39,9 @@ export function CompareEnvelopes({ series, anchorG }: Props) {
     for (const s of series) for (const v of s.env) gmax = Math.max(gmax, v + 0.08);
     const P = (gx: number, gy: number): [number, number] => [cx + (gx / gmax) * R, cy - (gy / gmax) * R];
 
-    ctx.strokeStyle = '#2c2c2a';
+    ctx.strokeStyle = ink.ruleFaint;
     ctx.lineWidth = 1;
-    ctx.font = `10px ${CANVAS_FONT}`;
+    ctx.font = plateFont(10);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     for (let g = 0.25; g <= gmax + 0.001; g += 0.25) {
@@ -45,14 +49,14 @@ export function CompareEnvelopes({ series, anchorG }: Props) {
       ctx.arc(cx, cy, (g / gmax) * R, 0, 7);
       ctx.stroke();
     }
-    ctx.strokeStyle = '#3a3a37';
+    ctx.strokeStyle = ink.rule;
     ctx.beginPath();
     ctx.moveTo(cx - R, cy);
     ctx.lineTo(cx + R, cy);
     ctx.moveTo(cx, cy - R);
     ctx.lineTo(cx, cy + R);
     ctx.stroke();
-    ctx.fillStyle = '#898781';
+    ctx.fillStyle = ink.ink3;
     ctx.fillText('BRAKE', cx, cy + R + 12);
     ctx.fillText('DRIVE', cx, cy - R - 12);
     ctx.save();
@@ -66,18 +70,19 @@ export function CompareEnvelopes({ series, anchorG }: Props) {
     ctx.fillText('RIGHT', 0, 0);
     ctx.restore();
 
-    // tyre-class reference ring
-    ctx.strokeStyle = 'rgba(208,59,59,0.4)';
+    // tyre-class reference ring: an advisory, not a measurement
+    ctx.strokeStyle = ink.caution;
     ctx.setLineDash([2, 4]);
     ctx.beginPath();
     ctx.arc(cx, cy, (anchorG / gmax) * R, 0, 7);
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = 'rgba(208,59,59,0.65)';
-    ctx.fillText(`tyre ${anchorG.toFixed(2)}g`, cx, cy - (anchorG / gmax) * R - 7);
+    ctx.fillStyle = ink.caution;
+    ctx.fillText(`TYRE ${anchorG.toFixed(2)}G`, cx, cy - (anchorG / gmax) * R - 7);
 
     for (const s of series) {
       ctx.strokeStyle = s.color;
+      ctx.setLineDash(s.dash ?? []);
       ctx.lineWidth = 2;
       ctx.beginPath();
       for (let b = 0; b <= ENVELOPE_BINS; b++) {
@@ -88,14 +93,15 @@ export function CompareEnvelopes({ series, anchorG }: Props) {
       }
       ctx.closePath();
       ctx.stroke();
+      ctx.setLineDash([]);
     }
-  }, [series, anchorG]);
+  }, [series, anchorG, ink]);
 
   return (
     <canvas
       ref={ref}
-      className="mx-auto block w-full max-w-[420px] rounded-lg bg-zinc-950"
-      style={{ aspectRatio: '1 / 1' }}
+      className="mx-auto block w-full max-w-[420px]"
+      style={{ aspectRatio: '1 / 1', background: 'var(--color-sunk)' }}
     />
   );
 }

@@ -22,12 +22,12 @@ export function PrivacyScreen() {
 
       <h2>What data we collect</h2>
       <ul className="list-disc pl-5 space-y-1">
-        <li><strong className="text-zinc-300">Account:</strong> your email address and display name, used to sign you in. If you sign in with a password we store a salted hash of it, never the password itself. If you sign in with Google, Apple, or Discord we store the account identifier that provider gives us, and no password.</li>
-        <li><strong className="text-zinc-300">Vehicles &amp; calibrations:</strong> details you enter about your vehicle and gear ratios.</li>
-        <li><strong className="text-zinc-300">Run data:</strong> GPS location, altitude, speed, and motion-sensor readings recorded during a run, used to compute a power/torque curve. This is precise location data.</li>
-        <li><strong className="text-zinc-300">Notes:</strong> any free text you add to a vehicle, calibration, or run.</li>
-        <li><strong className="text-zinc-300">Session metadata:</strong> your IP address and browser user-agent, stored with each login session so we can tell sessions apart and rate-limit abuse.</li>
-        <li><strong className="text-zinc-300">Provider tokens:</strong> if you sign in with Google, Apple, or Discord we also store the access token that provider issues us (encrypted at rest). It lets us confirm the link between your DynoRun account and theirs; we do not use it to read anything from your account with them.</li>
+        <li><strong>Account:</strong> your email address and display name, used to sign you in. If you sign in with a password we store a salted hash of it, never the password itself. If you sign in with Google, Apple, or Discord we store the account identifier that provider gives us, and no password.</li>
+        <li><strong>Vehicles &amp; calibrations:</strong> details you enter about your vehicle and gear ratios.</li>
+        <li><strong>Run data:</strong> GPS location, altitude, speed, and motion-sensor readings recorded during a run, used to compute a power/torque curve. This is precise location data.</li>
+        <li><strong>Notes:</strong> any free text you add to a vehicle, calibration, or run.</li>
+        <li><strong>Session metadata:</strong> your IP address and browser user-agent, stored with each login session so we can tell sessions apart and rate-limit abuse.</li>
+        <li><strong>Provider tokens:</strong> if you sign in with Google, Apple, or Discord we also store the access token that provider issues us (encrypted at rest). It lets us confirm the link between your DynoRun account and theirs; we do not use it to read anything from your account with them.</li>
       </ul>
 
       <h2>Why we process it</h2>
@@ -56,10 +56,10 @@ export function PrivacyScreen() {
 
       <h2>Third parties we use</h2>
       <ul className="list-disc pl-5 space-y-1">
-        <li><strong className="text-zinc-300">Resend</strong>, delivers password-reset email. Receives your email address and a one-time reset URL, and only when you ask to reset a password.</li>
-        <li><strong className="text-zinc-300">Cloudflare</strong>, provides the Turnstile anti-bot check on sign-up and password reset. Receives your IP address and a challenge token.</li>
-        <li><strong className="text-zinc-300">Google, Apple, Discord</strong>, only if you choose to sign in with one of them. They tell us your email address, name, their account identifier for you, and an access token, which we store encrypted. We never receive your password with them.</li>
-        <li><strong className="text-zinc-300">Hetzner Online GmbH</strong>, hosts the application and database in Germany.</li>
+        <li><strong>Resend</strong>, delivers password-reset email. Receives your email address and a one-time reset URL, and only when you ask to reset a password.</li>
+        <li><strong>Cloudflare</strong>, provides the Turnstile anti-bot check on sign-up and password reset. Receives your IP address and a challenge token.</li>
+        <li><strong>Google, Apple, Discord</strong>, only if you choose to sign in with one of them. They tell us your email address, name, their account identifier for you, and an access token, which we store encrypted. We never receive your password with them.</li>
+        <li><strong>Hetzner Online GmbH</strong>, hosts the application and database in Germany.</li>
       </ul>
 
       <h2>How long we keep it</h2>

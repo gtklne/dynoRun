@@ -3,9 +3,9 @@ import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
 import type { CurveDeltaPoint } from '@/analysis/curve-delta';
 import { convertPower, type PowerUnit } from '@/shared/format-power';
+import { usePlateInk } from '@/ui/plate';
 import {
   attachChartResize,
-  CURSOR_STROKE,
   HOVER_POINT_SIZE,
   legendValue,
   responsiveChartHeight,
@@ -25,11 +25,6 @@ interface Props {
   labelB?: string;
 }
 
-const POSITIVE = '#10b981';
-const POSITIVE_FILL = 'rgba(16, 185, 129, 0.25)';
-const NEGATIVE = '#ef4444';
-const NEGATIVE_FILL = 'rgba(239, 68, 68, 0.25)';
-
 export function DeltaCurveChart({
   delta,
   metric = 'power',
@@ -40,8 +35,16 @@ export function DeltaCurveChart({
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const plotRef = useRef<uPlot | null>(null);
+  const ink = usePlateInk();
 
   useEffect(() => {
+    // Gain and shortfall are told apart by which side of zero they sit on
+    // first, and by ink second: the fills are the plate's own gain and caution.
+    const POSITIVE = ink.gain;
+    const POSITIVE_FILL = ink.gainTint;
+    const NEGATIVE = ink.caution;
+    const NEGATIVE_FILL = ink.cautionTint;
+
     if (!containerRef.current) return;
     if (delta.length === 0) return;
 
@@ -71,7 +74,7 @@ export function DeltaCurveChart({
       width: containerRef.current.clientWidth,
       height: responsiveChartHeight(height),
       scales: { x: { time: false } },
-      axes: [themedAxis({ label: 'RPM' }), themedAxis({ label: yLabel, decimals: 1 })],
+      axes: [themedAxis({ label: 'RPM', ink }), themedAxis({ label: yLabel, decimals: 1, ink })],
       series: [
         { value: rpmValue },
         {
@@ -96,7 +99,7 @@ export function DeltaCurveChart({
         },
       ],
       legend: { show: true },
-      cursor: themedCursor({ x: true, y: true, points: { stroke: CURSOR_STROKE } }),
+      cursor: themedCursor({ x: true, y: true }, ink),
     };
 
     const data: uPlot.AlignedData = [xs, pos, neg] as uPlot.AlignedData;
@@ -107,14 +110,12 @@ export function DeltaCurveChart({
       plotRef.current?.destroy();
       plotRef.current = null;
     };
-  }, [delta, metric, unit, height, labelA, labelB]);
+  }, [delta, metric, unit, height, labelA, labelB, ink]);
 
   if (delta.length === 0) {
     return (
-      <p className="text-zinc-500 text-sm text-center py-8">
-        No overlapping RPM range to compare.
-      </p>
+      <p className="t-annotation px-3 py-8 text-center">No overlapping RPM range to compare.</p>
     );
   }
-  return <div ref={containerRef} />;
+  return <div ref={containerRef} data-plate-figures />;
 }

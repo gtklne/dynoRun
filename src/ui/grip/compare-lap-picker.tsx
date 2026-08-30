@@ -1,5 +1,6 @@
 import type { GripLap } from '@/analysis/grip/types';
 import type { GripSessionSummary } from '@/api/repositories/types';
+import { PlateButton } from '@/ui/plate';
 import { formatLapTime } from './format-lap';
 import { MAX_COMPARE_LAPS } from './compare-colors';
 
@@ -15,6 +16,8 @@ interface Props {
   /** ordered selection of `${sessionId}:${lapNum}` keys */
   selected: string[];
   colorOf: Map<string, string>;
+  /** lap key → series dash: identity on this plate is never hue alone */
+  dashOf?: Map<string, number[]>;
   refKey: string | null;
   onToggle: (key: string) => void;
   /** sessions in the library that are not loaded yet */
@@ -28,10 +31,28 @@ export function lapKey(sessionId: string, lapNum: number): string {
   return `${sessionId}:${lapNum}`;
 }
 
+/** The series mark a lap carries everywhere else on the sheet. */
+function SeriesMark({ color, dash }: { color: string; dash?: number[] }) {
+  return (
+    <svg width="18" height="8" viewBox="0 0 18 8" aria-hidden="true" className="shrink-0">
+      <line
+        x1="0"
+        y1="4"
+        x2="18"
+        y2="4"
+        stroke={color}
+        strokeWidth="2.5"
+        strokeDasharray={dash && dash.length ? dash.join(' ') : undefined}
+      />
+    </svg>
+  );
+}
+
 export function CompareLapPicker({
   sessions,
   selected,
   colorOf,
+  dashOf,
   refKey,
   onToggle,
   available,
@@ -42,9 +63,9 @@ export function CompareLapPicker({
   const full = selected.length >= MAX_COMPARE_LAPS;
 
   return (
-    <div className="space-y-3 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+    <section aria-label="Lap selection">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <h2 className="t-label">
           Laps ({selected.length}/{MAX_COMPARE_LAPS})
         </h2>
         <select
@@ -52,9 +73,10 @@ export function CompareLapPicker({
           disabled={loading || available.length === 0}
           onChange={(e) => e.target.value && onAddSession(e.target.value)}
           aria-label="Add a session"
-          className="rounded-lg border border-zinc-700 bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-zinc-300 outline-none focus:border-sky-600 disabled:opacity-50"
+          className="field max-w-[22rem]"
+          style={{ width: 'auto' }}
         >
-          <option value="">{available.length ? '+ Add a session…' : 'No other sessions'}</option>
+          <option value="">{available.length ? 'Add a session' : 'No other sessions'}</option>
           {available.map((s) => (
             <option key={s.id} value={s.id}>
               {s.label ?? s.track ?? 'Untitled'}
@@ -65,68 +87,80 @@ export function CompareLapPicker({
         </select>
       </div>
 
-      {sessions.length === 0 && (
-        <p className="py-2 text-sm text-zinc-500">
-          {loading ? 'Loading sessions…' : 'Add a session above to start comparing laps.'}
+      <div className="box-frame">
+        {sessions.length === 0 && (
+          <p className="t-annotation px-3 py-4">
+            {loading ? 'Loading sessions…' : 'Add a session above to start comparing laps.'}
+          </p>
+        )}
+
+        {sessions.map((s, i) => (
+          <div key={s.id} className={i > 0 ? 'rule-t' : undefined}>
+            <div className="flex items-start justify-between gap-3 px-3 py-2">
+              <div className="min-w-0">
+                <p className="t-data truncate text-sm">{s.title}</p>
+                <p className="t-annotation mt-0.5 truncate">{s.subtitle}</p>
+              </div>
+              <PlateButton
+                onClick={() => onRemoveSession(s.id)}
+                className="shrink-0"
+                style={{ minHeight: 32, padding: '0.25rem 0.625rem', fontSize: '0.6875rem' }}
+              >
+                Remove
+              </PlateButton>
+            </div>
+            {s.laps.length === 0 ? (
+              <p className="t-annotation px-3 pb-2">No timed laps in this session.</p>
+            ) : (
+              <div className="rule-t flex overflow-x-auto">
+                {s.laps.map((lap, k) => {
+                  const key = lapKey(s.id, lap.num);
+                  const on = selected.includes(key);
+                  const isRef = key === refKey;
+                  const color = colorOf.get(key);
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      aria-pressed={on}
+                      aria-label={`Lap ${lap.num}, ${formatLapTime(lap.time)}${isRef ? ', reference' : ''}`}
+                      disabled={!on && full}
+                      onClick={() => onToggle(key)}
+                      data-active={on}
+                      className={`ctl shrink-0 flex-col items-start gap-0.5 border-0 px-3 py-1.5 ${k > 0 ? 'rule-l' : ''}`}
+                      style={{ minHeight: 48 }}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        {on && color && <SeriesMark color={color} dash={dashOf?.get(key)} />}
+                        Lap {lap.num}
+                        {isRef && (
+                          <span style={{ fontSize: '0.5625rem', fontStretch: '75%', opacity: 0.72 }}>ref</span>
+                        )}
+                      </span>
+                      <span
+                        style={{
+                          fontStretch: '100%',
+                          fontWeight: 550,
+                          fontSize: '0.8125rem',
+                          letterSpacing: 'normal',
+                          textTransform: 'none',
+                        }}
+                      >
+                        {formatLapTime(lap.time)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      {full && (
+        <p className="t-annotation mt-1.5">
+          Six is the cap: colour and dash pattern would start repeating past it.
         </p>
       )}
-
-      {sessions.map((s) => (
-        <div key={s.id} className="space-y-1.5">
-          <div className="flex items-baseline justify-between gap-2">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-zinc-200">{s.title}</p>
-              <p className="truncate text-[11px] text-zinc-500">{s.subtitle}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => onRemoveSession(s.id)}
-              className="shrink-0 rounded-md border border-zinc-700 bg-zinc-800 px-2 py-1 text-[11px] text-zinc-400 transition-colors hover:border-red-800 hover:text-red-400"
-            >
-              Remove
-            </button>
-          </div>
-          {s.laps.length === 0 ? (
-            <p className="text-[11px] text-zinc-600">No timed laps in this session.</p>
-          ) : (
-            <div className="flex flex-wrap gap-1.5">
-              {s.laps.map((lap) => {
-                const key = lapKey(s.id, lap.num);
-                const on = selected.includes(key);
-                const isRef = key === refKey;
-                const color = colorOf.get(key);
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    aria-pressed={on}
-                    aria-label={`Lap ${lap.num}, ${formatLapTime(lap.time)}${isRef ? ', reference' : ''}`}
-                    disabled={!on && full}
-                    onClick={() => onToggle(key)}
-                    style={on && color ? { borderColor: color } : undefined}
-                    className={`flex min-w-[76px] flex-col items-start rounded-lg border px-2.5 py-1.5 text-left leading-tight transition-colors ${
-                      on
-                        ? 'bg-[#14202e] text-zinc-100'
-                        : full
-                          ? 'border-zinc-800 bg-zinc-900 text-zinc-600'
-                          : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600'
-                    }`}
-                  >
-                    <span className="flex items-center gap-1 text-[11px] font-bold">
-                      {on && color && (
-                        <span className="h-2 w-2 rounded-full" style={{ background: color }} />
-                      )}
-                      Lap {lap.num}
-                      {isRef && <span className="text-[9px] font-semibold uppercase text-zinc-400">ref</span>}
-                    </span>
-                    <span className="font-mono text-[12px] tabular-nums">{formatLapTime(lap.time)}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
+    </section>
   );
 }

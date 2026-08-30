@@ -1,4 +1,5 @@
 import type { AccelTimes, AccelInterval } from '@/analysis/accel-times';
+import { MinimaTable, Na, Readout, Zone, type MinimaColumn } from '@/ui/plate';
 
 interface AccelTimesCardProps {
   accel: AccelTimes;
@@ -10,6 +11,22 @@ function isZeroToHundred(interval: AccelInterval): boolean {
   return interval.from_kmh === 0 && interval.to_kmh === 100;
 }
 
+const COLUMNS: MinimaColumn<AccelInterval>[] = [
+  { key: 'label', head: 'Interval', cell: (iv) => iv.label },
+  {
+    key: 'elapsed',
+    head: 'Elapsed (s)',
+    numeric: true,
+    cell: (iv) => iv.elapsed_s.toFixed(1),
+  },
+];
+
+/**
+ * Acceleration times as a minima table, not a grid of tiles: they are a set of
+ * comparable readings against one axis, which is exactly what the plate's
+ * decision table is for. The 0-100 figure is the one number a driver quotes,
+ * so it is lifted out as the readout and the rest stay in the table.
+ */
 export function AccelTimesCard({ accel }: AccelTimesCardProps) {
   const hero = accel.intervals.find(isZeroToHundred) ?? null;
   const others = accel.intervals.filter((i) => !isZeroToHundred(i));
@@ -18,60 +35,46 @@ export function AccelTimesCard({ accel }: AccelTimesCardProps) {
   if (!hasContent) return null;
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
-      <div className="flex items-baseline justify-between">
-        <h2 className="text-zinc-500 text-xs uppercase tracking-wider">Acceleration</h2>
-        <span className="text-zinc-600 text-xs tabular-nums">
-          peak {accel.peak_speed_kmh.toFixed(0)} km/h
-        </span>
-      </div>
-
+    <Zone label="Acceleration" note={`peak ${accel.peak_speed_kmh.toFixed(0)} km/h`}>
       {hero && (
-        <div>
-          <p className="tabular-nums">
-            <span className="text-3xl font-bold text-amber-400">{hero.elapsed_s.toFixed(1)}</span>
-            <span className="text-sm text-zinc-400 ml-1">s</span>
-          </p>
-          <p className="text-zinc-500 text-xs mt-0.5">{ZERO_TO_HUNDRED_LABEL}</p>
+        <div className="rule-b px-3 py-3">
+          <Readout
+            value={hero.elapsed_s.toFixed(1)}
+            unit="s"
+            label={ZERO_TO_HUNDRED_LABEL}
+            tone="procedure"
+          />
         </div>
       )}
 
       {others.length > 0 && (
-        <div className="grid grid-cols-3 gap-2">
-          {others.map((iv) => (
-            <div key={iv.label} className="bg-zinc-950 border border-zinc-800 rounded-xl p-2.5">
-              <p className="tabular-nums">
-                <span className="text-lg font-semibold text-zinc-100">{iv.elapsed_s.toFixed(1)}</span>
-                <span className="text-[10px] text-zinc-500 ml-1">s</span>
-              </p>
-              <p className="text-zinc-500 text-[10px] mt-0.5 truncate">{iv.label}</p>
-            </div>
-          ))}
-        </div>
+        <MinimaTable columns={COLUMNS} rows={others} rowKey={(iv) => iv.label} />
       )}
 
       {accel.quarter_mile && (
-        <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 flex items-baseline justify-between">
-          <div>
-            <p className="text-zinc-500 text-[10px] uppercase tracking-wider">Quarter mile</p>
-            <p className="tabular-nums mt-0.5">
-              <span className="text-xl font-bold text-zinc-100">
-                {accel.quarter_mile.elapsed_s.toFixed(1)}
-              </span>
-              <span className="text-xs text-zinc-400 ml-1">s</span>
-            </p>
+        <dl className="rule-t grid grid-cols-2">
+          <div className="px-3 py-2.5">
+            <dt className="t-annotation">Quarter mile</dt>
+            <dd className="t-data mt-1 text-lg">
+              {accel.quarter_mile.elapsed_s.toFixed(1)}
+              <span className="t-annotation ml-1">s</span>
+            </dd>
           </div>
-          <div className="text-right">
-            <p className="text-zinc-500 text-[10px] uppercase tracking-wider">Trap speed</p>
-            <p className="tabular-nums mt-0.5">
-              <span className="text-xl font-bold text-zinc-100">
-                {accel.quarter_mile.trap_speed_kmh.toFixed(0)}
-              </span>
-              <span className="text-xs text-zinc-400 ml-1">km/h</span>
-            </p>
+          <div className="rule-l px-3 py-2.5">
+            <dt className="t-annotation">Trap speed</dt>
+            <dd className="t-data mt-1 text-lg">
+              {accel.quarter_mile.trap_speed_kmh.toFixed(0)}
+              <span className="t-annotation ml-1">km/h</span>
+            </dd>
           </div>
-        </div>
+        </dl>
       )}
-    </div>
+
+      {!hero && others.length === 0 && !accel.quarter_mile && (
+        <p className="px-3 py-4">
+          <Na title="No interval was crossed in this run" />
+        </p>
+      )}
+    </Zone>
   );
 }

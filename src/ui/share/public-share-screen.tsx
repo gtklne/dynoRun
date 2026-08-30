@@ -2,11 +2,26 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { shareRepository, type PublicShareData } from '@/api/repositories/share-repository';
 import { BrandLogo } from '@/ui/components/brand-logo';
+import { Wordmark } from '@/ui/components/brand-wordmark';
 import { PowerCurveChart } from '@/ui/components/power-curve-chart';
 import { ConditionsChips } from '@/ui/run/conditions-chips';
 import { useUnits } from '@/app/units-context';
 import { formatPower, type PowerUnit } from '@/shared/format-power';
 import { formatShortDateTime } from '@/shared/format-time';
+import {
+  MinimaTable,
+  Na,
+  NoReading,
+  NotesBox,
+  PlanView,
+  PlateAnchor,
+  Readout,
+  RevisionBar,
+  TitleBlock,
+  Zone,
+  type MinimaColumn,
+} from '@/ui/plate';
+import type { RpmPoint } from '@/shared/types';
 
 type LoadState =
   | { kind: 'loading' }
@@ -14,6 +29,9 @@ type LoadState =
   | { kind: 'ready'; data: PublicShareData };
 
 const DEFAULT_TITLE = 'DynoRun';
+
+const WHEEL_POWER_CAVEAT =
+  'Wheel power is estimated from GPS acceleration, vehicle mass, gearing and road-load assumptions. It is not a calibrated rolling-road dyno reading, and it carries no driveline-loss correction: read it as a figure comparable against the other runs on this vehicle, not as an absolute rating.';
 
 function setMetaContent(selector: string, content: string): void {
   const el = document.head.querySelector<HTMLMetaElement>(selector);
@@ -47,32 +65,27 @@ function buildShareMeta(data: PublicShareData, unit: PowerUnit): { title: string
 
 function Frame({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col">
-      <header className="pt-safe bg-zinc-950 border-b border-zinc-800/60 px-4 py-3 flex items-center gap-2">
-        <div className="max-w-2xl w-full mx-auto lg:max-w-5xl flex items-center gap-2">
+    <div className="flex min-h-screen flex-col" style={{ background: 'var(--color-sheet)' }}>
+      <header className="rule-b pt-safe px-4 py-2.5">
+        <div className="mx-auto flex w-full max-w-2xl items-center gap-2 lg:max-w-5xl">
           <a
             href="https://wasgoht.ch"
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 no-underline"
             aria-label="DynoRun home"
+            style={{ color: 'var(--color-ink)' }}
           >
             <BrandLogo size={22} />
-            <span className="font-bold text-lg tracking-tight">
-              <span className="text-amber-400">dyno</span>
-              <span className="text-zinc-100">Run</span>
-            </span>
+            <Wordmark brand="dynorun" className="text-base" />
           </a>
         </div>
       </header>
-      <main className="flex-1 px-4 pt-4 pb-12 max-w-2xl w-full mx-auto lg:max-w-5xl">
+      <main className="mx-auto w-full max-w-2xl flex-1 px-4 pt-5 pb-12 lg:max-w-5xl">
         {children}
       </main>
-      <footer className="px-4 py-6 border-t border-zinc-800/60 text-center bg-zinc-950">
-        <p className="text-zinc-400 text-sm">
-          Want your own? Track your car's power at{' '}
-          <a
-            href="https://wasgoht.ch"
-            className="text-amber-400 hover:text-amber-300 font-semibold transition-colors"
-          >
+      <footer className="rule-t px-4 py-6 text-center">
+        <p className="t-body mx-auto text-sm">
+          Track your own vehicle&apos;s power at{' '}
+          <a href="https://wasgoht.ch" className="no-underline hover:underline" style={{ color: 'var(--color-procedure)' }}>
             wasgoht.ch
           </a>
         </p>
@@ -80,6 +93,12 @@ function Frame({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
+const BIN_COLUMNS: MinimaColumn<RpmPoint>[] = [
+  { key: 'rpm', head: 'RPM', numeric: true, cell: (p) => p.rpm.toFixed(0) },
+  { key: 'power', head: 'Wheel power (kW)', numeric: true, cell: (p) => p.wheel_power_kw.toFixed(1) },
+  { key: 'torque', head: 'Wheel torque (Nm)', numeric: true, cell: (p) => p.wheel_torque_nm.toFixed(0) },
+];
 
 export function PublicShareScreen() {
   const { token = '' } = useParams<{ token: string }>();
@@ -131,7 +150,7 @@ export function PublicShareScreen() {
     return (
       <Frame>
         <div className="flex items-center justify-center py-16">
-          <p className="text-zinc-500 text-sm">Loading shared run…</p>
+          <p className="t-annotation">Loading shared run...</p>
         </div>
       </Frame>
     );
@@ -140,96 +159,146 @@ export function PublicShareScreen() {
   if (state.kind === 'error') {
     return (
       <Frame>
-        <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
-          <h1 className="text-xl font-bold text-zinc-100">Shared run unavailable</h1>
-          <p className="text-zinc-500 text-sm max-w-sm">
-            This link doesn't exist anymore. The owner may have unshared it, or
-            the URL is mistyped.
-          </p>
-          <a
-            href="https://wasgoht.ch"
-            className="inline-block bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-zinc-950 font-semibold px-4 py-2.5 rounded-xl transition-colors text-sm mt-2"
-          >
-            Go to DynoRun
-          </a>
+        <div className="plate-stack">
+          <TitleBlock title="Shared run unavailable" />
+          <Zone label="What happened">
+            <p className="t-body px-3 py-3 text-[0.875rem] leading-6">
+              This link does not resolve to a run any more. The owner may have revoked it, or the
+              URL is mistyped.
+            </p>
+            <div className="rule-t px-3 py-3">
+              <PlateAnchor href="https://wasgoht.ch" variant="procedure">
+                Go to DynoRun
+              </PlateAnchor>
+            </div>
+          </Zone>
         </div>
       </Frame>
     );
   }
 
   const { run, vehicle, curve } = state.data;
-  const titleText = run.title ?? `${vehicle.name} · ${run.gear_label}`;
+  const titleText = run.title ?? `${vehicle.name}, ${run.gear_label}`;
   const opp = units.unit === 'kW' ? 'hp' : 'kW';
+  const hasCurve = curve.points.length > 0;
 
   return (
     <Frame>
-      <div className="space-y-5 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] lg:gap-8 lg:items-start lg:space-y-0">
-        {/* LEFT: header + conditions + peak stats */}
-        <div className="space-y-5">
-          {/* Header */}
-          <div className="space-y-1">
-            <p className="text-amber-400 text-xs font-semibold uppercase tracking-widest">Shared run</p>
-            <h1 className="text-2xl font-bold text-zinc-100 break-words">{titleText}</h1>
-            <p className="text-zinc-500 text-sm">
-              {vehicle.name} · {run.gear_label} · {formatShortDateTime(run.started_at)}
-            </p>
+      <div className="plate-stack">
+        <TitleBlock
+          ident={vehicle.name}
+          title={titleText}
+          meta={[
+            { label: 'Vehicle', value: vehicle.name },
+            { label: 'Gear', value: run.gear_label },
+            { label: 'Recorded', value: formatShortDateTime(run.started_at) },
+            {
+              label: 'RPM range',
+              value: hasCurve ? `${curve.rpm_min.toFixed(0)}-${curve.rpm_max.toFixed(0)}` : <Na />,
+            },
+          ]}
+        />
+
+        <div className="space-y-10 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] lg:gap-8 lg:items-start lg:space-y-0">
+          <div className="space-y-6">
+            <Zone label="Peak readings" note={`also shown in ${opp}`}>
+              <div className="grid grid-cols-2">
+                <div className="px-3 py-3">
+                  {peak ? (
+                    <Readout
+                      value={formatPower(peak.wheel_power_kw, units.unit, { unitSuffix: false })}
+                      unit={units.unit}
+                      label="Peak wheel power"
+                      tone="procedure"
+                      note={formatPower(peak.wheel_power_kw, opp)}
+                    />
+                  ) : (
+                    <NoReading label="Peak wheel power" reason="This run derived no curve" />
+                  )}
+                </div>
+                <div className="rule-l px-3 py-3">
+                  {peakTorque ? (
+                    <Readout
+                      value={peakTorque.wheel_torque_nm.toFixed(0)}
+                      unit="Nm"
+                      label="Peak wheel torque"
+                      note={`at ${peakTorque.rpm.toFixed(0)} RPM`}
+                    />
+                  ) : (
+                    <NoReading label="Peak wheel torque" reason="This run derived no curve" />
+                  )}
+                </div>
+                <div className="rule-t col-span-2 px-3 py-3">
+                  {peak ? (
+                    <Readout value={peak.rpm.toFixed(0)} unit="RPM" label="Peak power at" />
+                  ) : (
+                    <NoReading label="Peak power at" reason="This run derived no curve" />
+                  )}
+                </div>
+              </div>
+            </Zone>
+
+            <Zone label="Conditions" note="stated by the owner">
+              {run.conditions &&
+              (run.conditions.ambient_temp_c != null ||
+                run.conditions.wind_kmh != null ||
+                run.conditions.road_slope_pct != null ||
+                run.conditions.surface) ? (
+                <div className="px-3 py-3">
+                  <ConditionsChips conditions={run.conditions} size="md" />
+                </div>
+              ) : (
+                <div className="hatch px-3 py-5 text-center">
+                  <p className="t-annotation" style={{ color: 'var(--color-ink-2)' }}>
+                    No conditions were logged for this run
+                  </p>
+                </div>
+              )}
+            </Zone>
           </div>
 
-          <ConditionsChips conditions={run.conditions} size="md" />
+          <div className="space-y-6">
+            <PlanView
+              label="Wheel power vs RPM"
+              scale={
+                hasCurve
+                  ? `${curve.rpm_min.toFixed(0)}-${curve.rpm_max.toFixed(0)} RPM, 100 RPM bins, ${units.unit}`
+                  : 'no curve'
+              }
+            >
+              {hasCurve ? (
+                <PowerCurveChart
+                  series={[{ label: 'Power', points: curve.points }]}
+                  mode="power"
+                  unit={units.unit}
+                />
+              ) : (
+                <div className="hatch px-3 py-12 text-center">
+                  <p className="t-annotation" style={{ color: 'var(--color-ink-2)' }}>
+                    No curve was derived for this run
+                  </p>
+                </div>
+              )}
+            </PlanView>
 
-          {/* Peak stats: 2x2 grid */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-              <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Peak power</p>
-              <p className="tabular-nums">
-                <span className="text-3xl font-bold text-amber-400">
-                  {peak ? formatPower(peak.wheel_power_kw, units.unit, { unitSuffix: false }) : 'n/a'}
-                </span>
-                <span className="text-sm text-zinc-400 ml-1">{units.unit}</span>
-              </p>
-              <p className="text-zinc-600 text-xs mt-1">
-                {peak ? formatPower(peak.wheel_power_kw, opp) : 'n/a'}
-              </p>
-            </div>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-              <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Peak torque</p>
-              <p className="tabular-nums">
-                <span className="text-3xl font-bold text-zinc-100">
-                  {peakTorque ? peakTorque.wheel_torque_nm.toFixed(0) : 'n/a'}
-                </span>
-                <span className="text-sm text-zinc-400 ml-1">Nm</span>
-              </p>
-              <p className="text-zinc-600 text-xs mt-1">
-                {peakTorque ? `@ ${peakTorque.rpm.toFixed(0)} RPM` : 'n/a'}
-              </p>
-            </div>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 col-span-2">
-              <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Peak power RPM</p>
-              <p className="tabular-nums">
-                <span className="text-3xl font-bold text-zinc-100">
-                  {peak ? peak.rpm.toFixed(0) : 'n/a'}
-                </span>
-                <span className="text-sm text-zinc-400 ml-1">RPM</span>
-              </p>
-            </div>
+            {hasCurve && (
+              <Zone label="RPM bins" note="the values the curve is drawn from">
+                <MinimaTable columns={BIN_COLUMNS} rows={curve.points} rowKey={(p) => String(p.rpm)} />
+              </Zone>
+            )}
           </div>
         </div>
 
-        {/* RIGHT: chart + caption */}
-        <div className="space-y-5">
-          {/* Chart */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden p-2">
-            <PowerCurveChart
-              series={[{ label: 'Power', points: curve.points }]}
-              mode="power"
-              unit={units.unit}
-            />
-          </div>
+        <NotesBox>{WHEEL_POWER_CAVEAT}</NotesBox>
 
-          <p className="text-zinc-600 text-xs text-center">
-            Wheel power derived from GPS · DynoRun
-          </p>
-        </div>
+        <RevisionBar
+          entries={[
+            { label: 'Pipeline', value: `v${curve.pipeline_version}` },
+            { label: 'Run started', value: formatShortDateTime(run.started_at) },
+            { label: 'Bins', value: curve.points.length },
+            { label: 'Source', value: 'GPS speed, no external hardware' },
+          ]}
+        />
       </div>
     </Frame>
   );

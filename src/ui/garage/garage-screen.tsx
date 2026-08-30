@@ -4,6 +4,7 @@ import { vehicleRepository } from '@/api/repositories/vehicle-repository';
 import { useUnits } from '@/app/units-context';
 import type { Run, Vehicle } from '@/shared/types';
 import { computeDashboard, useGarageData, HeroStats, RecentActivity } from '@/ui/home/dashboard';
+import { Na, PlateButton, PlateLink, TitleBlock, Zone } from '@/ui/plate';
 import { VehicleForm } from './vehicle-form';
 
 interface VehicleStats {
@@ -23,61 +24,89 @@ function statsFor(runs: Run[]): VehicleStats {
   return { runCount: complete.length, bestPeakKw };
 }
 
-function VehicleCard({ vehicle, stats }: { vehicle: Vehicle; stats: VehicleStats }) {
+function ChevronIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="square"
+      aria-hidden="true"
+      className="shrink-0"
+    >
+      <polyline points="9 5 16 12 9 19" />
+    </svg>
+  );
+}
+
+/**
+ * One ruled row of the garage index, not a card. The whole row is the link, so
+ * the target stays glove-sized, and the reading on the right is the one figure
+ * that distinguishes vehicles from each other.
+ */
+function VehicleRow({
+  vehicle,
+  stats,
+  first,
+}: {
+  vehicle: Vehicle;
+  stats: VehicleStats;
+  first: boolean;
+}) {
   const { format } = useUnits();
   return (
-    <Link to={`/vehicles/${vehicle.id}`} className="block bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover:border-zinc-700 transition-colors">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <p className="text-zinc-100 font-semibold text-base truncate">{vehicle.name}</p>
-          <p className="text-zinc-500 text-sm mt-0.5 capitalize">
-            {vehicle.kind} · {vehicle.mass_kg} kg · {vehicle.drivetrain.toUpperCase()}
-          </p>
-          {vehicle.notes && (
-            <p className="text-zinc-600 text-xs mt-1 truncate">{vehicle.notes}</p>
-          )}
-          <p className="text-amber-400 text-xs font-mono mt-2 tabular-nums">
-            {stats.runCount === 0
-              ? 'No runs yet'
-              : `${stats.runCount} run${stats.runCount === 1 ? '' : 's'} · best ${format(stats.bestPeakKw)}`}
-          </p>
-        </div>
-        <svg className="text-zinc-600 shrink-0 mt-0.5" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="9 18 15 12 9 6"/>
-        </svg>
-      </div>
+    <Link
+      to={`/vehicles/${vehicle.id}`}
+      className={`flex items-center gap-3 px-3 py-3 no-underline transition-colors hover:bg-[var(--color-sunk)] ${first ? '' : 'rule-t'}`}
+      style={{ color: 'var(--color-ink)' }}
+    >
+      <span className="min-w-0 flex-1">
+        <span className="t-data block truncate text-[0.9375rem]">{vehicle.name}</span>
+        <span className="t-annotation mt-1 block truncate">
+          {vehicle.kind} / {vehicle.mass_kg} kg / {vehicle.drivetrain.toUpperCase()}
+        </span>
+        {vehicle.notes && <span className="t-annotation mt-1 block truncate">{vehicle.notes}</span>}
+      </span>
+      <span className="shrink-0 text-right">
+        <span className="t-annotation block">
+          {stats.runCount === 0 ? 'No runs' : `${stats.runCount} run${stats.runCount === 1 ? '' : 's'}`}
+        </span>
+        <span className="t-data mt-1 block text-sm" style={{ color: 'var(--color-procedure)' }}>
+          {stats.bestPeakKw == null ? <Na title="No complete run yet" /> : format(stats.bestPeakKw)}
+        </span>
+      </span>
+      <ChevronIcon />
     </Link>
   );
 }
 
-function OnboardingCard() {
-  const steps = [
-    'Add your vehicle (mass matters, physics is F=ma)',
-    'Calibrate a gear (drive at known RPM to capture your speed/RPM ratio)',
-    'Drive and record (the app derives your power curve from GPS acceleration)',
-  ];
+const ONBOARDING_STEPS = [
+  'Add your vehicle (mass matters, physics is F=ma)',
+  'Calibrate a gear (drive at known RPM to capture your speed/RPM ratio)',
+  'Drive and record (the app derives your power curve from GPS acceleration)',
+];
+
+function Onboarding() {
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-3">
-      <p className="text-xs font-semibold text-amber-400 uppercase tracking-widest">How it works</p>
-      <ol className="space-y-3">
-        {steps.map((text, i) => (
-          <li key={i} className="flex items-start gap-3">
-            <span className="bg-amber-500/15 text-amber-400 w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold shrink-0">
+    <Zone label="How it works" actions={<PlateLink to="/demo">See an example run</PlateLink>}>
+      <ol>
+        {ONBOARDING_STEPS.map((text, i) => (
+          <li key={text} className={`flex items-start gap-3 px-3 py-2.5 ${i > 0 ? 'rule-t' : ''}`}>
+            <span
+              aria-hidden="true"
+              className="t-data flex h-6 w-6 shrink-0 items-center justify-center text-xs"
+              style={{ border: 'var(--rule-hair) solid var(--color-rule)' }}
+            >
               {i + 1}
             </span>
-            <span className="text-zinc-300 text-sm leading-6">{text}</span>
+            <span className="t-body text-[0.875rem] leading-6">{text}</span>
           </li>
         ))}
       </ol>
-      <div className="pt-1">
-        <Link
-          to="/demo"
-          className="text-amber-400 hover:text-amber-300 text-sm font-semibold"
-        >
-          See an example run →
-        </Link>
-      </div>
-    </div>
+    </Zone>
   );
 }
 
@@ -93,7 +122,7 @@ export function GarageScreen() {
   if (vehicles === null) {
     return (
       <div className="flex items-center justify-center py-16">
-        <p className="text-zinc-500 text-sm">Loading…</p>
+        <p className="t-annotation">Loading…</p>
       </div>
     );
   }
@@ -102,45 +131,49 @@ export function GarageScreen() {
   const showRecent = vehicles.length > 0 && dashboard !== null && dashboard.recent.length > 0;
 
   return (
-    <div className="space-y-5 lg:space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-zinc-100 lg:text-3xl">Garage</h1>
-        {!adding && vehicles.length > 0 && (
-          <button
-            onClick={() => setAdding(true)}
-            className="bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-zinc-950 font-semibold text-sm px-4 py-2 rounded-xl transition-colors"
-          >
-            Add vehicle
-          </button>
-        )}
-      </div>
+    <div className="plate-stack">
+      {/* No meta row here on purpose: the counts it would carry are the same
+          two readings HeroStats states below, and a plate never prints one
+          measurement twice. */}
+      <TitleBlock
+        title="Garage"
+        actions={
+          !adding && vehicles.length > 0 ? (
+            <PlateButton variant="procedure" onClick={() => setAdding(true)}>
+              Add vehicle
+            </PlateButton>
+          ) : undefined
+        }
+      />
 
       {adding && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-          <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-4">New vehicle</p>
-          <VehicleForm
-            onSubmit={async (input) => {
-              await vehicleRepository.create(input);
-              setAdding(false);
-              await reload();
-            }}
-            onCancel={() => setAdding(false)}
-          />
-        </div>
+        <Zone label="New vehicle">
+          <div className="px-3 py-3">
+            <VehicleForm
+              onSubmit={async (input) => {
+                await vehicleRepository.create(input);
+                setAdding(false);
+                await reload();
+              }}
+              onCancel={() => setAdding(false)}
+            />
+          </div>
+        </Zone>
       )}
 
       {vehicles.length === 0 && !adding && (
         <>
-          <OnboardingCard />
-          <div className="flex flex-col items-center justify-center py-16 gap-3">
-            <p className="text-zinc-500 text-sm">No vehicles yet.</p>
-            <button
-              onClick={() => setAdding(true)}
-              className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold text-sm px-5 py-2.5 rounded-xl transition-colors"
-            >
-              Add vehicle
-            </button>
-          </div>
+          <Onboarding />
+          <Zone label="Vehicles">
+            <div className="hatch px-3 py-10 text-center">
+              <p className="t-annotation" style={{ color: 'var(--color-ink-2)' }}>
+                No vehicles yet.
+              </p>
+            </div>
+          </Zone>
+          <PlateButton variant="procedure" major onClick={() => setAdding(true)}>
+            Add vehicle
+          </PlateButton>
         </>
       )}
 
@@ -148,26 +181,28 @@ export function GarageScreen() {
         <HeroStats peak={dashboard.peak} totalRuns={dashboard.totalRuns} vehicleCount={vehicles.length} />
       )}
 
-      {/* Desktop dashboard: vehicles fill the wide left column, recent activity
-          sits in the right rail. Mobile keeps the current stacked order (recent
-          above vehicles) via DOM order + lg:order on desktop. */}
+      {/* Desktop: the vehicle index fills the wide left column, recent activity
+          sits in the right rail. Mobile keeps the stacked order (recent above
+          vehicles) via DOM order + lg:order on desktop. */}
       {(showRecent || vehicles.length > 0) && (
-        <div className="space-y-5 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start lg:space-y-0">
+        <div className="space-y-10 lg:grid lg:grid-cols-3 lg:gap-6 lg:space-y-0 lg:items-start">
           {showRecent && dashboard && (
             <div className="lg:order-2 lg:col-span-1">
               <RecentActivity rows={dashboard.recent} />
             </div>
           )}
           {vehicles.length > 0 && (
-            <div className={`space-y-2 lg:order-1 ${showRecent ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
-              {showDashboard && (
-                <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">
-                  Vehicles
-                </p>
-              )}
-              {vehicles.map((v) => (
-                <VehicleCard key={v.id} vehicle={v} stats={statsFor(runsByVehicle.get(v.id) ?? [])} />
-              ))}
+            <div className={`lg:order-1 ${showRecent ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
+              <Zone label="Vehicles" note={`${vehicles.length} in this garage`}>
+                {vehicles.map((v, i) => (
+                  <VehicleRow
+                    key={v.id}
+                    vehicle={v}
+                    stats={statsFor(runsByVehicle.get(v.id) ?? [])}
+                    first={i === 0}
+                  />
+                ))}
+              </Zone>
             </div>
           )}
         </div>

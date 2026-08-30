@@ -41,28 +41,35 @@ export function DevLoginPanel() {
   }
 
   return (
-    <div className="w-full max-w-sm space-y-3 rounded-lg border border-dashed border-amber-700/50 bg-amber-950/20 p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-amber-500/80">
+    <section
+      className="box px-3 py-3"
+      aria-label="Dev sign-in"
+      style={{ borderColor: 'var(--color-caution)', background: 'var(--color-caution-tint)' }}
+    >
+      <p className="t-annotation" style={{ color: 'var(--color-caution)' }}>
         Dev sign-in (no email)
       </p>
-      <div className="flex gap-2">
+      <div className="mt-2 flex gap-2">
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="dev@example.com"
-          className="min-w-0 flex-1 rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-sm text-zinc-100 placeholder-zinc-600 focus:border-amber-500 focus:outline-none"
+          aria-label="Dev sign-in email"
+          className="field min-w-0 flex-1"
         />
         <button
           type="button"
           onClick={devLogin}
           disabled={loading || !email.trim()}
-          className="shrink-0 rounded-md bg-amber-600 px-3 py-1.5 text-sm font-semibold text-zinc-950 hover:bg-amber-500 active:bg-amber-700 disabled:opacity-50"
+          className="ctl shrink-0"
         >
-          {loading ? '…' : 'Sign in'}
+          {loading ? 'Working' : 'Go'}
         </button>
       </div>
-      {error && <p className="text-xs text-red-400">{error}</p>}
-    </div>
+      {error && (
+        <p className="t-annotation mt-2" style={{ color: 'var(--color-caution)' }}>{error}</p>
+      )}
+    </section>
   );
 }

@@ -1,15 +1,18 @@
 import { useMemo } from 'react';
 import type { CompareGrid, GripComparison } from '@/analysis/grip/compare';
+import { usePlateInk } from '@/ui/plate';
 import {
   distanceFrame,
   drawCursor,
   drawDistanceLabels,
+  drawMaskedRegion,
+  drawPlotFrame,
   drawTurnTicks,
   niceStep,
   seekFromClick,
 } from './compare-chart-frame';
 import { nearestIndex } from './compare-delta-chart';
-import { CANVAS_FONT, useCanvasDraw } from './use-canvas-draw';
+import { plateFont, useCanvasDraw } from './use-canvas-draw';
 
 export type TraceChannel = 'spd' | 'lean' | 'metric' | 'along';
 
@@ -40,6 +43,8 @@ interface Props {
   cmp: GripComparison;
   channel: TraceChannel;
   colorOf: Map<string, string>;
+  /** lap key → series dash, so identity survives a colour-blind reader */
+  dashOf?: Map<string, number[]>;
   keys: string[];
   cursor: number;
   onSeek: (s: number) => void;
@@ -61,7 +66,8 @@ const SECTION_EPS = 0.5;
  * whole axis renders a flat line that is indistinguishable from measurement,
  * on the local fixture pair that is 12% of the axis, at a held 215 km/h.
  */
-export function CompareTraceChart({ cmp, channel, colorOf, keys, cursor, onSeek, height = 170 }: Props) {
+export function CompareTraceChart({ cmp, channel, colorOf, dashOf, keys, cursor, onSeek, height = 170 }: Props) {
+  const ink = usePlateInk();
   // memoised so the draw deps are stable across unrelated parent renders
   const series = useMemo(() => cmp.laps.filter((l) => keys.includes(l.key)), [cmp, keys]);
   const spec = SPEC[channel];
@@ -91,32 +97,47 @@ export function CompareTraceChart({ cmp, channel, colorOf, keys, cursor, onSeek,
     hi += padv;
     const Y = (v: number) => f.y1 - ((v - lo) / (hi - lo)) * (f.y1 - f.y0);
 
+    // Stretches of axis at least one drawn lap never rode. Outside its section
+    // `resampleByDistance` holds the last real value, so an unmarked margin is
+    // a held number wearing the costume of a measurement.
+    let inM = 0;
+    let outM = cmp.refLength;
+    for (const l of series) {
+      inM = Math.max(inM, l.section.sIn);
+      outM = Math.min(outM, l.section.sOut);
+    }
+    if (series.length) {
+      if (inM > 1) drawMaskedRegion(ctx, f, ink, 0, inM);
+      if (outM < cmp.refLength - 1) drawMaskedRegion(ctx, f, ink, outM, cmp.refLength);
+    }
+
     const step = niceStep(hi - lo, 4);
-    ctx.font = `9px ${CANVAS_FONT}`;
+    ctx.font = plateFont(9);
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
     for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) {
       const y = Y(v);
-      ctx.strokeStyle = Math.abs(v) < 1e-9 && spec.signed ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.055)';
+      ctx.strokeStyle = Math.abs(v) < 1e-9 && spec.signed ? ink.rule : ink.ruleFaint;
       ctx.beginPath();
       ctx.moveTo(f.x0, y);
       ctx.lineTo(f.x1, y);
       ctx.stroke();
-      ctx.fillStyle = '#6b6b74';
+      ctx.fillStyle = ink.ink3;
       ctx.fillText(v.toFixed(spec.dp), f.x0 - 5, y);
     }
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText(spec.unit, f.x0 + 3, f.y0 + 2);
+    ctx.fillText(spec.unit.toUpperCase(), f.x0 + 3, f.y0 + 2);
 
-    drawTurnTicks(ctx, f, cmp.corners);
+    drawTurnTicks(ctx, f, cmp.corners, ink);
 
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     for (const l of series) {
       const arr = l.grid[channel as keyof CompareGrid] as Float32Array;
       const n = Math.min(arr.length, cmp.s.length);
-      ctx.strokeStyle = colorOf.get(l.key) ?? '#e4e4e7';
+      ctx.strokeStyle = colorOf.get(l.key) ?? ink.ink;
+      ctx.setLineDash(dashOf?.get(l.key) ?? []);
       ctx.lineWidth = l.isReference ? 2.2 : 1.6;
       ctx.beginPath();
       let open = false;
@@ -129,28 +150,30 @@ export function CompareTraceChart({ cmp, channel, colorOf, keys, cursor, onSeek,
         else { ctx.moveTo(x, y); open = true; }
       }
       ctx.stroke();
+      ctx.setLineDash([]);
     }
 
-    drawDistanceLabels(ctx, f);
-    drawCursor(ctx, f, cursor);
+    drawPlotFrame(ctx, f, ink);
+    drawDistanceLabels(ctx, f, ink);
+    drawCursor(ctx, f, cursor, ink);
     const k = nearestIndex(cmp.s, cursor);
     for (const l of series) {
       const arr = l.grid[channel as keyof CompareGrid] as Float32Array;
       const v = spec.scale(arr[k]);
       if (!measured(l, k) || Number.isNaN(v)) continue;
-      ctx.fillStyle = colorOf.get(l.key) ?? '#e4e4e7';
+      ctx.fillStyle = colorOf.get(l.key) ?? ink.ink;
       ctx.beginPath();
       ctx.arc(f.X(cursor), Y(v), 3, 0, 7);
       ctx.fill();
     }
-  }, [cmp, series, channel, colorOf, cursor, height]);
+  }, [cmp, series, channel, colorOf, dashOf, cursor, height, ink]);
 
   return (
     <canvas
       ref={ref}
       onClick={(e) => ref.current && onSeek(seekFromClick(e, ref.current, cmp.refLength))}
-      className="block w-full cursor-crosshair rounded-lg bg-zinc-950"
-      style={{ height }}
+      className="block w-full cursor-crosshair"
+      style={{ height, background: 'var(--color-sunk)' }}
     />
   );
 }

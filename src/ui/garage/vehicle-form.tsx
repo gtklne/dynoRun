@@ -2,10 +2,7 @@ import { useMemo, useState } from 'react';
 import type { VehicleKind, Drivetrain, Transmission, BodyShape } from '@/shared/types';
 import type { NewVehicle } from '@/api/repositories/types';
 import { shapesForKind, shapePreset } from '@/shared/body-shapes';
-
-const labelClass = 'text-xs font-medium text-zinc-400 uppercase tracking-wider';
-const inputClass = 'w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-500 transition-colors text-sm';
-const fieldClass = 'flex flex-col gap-1.5';
+import { PlateButton, PlateField } from '@/ui/plate';
 
 const TRANSMISSIONS: ReadonlyArray<{ value: Transmission; label: string }> = [
   { value: 'manual', label: 'Manual' },
@@ -44,6 +41,48 @@ function parseFactoryHp(raw: string): number | null {
   const n = Number(t);
   if (!Number.isFinite(n) || n <= 0) return null;
   return Math.round(n);
+}
+
+function DisclosureIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="square"
+      aria-hidden="true"
+      className={`transition-transform ${open ? 'rotate-180' : ''}`}
+    >
+      <polyline points="5 9 12 16 19 9" />
+    </svg>
+  );
+}
+
+/**
+ * A unit gutter welded to the field, the way an instrument prints its unit on
+ * the bezel rather than floating it over the reading. Absolutely positioning
+ * the unit inside the input meant the value could slide underneath it.
+ */
+function UnitField({ unit, children }: { unit: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-stretch">
+      {children}
+      <span
+        aria-hidden="true"
+        className="t-annotation flex shrink-0 items-center px-2.5"
+        style={{
+          border: 'var(--rule-hair) solid var(--color-rule)',
+          borderLeft: 'none',
+          background: 'var(--color-sunk)',
+        }}
+      >
+        {unit}
+      </span>
+    </div>
+  );
 }
 
 export function VehicleForm({
@@ -131,40 +170,72 @@ export function VehicleForm({
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      <div className={fieldClass}>
-        <label htmlFor="vf-name" className={labelClass}>Name</label>
-        <input id="vf-name" required maxLength={120} className={inputClass} value={name} placeholder="e.g. Golf R" onChange={(e) => setName(e.target.value)} />
-      </div>
+      <PlateField id="vf-name" label="Name">
+        <input
+          id="vf-name"
+          required
+          maxLength={120}
+          className="field"
+          value={name}
+          placeholder="e.g. Golf R"
+          onChange={(e) => setName(e.target.value)}
+        />
+      </PlateField>
 
-      <div className={fieldClass}>
-        <label htmlFor="vf-kind" className={labelClass}>Kind</label>
-        <select id="vf-kind" className={inputClass} value={kind} onChange={(e) => onKindChange(e.target.value as VehicleKind)}>
+      <PlateField id="vf-kind" label="Kind">
+        <select
+          id="vf-kind"
+          className="field"
+          value={kind}
+          onChange={(e) => onKindChange(e.target.value as VehicleKind)}
+        >
           <option value="car">Car</option>
           <option value="motorcycle">Motorcycle</option>
         </select>
-      </div>
+      </PlateField>
 
-      <div className={fieldClass}>
-        <label htmlFor="vf-mass" className={labelClass}>Mass (kg)</label>
-        <input id="vf-mass" type="number" min="1" step="0.1" required className={inputClass} value={mass} inputMode="decimal" placeholder="Total: vehicle + driver + fuel" onChange={(e) => setMass(e.target.value)} />
-      </div>
+      <PlateField id="vf-mass" label="Mass (kg)">
+        <input
+          id="vf-mass"
+          type="number"
+          min="1"
+          step="0.1"
+          required
+          className="field"
+          value={mass}
+          inputMode="decimal"
+          placeholder="Total: vehicle + driver + fuel"
+          onChange={(e) => setMass(e.target.value)}
+        />
+      </PlateField>
 
-      <div className={fieldClass}>
-        <label htmlFor="vf-drivetrain" className={labelClass}>Drivetrain</label>
-        <select id="vf-drivetrain" className={inputClass} value={drivetrain} onChange={(e) => setDrivetrain(e.target.value as Drivetrain)}>
+      <PlateField id="vf-drivetrain" label="Drivetrain">
+        <select
+          id="vf-drivetrain"
+          className="field"
+          value={drivetrain}
+          onChange={(e) => setDrivetrain(e.target.value as Drivetrain)}
+        >
           <option value="fwd">FWD</option>
           <option value="rwd">RWD</option>
           <option value="awd">AWD</option>
           <option value="chain">Chain (motorcycle)</option>
           <option value="shaft">Shaft (motorcycle)</option>
         </select>
-      </div>
+      </PlateField>
 
-      <div className={fieldClass}>
-        <label htmlFor="vf-shape" className={labelClass}>Body shape (drag)</label>
+      <PlateField
+        id="vf-shape"
+        label="Body shape (drag)"
+        hint={
+          selectedPreset
+            ? `Drag coefficient Cd is about ${selectedPreset.cd.toFixed(2)} for this shape. Frontal area is prefilled: adjust if you know yours.`
+            : `Used for aerodynamic drag. Leave on default to use the average ${kind} value.`
+        }
+      >
         <select
           id="vf-shape"
-          className={inputClass}
+          className="field"
           value={bodyShape}
           onChange={(e) => onShapeChange(e.target.value as BodyShape | '')}
         >
@@ -173,115 +244,99 @@ export function VehicleForm({
             <option key={s.value} value={s.value}>{s.label}</option>
           ))}
         </select>
-        {selectedPreset ? (
-          <p className="text-xs text-zinc-500">
-            Drag coefficient Cd ≈ {selectedPreset.cd.toFixed(2)} for this shape. Frontal area is
-            prefilled: adjust if you know yours.
-          </p>
-        ) : (
-          <p className="text-xs text-zinc-500">
-            Used for aerodynamic drag. Leave on default to use the average {kind} value.
-          </p>
-        )}
-      </div>
+      </PlateField>
 
       {selectedPreset && (
-        <div className={fieldClass}>
-          <label htmlFor="vf-area" className={labelClass}>Frontal area</label>
-          <div className="relative">
+        <PlateField id="vf-area" label="Frontal area">
+          <UnitField unit="m²">
             <input
               id="vf-area"
-              className={`${inputClass} pr-10`}
+              className="field"
               value={frontalArea}
               inputMode="decimal"
               placeholder={String(selectedPreset.frontal_area_m2)}
               onChange={(e) => setFrontalArea(e.target.value)}
             />
-            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 text-sm pointer-events-none">m²</span>
-          </div>
-        </div>
+          </UnitField>
+        </PlateField>
       )}
 
-      <div className={fieldClass}>
-        <label htmlFor="vf-notes" className={labelClass}>Notes</label>
+      <PlateField id="vf-notes" label="Notes">
         <textarea
           id="vf-notes"
-          className={`${inputClass} resize-none`}
+          className="field resize-none"
           rows={3}
           value={notes}
           placeholder="Optional: mods, baseline, etc."
           onChange={(e) => setNotes(e.target.value)}
         />
-      </div>
+      </PlateField>
 
-      <div className="border-t border-zinc-800 pt-3">
+      <div className="rule-section pt-3">
         <button
           type="button"
           aria-expanded={detailsOpen}
           aria-controls="vf-details-panel"
           onClick={() => setDetailsOpen((v) => !v)}
-          className="w-full flex items-center justify-between text-left py-1 text-zinc-300 hover:text-zinc-100 transition-colors"
+          className="flex w-full items-center justify-between py-1 text-left"
         >
-          <span className="text-xs font-semibold uppercase tracking-wider">Details (optional)</span>
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={`transition-transform ${detailsOpen ? 'rotate-180' : ''}`}
-          >
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
+          <span className="t-label">Details (optional)</span>
+          <DisclosureIcon open={detailsOpen} />
         </button>
 
         {detailsOpen && (
           <div id="vf-details-panel" className="space-y-4 pt-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className={fieldClass}>
-                <label htmlFor="vf-make" className={labelClass}>Make</label>
-                <input id="vf-make" className={inputClass} value={make} placeholder="VW" onChange={(e) => setMake(e.target.value)} />
-              </div>
-              <div className={fieldClass}>
-                <label htmlFor="vf-model" className={labelClass}>Model</label>
-                <input id="vf-model" className={inputClass} value={model} placeholder="Golf R" onChange={(e) => setModel(e.target.value)} />
-              </div>
-              <div className={fieldClass}>
-                <label htmlFor="vf-year" className={labelClass}>Year</label>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <PlateField id="vf-make" label="Make">
+                <input
+                  id="vf-make"
+                  className="field"
+                  value={make}
+                  placeholder="VW"
+                  onChange={(e) => setMake(e.target.value)}
+                />
+              </PlateField>
+              <PlateField id="vf-model" label="Model">
+                <input
+                  id="vf-model"
+                  className="field"
+                  value={model}
+                  placeholder="Golf R"
+                  onChange={(e) => setModel(e.target.value)}
+                />
+              </PlateField>
+              <PlateField
+                id="vf-year"
+                label="Year"
+                error={yearError ? `Year must be ${MIN_YEAR}-${MAX_YEAR}.` : undefined}
+              >
                 <input
                   id="vf-year"
-                  className={`${inputClass} ${yearError ? 'border-red-500' : ''}`}
+                  className="field"
+                  style={yearError ? { borderColor: 'var(--color-caution)' } : undefined}
                   value={year}
                   inputMode="numeric"
                   placeholder="2020"
                   onChange={(e) => setYear(e.target.value)}
                   aria-invalid={yearError}
                 />
-                {yearError && (
-                  <p className="text-xs text-red-400">Year must be {MIN_YEAR}-{MAX_YEAR}.</p>
-                )}
-              </div>
+              </PlateField>
             </div>
 
-            <div className={fieldClass}>
-              <label htmlFor="vf-tire" className={labelClass}>Tires</label>
+            <PlateField id="vf-tire" label="Tires">
               <input
                 id="vf-tire"
-                className={inputClass}
+                className="field"
                 value={tireLabel}
                 placeholder="e.g. Michelin Pilot Sport 4S 235/40R18"
                 onChange={(e) => setTireLabel(e.target.value)}
               />
-            </div>
+            </PlateField>
 
-            <div className={fieldClass}>
-              <label htmlFor="vf-transmission" className={labelClass}>Transmission</label>
+            <PlateField id="vf-transmission" label="Transmission">
               <select
                 id="vf-transmission"
-                className={inputClass}
+                className="field"
                 value={transmission}
                 onChange={(e) => setTransmission(e.target.value as Transmission | '')}
               >
@@ -290,40 +345,31 @@ export function VehicleForm({
                   <option key={t.value} value={t.value}>{t.label}</option>
                 ))}
               </select>
-            </div>
+            </PlateField>
 
-            <div className={fieldClass}>
-              <label htmlFor="vf-factory-hp" className={labelClass}>Factory power</label>
-              <div className="relative">
+            <PlateField id="vf-factory-hp" label="Factory power">
+              <UnitField unit="hp">
                 <input
                   id="vf-factory-hp"
-                  className={`${inputClass} pr-10`}
+                  className="field"
                   value={powerHpFactory}
                   inputMode="numeric"
                   placeholder="e.g. 300"
                   onChange={(e) => setPowerHpFactory(e.target.value)}
                 />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 text-sm pointer-events-none">hp</span>
-              </div>
-            </div>
+              </UnitField>
+            </PlateField>
           </div>
         )}
       </div>
 
       <div className="flex gap-3 pt-1">
-        <button
-          type="submit"
-          className="flex-1 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-zinc-950 font-semibold py-3 rounded-xl transition-colors text-sm"
-        >
+        <PlateButton type="submit" variant="procedure" className="flex-1">
           Save vehicle
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium py-3 rounded-xl transition-colors border border-zinc-700 text-sm"
-        >
+        </PlateButton>
+        <PlateButton onClick={onCancel} className="flex-1">
           Cancel
-        </button>
+        </PlateButton>
       </div>
     </form>
   );

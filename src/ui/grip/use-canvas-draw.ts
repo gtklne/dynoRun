@@ -21,7 +21,17 @@ function fitCanvas(cv: HTMLCanvasElement): CanvasSize | null {
   return { ctx, w: r.width, h: r.height, dpr };
 }
 
-export const CANVAS_FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+/**
+ * The plate has one type family, and a canvas label is still plate lettering:
+ * a chart drawn in the platform UI font next to headings set in Archivo reads
+ * as two documents stapled together.
+ */
+export const CANVAS_FONT = 'Archivo, system-ui, -apple-system, "Segoe UI", sans-serif';
+
+/** The annotation register, for axis labels, tick values and canvas legends. */
+export function plateFont(px: number, weight = 600): string {
+  return `${weight} ${px}px ${CANVAS_FONT}`;
+}
 
 /**
  * Redraw a canvas whenever `deps` change or the element resizes. The draw

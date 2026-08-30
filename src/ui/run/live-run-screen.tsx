@@ -18,6 +18,7 @@ import { CountdownOverlay } from '@/ui/components/countdown-overlay';
 import { pulseStart, pulseStop } from '@/app/haptics';
 import { useUnits } from '@/app/units-context';
 import { useToast } from '@/ui/components/toast';
+import { Na, Plate, PlateButton, PlateLink, ProfileView, TitleBlock, Zone } from '@/ui/plate';
 
 interface GpsState {
   accuracy_m: number | null;
@@ -26,6 +27,16 @@ interface GpsState {
   altitude_m: number | null;
   heading_deg: number | null;
 }
+
+const STATE_LABEL: Record<RunState['kind'], string> = {
+  idle: 'Starting sensors',
+  ready: 'Armed',
+  running: 'Recording',
+  analyzing: 'Analyzing',
+  reviewing: 'Reviewing',
+  saved: 'Saved',
+  aborted: 'Aborted',
+};
 
 export function LiveRunScreen() {
   const { vehicleId = '', calibrationId = '' } = useParams();
@@ -37,6 +48,7 @@ export function LiveRunScreen() {
   const [currentSpeed, setCurrentSpeed] = useState(0);
   const [currentRpm, setCurrentRpm] = useState(0);
   const [gps, setGps] = useState<GpsState | null>(null);
+  const [vehicleName, setVehicleName] = useState<string | null>(null);
   const [warmupStartedAt] = useState<number>(() => Date.now());
   const [goodSince, setGoodSince] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -163,7 +175,10 @@ export function LiveRunScreen() {
       await ctrl.warmup(vehicleId, calibrationId);
       if (cancelled) return;
       const vehicle = await vehicleRepository.get(vehicleId);
-      if (!cancelled && vehicle) massRef.current = vehicle.mass_kg;
+      if (!cancelled && vehicle) {
+        massRef.current = vehicle.mass_kg;
+        setVehicleName(vehicle.name);
+      }
     })();
     return () => {
       cancelled = true;
@@ -212,8 +227,15 @@ export function LiveRunScreen() {
   const canStart = isReady && (gpsLocked || forceStart);
 
   return (
-    <div className="space-y-4 lg:max-w-3xl lg:mx-auto">
-      <h1 className="text-2xl font-bold text-zinc-100">Run</h1>
+    <Plate className="lg:max-w-3xl lg:mx-auto">
+      <TitleBlock
+        ident={vehicleName ?? undefined}
+        title="Run"
+        meta={[
+          { label: 'Capture', value: 'Interactive, watch the screen' },
+          { label: 'State', value: STATE_LABEL[state.kind] },
+        ]}
+      />
 
       {countingDown && (
         <CountdownOverlay
@@ -235,103 +257,85 @@ export function LiveRunScreen() {
       )}
 
       {isRunning && (
-        <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:items-start lg:space-y-0">
-        <div className="bg-zinc-900 border border-amber-700/60 rounded-2xl p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            <span className="text-red-400 text-xs font-semibold uppercase tracking-widest">Recording</span>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Speed</p>
-              <p className="tabular-nums">
-                <span className="text-4xl font-bold text-zinc-100">{currentSpeed.toFixed(0)}</span>
-                <span className="text-sm text-zinc-500 ml-1">km/h</span>
-              </p>
+        <>
+          <Zone label="Live readout" note="Recording">
+            <div className="grid grid-cols-2">
+              <div className="px-3 py-4">
+                <p className="t-annotation">Speed</p>
+                <p className="t-readout-xl mt-2">
+                  {currentSpeed.toFixed(0)}
+                  <span className="t-annotation ml-2 align-baseline">km/h</span>
+                </p>
+              </div>
+              <div className="rule-l px-3 py-4">
+                <p className="t-annotation">RPM</p>
+                <p className="t-readout mt-2">{currentRpm.toFixed(0)}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">RPM</p>
-              <p className="tabular-nums">
-                <span className="text-3xl font-bold text-zinc-100">{currentRpm.toFixed(0)}</span>
-              </p>
+            <dl className="rule-t grid grid-cols-2">
+              <div className="px-3 py-2.5">
+                <dt className="t-annotation">Live peak</dt>
+                <dd className="t-data mt-1 text-lg" style={{ color: 'var(--color-procedure)' }}>
+                  {livePeakKw == null ? <Na title="No positive drive power measured yet" /> : format(livePeakKw)}
+                </dd>
+              </div>
+              <div className="rule-l px-3 py-2.5">
+                <dt className="t-annotation">0-100 km/h</dt>
+                <dd className="t-data mt-1 text-lg">
+                  {liveZeroToHundred == null ? (
+                    <Na title="Only measured when the pull started from a stop" />
+                  ) : (
+                    <>
+                      {liveZeroToHundred.toFixed(1)}
+                      <span className="t-annotation ml-1">s</span>
+                    </>
+                  )}
+                </dd>
+              </div>
+            </dl>
+          </Zone>
+
+          <ProfileView label="Speed and RPM" axis="last 30 s">
+            <div className="p-2">
+              <StreamingChart ref={chartRef} />
             </div>
-            <div>
-              <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Live peak</p>
-              <p className="tabular-nums">
-                <span className="text-2xl font-bold text-amber-400">{format(livePeakKw)}</span>
-              </p>
-            </div>
-          </div>
-          {liveZeroToHundred != null && (
-            <div className="mt-3 pt-3 border-t border-zinc-800 flex items-baseline justify-between">
-              <span className="text-zinc-500 text-xs uppercase tracking-wider">0-100 km/h</span>
-              <span className="tabular-nums">
-                <span className="text-2xl font-bold text-amber-400">{liveZeroToHundred.toFixed(1)}</span>
-                <span className="text-xs text-zinc-400 ml-1">s</span>
-              </span>
-            </div>
-          )}
-        </div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden p-2">
-          <StreamingChart ref={chartRef} />
-        </div>
-        </div>
+          </ProfileView>
+
+          <PlateButton variant="procedure" major onClick={stopRun}>
+            Stop
+          </PlateButton>
+        </>
       )}
 
       {isReady && (
-        <button
-          onClick={startRun}
-          disabled={!canStart}
-          className={`w-full font-bold py-4 rounded-xl transition-colors text-lg ${
-            canStart
-              ? showPoorWarning
-                ? 'bg-red-600 hover:bg-red-500 active:bg-red-700 text-white'
-                : 'bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-zinc-950'
-              : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
-          }`}
-        >
-          {showPoorWarning && forceStart ? 'Start anyway' : 'Start run'}
-        </button>
+        <div className="space-y-3">
+          <PlateButton variant="procedure" major onClick={startRun} disabled={!canStart}>
+            {showPoorWarning && forceStart ? 'Start anyway' : 'Start run'}
+          </PlateButton>
+          {showPoorWarning && !forceStart && (
+            <PlateButton className="w-full" onClick={() => setForceStart(true)}>
+              Start anyway, data will be unreliable
+            </PlateButton>
+          )}
+          <p className="t-body text-center text-[0.8125rem] leading-6">
+            On the bike? Use the hands-free session mode to record the whole ride and pick your pull
+            afterwards.
+          </p>
+          <div className="flex justify-center">
+            <PlateLink to={`/vehicles/${vehicleId}/calibrations/${calibrationId}/session`}>
+              Hands-free session
+            </PlateLink>
+          </div>
+        </div>
       )}
-      {isReady && (
-        <p className="text-center text-xs text-zinc-500">
-          On the bike?{' '}
-          <a
-            href={`/vehicles/${vehicleId}/calibrations/${calibrationId}/session`}
-            className="text-amber-400 hover:text-amber-300 underline underline-offset-2"
-          >
-            Use the hands-free session mode
-          </a>{' '}
-          to record the whole ride and pick your pull afterwards.
-        </p>
-      )}
-      {isReady && showPoorWarning && !forceStart && (
-        <button
-          onClick={() => setForceStart(true)}
-          className="w-full text-zinc-500 hover:text-zinc-300 text-xs underline underline-offset-2"
-        >
-          Start anyway (data will be unreliable)
-        </button>
-      )}
-      {isRunning && (
-        <button
-          onClick={stopRun}
-          className="w-full bg-red-600 hover:bg-red-500 active:bg-red-700 text-white font-bold py-4 rounded-xl transition-colors text-lg"
-        >
-          Stop
-        </button>
-      )}
+
       {isAnalyzing && (
-        <div className="flex items-center justify-center gap-3 py-4">
-          <div className="w-4 h-4 rounded-full border-2 border-amber-500 border-t-transparent animate-spin" />
-          <p className="text-amber-400 font-medium">Analyzing run…</p>
-        </div>
+        <p className="t-label py-6 text-center">Analyzing run</p>
       )}
-      {(state.kind === 'idle') && (
-        <div className="flex items-center justify-center py-4">
-          <p className="text-zinc-500 text-sm">Initializing sensors…</p>
-        </div>
+
+      {state.kind === 'idle' && (
+        <p className="t-annotation py-6 text-center">Initializing sensors</p>
       )}
-    </div>
+    </Plate>
   );
 }

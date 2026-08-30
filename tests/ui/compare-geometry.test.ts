@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { fitTrackTransform } from '@/ui/grip/track-geometry';
 import { distanceFrame, niceStep } from '@/ui/grip/compare-chart-frame';
 import { nearestIndex } from '@/ui/grip/compare-delta-chart';
-import { deltaColor, formatDelta, deltaTextClass, seriesColor, SERIES_COLORS } from '@/ui/grip/compare-colors';
+import { deltaColor, formatDelta, deltaTextClass, seriesColor, seriesDash, MAX_COMPARE_LAPS } from '@/ui/grip/compare-colors';
+import { readPlateInk } from '@/ui/plate';
 
 describe('fitTrackTransform', () => {
   it('centres and scales a shape to fit inside the padding', () => {
@@ -74,24 +75,40 @@ describe('nearestIndex', () => {
 });
 
 describe('compare colours', () => {
-  it('gives the reference the baseline colour and cycles the rest', () => {
-    expect(seriesColor(0)).toBe(SERIES_COLORS[0]);
-    expect(seriesColor(SERIES_COLORS.length)).toBe(SERIES_COLORS[0]);
+  // jsdom resolves no custom properties, so this is the day plate's fallback
+  // ink: the same source the components read, never a second hardcoded copy.
+  const ink = readPlateInk();
+
+  it('gives the reference the baseline ink and cycles the rest', () => {
+    expect(seriesColor(ink, 0)).toBe(ink.ink);
+    expect(seriesColor(ink, MAX_COMPARE_LAPS)).toBe(seriesColor(ink, 0));
+    expect(seriesDash(MAX_COMPARE_LAPS)).toEqual(seriesDash(0));
   });
 
-  it('never uses the demand ramp’s green/amber/red for series identity', () => {
-    // colors.ts owns #0ca30c / #fab219 / #d03b3b as *values*, not identities
-    for (const c of SERIES_COLORS) {
-      expect(['#0ca30c', '#fab219', '#d03b3b']).not.toContain(c);
+  it('separates six laps by colour AND dash, so hue alone is never the identity', () => {
+    // The old guarantee (series ink never borrows the demand ramp's values) is
+    // gone by design: every series ink is now a plate token, and some of those
+    // tokens are also ramp stops. The dash pattern is what replaces it, so a
+    // colour-blind reader and a phone in direct sun still separate six traces.
+    const colors = new Set<string>();
+    const dashes = new Set<string>();
+    for (let i = 0; i < MAX_COMPARE_LAPS; i++) {
+      colors.add(seriesColor(ink, i));
+      dashes.add(seriesDash(i).join(','));
     }
+    expect(colors.size).toBe(MAX_COMPARE_LAPS);
+    expect(dashes.size).toBe(MAX_COMPARE_LAPS);
   });
 
-  it('diverges around zero: lost time warm, gained time cool', () => {
-    expect(deltaColor(0, 1)).toBe('rgb(82,82,91)');
-    expect(deltaColor(2, 1)).toBe(deltaColor(1, 1)); // saturates
-    expect(deltaColor(-2, 1)).toBe(deltaColor(-1, 1));
-    expect(deltaColor(1, 1)).not.toBe(deltaColor(-1, 1));
-    expect(deltaColor(0, 0)).toBe('rgb(82,82,91)'); // no divide-by-zero
+  it('diverges around zero: lost time procedure, gained time gain, midpoint neutral', () => {
+    const neutral = deltaColor(ink, 0, 1);
+    expect(deltaColor(ink, 2, 1)).toBe(deltaColor(ink, 1, 1)); // saturates
+    expect(deltaColor(ink, -2, 1)).toBe(deltaColor(ink, -1, 1));
+    expect(deltaColor(ink, 1, 1)).not.toBe(deltaColor(ink, -1, 1));
+    expect(deltaColor(ink, 0, 0)).toBe(neutral); // no divide-by-zero
+    // a zero delta must not read as a small loss or a small gain
+    expect(neutral).not.toBe(deltaColor(ink, 1, 1));
+    expect(neutral).not.toBe(deltaColor(ink, -1, 1));
   });
 
   it('formats signed deltas with an explicit sign', () => {
@@ -99,8 +116,8 @@ describe('compare colours', () => {
     expect(formatDelta(-0.5)).toBe('−0.50');
     expect(formatDelta(0)).toBe('±0.00');
     expect(formatDelta(NaN)).toBe('n/a');
-    expect(deltaTextClass(0.01)).toBe('text-zinc-400');
-    expect(deltaTextClass(1)).toBe('text-rose-400');
-    expect(deltaTextClass(-1)).toBe('text-sky-400');
+    expect(deltaTextClass(0.01)).toBe('text-ink-3');
+    expect(deltaTextClass(1)).toBe('text-procedure');
+    expect(deltaTextClass(-1)).toBe('text-gain');
   });
 });

@@ -3,6 +3,7 @@ import { AccelTimesCard } from '@/ui/components/accel-times-card';
 import { RunQualityBadge } from '@/ui/components/run-quality-badge';
 import { formatPower, type PowerUnit } from '@/shared/format-power';
 import type { AnalyzedRun } from '@/analysis/types';
+import { NoReading, NotesBox, PlanView, Readout, RevisionBar, Zone } from '@/ui/plate';
 
 interface RunResultProps {
   kind: 'run';
@@ -19,36 +20,50 @@ interface CalibrationResultProps {
 
 type ReplayResultPanelProps = RunResultProps | CalibrationResultProps;
 
+const WHEEL_POWER_CAVEAT =
+  'Wheel power is estimated from GPS acceleration, vehicle mass, gearing and road-load assumptions. It is not a calibrated rolling-road dyno reading: treat it as a figure to compare against your own other runs, not as an absolute rating.';
+
 export function ReplayResultPanel(props: ReplayResultPanelProps) {
   if (props.kind === 'calibration') {
     const { steadySpeedKmh, userRpm, impliedRollout } = props;
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
-        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Calibration hold</p>
-        <p className="text-zinc-400 text-sm">
-          This is a steady-state calibration recording, so there's no power curve to derive.
-        </p>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3">
-            <p className="text-zinc-500 text-[10px] uppercase tracking-wider mb-1">Steady speed</p>
-            <p className="tabular-nums">
-              <span className="text-2xl font-bold text-zinc-100">{steadySpeedKmh.toFixed(1)}</span>
-              <span className="text-xs text-zinc-400 ml-1">km/h</span>
-            </p>
+      <div className="space-y-4">
+        <Zone
+          label="Calibration hold"
+          note="Steady state, so there is no power curve to derive"
+        >
+          <div className="grid grid-cols-2">
+            <div className="px-3 py-3">
+              <Readout
+                value={steadySpeedKmh.toFixed(1)}
+                unit="km/h"
+                label="Steady speed"
+                size="md"
+              />
+            </div>
+            <div className="rule-l px-3 py-3">
+              {impliedRollout != null ? (
+                <Readout
+                  value={impliedRollout.toFixed(4)}
+                  unit="m/rev"
+                  label="Implied rollout"
+                  tone="procedure"
+                  note={userRpm != null ? `at ${userRpm.toFixed(0)} RPM` : undefined}
+                />
+              ) : (
+                <NoReading
+                  label="Implied rollout"
+                  reason="The recording carries no target RPM, so speed alone cannot give a ratio"
+                />
+              )}
+            </div>
           </div>
-          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3">
-            <p className="text-zinc-500 text-[10px] uppercase tracking-wider mb-1">Implied rollout</p>
-            <p className="tabular-nums">
-              <span className="text-2xl font-bold text-amber-400">
-                {impliedRollout != null ? impliedRollout.toFixed(4) : 'n/a'}
-              </span>
-              <span className="text-xs text-zinc-400 ml-1">m/rev</span>
-            </p>
-            <p className="text-zinc-600 text-[10px] mt-1">
-              {userRpm != null ? `@ ${userRpm.toFixed(0)} RPM` : 'no RPM in recording'}
-            </p>
-          </div>
-        </div>
+        </Zone>
+
+        <NotesBox>
+          Rollout bundles tyre circumference, gear ratio and final drive into one number. It is only
+          meaningful if this hold really was the gear and RPM you meant to capture.
+        </NotesBox>
       </div>
     );
   }
@@ -56,10 +71,16 @@ export function ReplayResultPanel(props: ReplayResultPanelProps) {
   const { analyzed, unit } = props;
   if (analyzed.points.length === 0) {
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 text-center">
-        <p className="text-zinc-400 text-sm">Not enough data for a power curve.</p>
-        <p className="text-zinc-600 text-xs mt-1">Check mass and rollout, or the recording may be too short.</p>
-      </div>
+      <Zone label="Result">
+        <div className="hatch px-3 py-8 text-center">
+          <p className="t-annotation" style={{ color: 'var(--color-ink-2)' }}>
+            Not enough data for a power curve
+          </p>
+          <p className="t-annotation mt-1.5">
+            Check mass and rollout, or the recording may be too short
+          </p>
+        </div>
+      </Zone>
     );
   }
 
@@ -75,40 +96,51 @@ export function ReplayResultPanel(props: ReplayResultPanelProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Result</p>
-        <RunQualityBadge quality={analyzed.quality} />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-          <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Peak power</p>
-          <p className="tabular-nums">
-            <span className="text-3xl font-bold text-amber-400">
-              {formatPower(peak.wheel_power_kw, unit, { unitSuffix: false })}
-            </span>
-            <span className="text-sm text-zinc-400 ml-1">{unit}</span>
-          </p>
-          <p className="text-zinc-600 text-xs mt-1">{formatPower(peak.wheel_power_kw, opp)}</p>
+      <Zone label="Result" actions={<RunQualityBadge quality={analyzed.quality} />}>
+        <div className="grid grid-cols-2">
+          <div className="px-3 py-3">
+            <Readout
+              value={formatPower(peak.wheel_power_kw, unit, { unitSuffix: false })}
+              unit={unit}
+              label="Peak power"
+              tone="procedure"
+              note={formatPower(peak.wheel_power_kw, opp)}
+            />
+          </div>
+          <div className="rule-l px-3 py-3">
+            <Readout
+              value={peakTorque.wheel_torque_nm.toFixed(0)}
+              unit="Nm"
+              label="Peak torque"
+              note={`at ${peakTorque.rpm.toFixed(0)} RPM`}
+            />
+          </div>
         </div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-          <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Peak torque</p>
-          <p className="tabular-nums">
-            <span className="text-3xl font-bold text-zinc-100">{peakTorque.wheel_torque_nm.toFixed(0)}</span>
-            <span className="text-sm text-zinc-400 ml-1">Nm</span>
-          </p>
-          <p className="text-zinc-600 text-xs mt-1">@ {peakTorque.rpm.toFixed(0)} RPM</p>
-        </div>
-      </div>
+      </Zone>
 
       <AccelTimesCard accel={analyzed.accel_times} />
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden p-2">
-        <PowerCurveChart series={[{ label: 'Power', points: analyzed.points }]} mode="power" unit={unit} />
-      </div>
-      <p className="text-zinc-600 text-[11px] text-center">
-        Derived in-memory · pipeline v{analyzed.pipeline_version} · nothing saved
-      </p>
+      <PlanView
+        label="Wheel power vs RPM"
+        scale={`${analyzed.rpm_min.toFixed(0)}-${analyzed.rpm_max.toFixed(0)} RPM, 100 RPM bins, ${unit}`}
+      >
+        <PowerCurveChart
+          series={[{ label: 'Power', points: analyzed.points }]}
+          mode="power"
+          unit={unit}
+        />
+      </PlanView>
+
+      <NotesBox>{WHEEL_POWER_CAVEAT}</NotesBox>
+
+      <RevisionBar
+        entries={[
+          { label: 'Pipeline', value: `v${analyzed.pipeline_version}` },
+          { label: 'Bins', value: analyzed.points.length },
+          { label: 'Fix rate', value: `${analyzed.quality.avg_fix_rate_hz.toFixed(1)} Hz` },
+          { label: 'Derived', value: 'In memory, nothing saved' },
+        ]}
+      />
     </div>
   );
 }

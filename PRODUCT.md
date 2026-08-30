@@ -107,8 +107,11 @@ integration beyond a RaceBox CSV import; driveline-loss or aero-corrected
   mass, gearing and road-load assumptions. Grip reflects GPS/IMU quality, tyres,
   inputs and the user's own settings. When a value cannot be computed the UI
   prints `n/a`, never a fabricated number and never a dash glyph.
-- Dark UI only (`color-scheme: dark`), one Tailwind v4 system, no chart library
-  for grip canvases (plain canvas 2D) and uPlot for run curves.
+- Two plates, not one theme: a **day plate by default** because the real scene is
+  a phone in a gloved hand in direct sun, where a dark UI is a mirror, and a
+  **night plate** as a genuine variant of the same world. Both are first class;
+  neither is a bolted-on mode. One Tailwind v4 system, no chart library for grip
+  canvases (plain canvas 2D) and uPlot for run curves.
 - **No en or em dashes anywhere** in this repo, including UI copy.
 - Copy is English only; no i18n layer exists.
 
@@ -119,10 +122,15 @@ per-lap detection), traction envelope, score (g x 100), spare (grip left unused)
 ## Brand Commitments
 
 - **`wasgoht` is the suite brand**, at https://wasgoht.ch. **DynoRun** and
-  **Grip** are the two tools inside it. Existing marks: `SuiteMark`, `BrandLogo`,
-  `Wordmark` in `src/ui/components/`.
-- Colour carries meaning and is not decoration: **amber is DynoRun and every
-  interactive accent**, **blue (`GRIP_BLUE`) is Grip data**. Do not swap them.
+  **Grip** are the two tools inside it. Marks live in `src/ui/components/` and are
+  drawn in the plate's own symbology, single-ink, no gradient and no radius:
+  `SuiteMark` (a registration cross), `BrandLogo` (DynoRun, the profile trace it
+  draws), `GripMark` (the traction circle it draws), `Wordmark`.
+- Colour carries meaning and is never decoration. As of the 2026-08 redesign the
+  per-tool brand colours are **abolished**: amber-for-DynoRun and blue-for-Grip
+  both competed with the data plotted beside them. Colour is now spent only
+  where it changes a decision, and the two tools are told apart by their glyph
+  and by the plate's title block. Do not reintroduce a brand hue.
 - Voice is flat, technical and unhyped. Short imperative headlines ("Record.
   Compare. Decide."), no superlatives, no exclamation marks, and a stated
   limitation next to every claim.

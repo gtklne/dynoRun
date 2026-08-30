@@ -46,18 +46,23 @@ function hasAnyCondition(c: RunConditions): boolean {
   );
 }
 
+/**
+ * The conditions the run was measured in, as ruled marginal boxes. They are
+ * caveats on the reading, not tags, so they carry no fill and no colour: the
+ * rule around each one is what says "this is a stated condition".
+ */
 export function ConditionsChips({ conditions, size = 'md' }: ConditionsChipsProps) {
   if (!hasAnyCondition(conditions)) return null;
   const labels = conditionLabels(conditions, size);
   const className =
     size === 'sm'
-      ? 'text-[10px] px-1.5 py-0.5 bg-zinc-950 border border-zinc-800 rounded text-zinc-400 tabular-nums'
-      : 'bg-zinc-800 border border-zinc-700 rounded-full px-3 py-1 text-xs text-zinc-200 tabular-nums';
+      ? 'box t-annotation px-1.5 py-0.5'
+      : 'box t-data px-2.5 py-1 text-xs';
   const wrapperClass = size === 'sm' ? 'flex flex-wrap gap-1' : 'flex flex-wrap gap-2';
   return (
     <div className={wrapperClass} data-testid="conditions-chips" data-size={size}>
       {labels.map((label) => (
-        <span key={label} className={className}>
+        <span key={label} className={className} data-size={size}>
           {label}
         </span>
       ))}

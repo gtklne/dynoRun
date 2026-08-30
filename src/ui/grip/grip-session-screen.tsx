@@ -1,5 +1,5 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { analyzeGripSession } from '@/analysis/grip/analyze';
 import { cornerStats } from '@/analysis/grip/corners';
 import { bestLap } from '@/analysis/grip/laps';
@@ -13,13 +13,32 @@ import {
   type GripSettings,
 } from '@/analysis/grip/settings';
 import { isStoredGripData, unpackGripData } from '@/analysis/grip/storage';
-import type { GripCorner, ParsedGripSession } from '@/analysis/grip/types';
+import { GRIP_DATA_VERSION, type GripCorner, type ParsedGripSession } from '@/analysis/grip/types';
 import { gripSessionRepository } from '@/api/repositories/grip-session-repository';
 import { vehicleRepository } from '@/api/repositories/vehicle-repository';
 import type { GripSessionFull } from '@/api/repositories/types';
 import type { Vehicle } from '@/shared/types';
-import { SegmentedControl } from '@/ui/components/segmented-control';
-import { CornerCards } from './corner-cards';
+import { formatRelativeTime } from '@/shared/format-time';
+import {
+  Advisory,
+  CrossRefProvider,
+  NotesBox,
+  Na,
+  Plate,
+  PlanView,
+  PlateButton,
+  PlateField,
+  PlateLink,
+  PlateSegmented,
+  ProfileView,
+  RevisionBar,
+  TitleBlock,
+  Zone,
+  useCrossRef,
+  usePlateInk,
+} from '@/ui/plate';
+import { demandSwatches } from './colors';
+import { CornerMinima } from './corner-cards';
 import { formatLapTime } from './format-lap';
 import { invalidateGripSession, loadGripSession } from './grip-session-cache';
 import { GripSettingsDrawer } from './grip-settings-drawer';
@@ -32,19 +51,43 @@ import { TractionCircle } from './traction-circle';
 import { TransportBar } from './transport-bar';
 import { useGripPlayback } from './use-grip-playback';
 
-function Panel({ title, hint, children }: { title: React.ReactNode; hint?: React.ReactNode; children: React.ReactNode }) {
+function HelpIcon() {
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-      <h3 className="mb-2.5 flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-zinc-500">
-        <span>{title}</span>
-        {hint && <span className="font-normal normal-case tracking-normal">{hint}</span>}
-      </h3>
-      {children}
-    </div>
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="square" aria-hidden="true">
+      <circle cx="8" cy="8" r="6.5" />
+      <path d="M6 6.1a2 2 0 1 1 2.6 1.9c-.4.15-.6.5-.6.95v.55" />
+      <line x1="8" y1="11.6" x2="8" y2="11.7" strokeWidth="2" />
+    </svg>
   );
 }
 
+function SettingsIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="square" aria-hidden="true">
+      <line x1="1.5" y1="5" x2="14.5" y2="5" />
+      <line x1="1.5" y1="11" x2="14.5" y2="11" />
+      <rect x="4" y="3" width="4" height="4" />
+      <rect x="8.5" y="9" width="4" height="4" />
+    </svg>
+  );
+}
+
+/**
+ * The analyzer is the archetype of this world: one sheet carrying a plan view
+ * (the track), a profile view beneath it (load and transfer on the lap's own
+ * clock), a boxed minima table (the corners), the notes, and a revision bar
+ * naming the data it was drawn from. The cross-reference is what makes those
+ * separate views one procedure, so the whole screen sits in one provider.
+ */
 export function GripSessionScreen() {
+  return (
+    <CrossRefProvider>
+      <GripSessionPlate />
+    </CrossRefProvider>
+  );
+}
+
+function GripSessionPlate() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const [session, setSession] = useState<GripSessionFull | null>(null);
   const [parsed, setParsed] = useState<ParsedGripSession | null>(null);
@@ -55,6 +98,11 @@ export function GripSessionScreen() {
   const [drawer, setDrawer] = useState<'settings' | 'help' | null>(null);
   const [lapNum, setLapNum] = useState<number | null>(null);
   const [label, setLabel] = useState('');
+  // the instant the pointer is over, which outranks the playback cursor for
+  // every readout on the sheet while it is set
+  const [hoverLocal, setHoverLocal] = useState<number | null>(null);
+  const { setPosition } = useCrossRef();
+  const ink = usePlateInk();
 
   useEffect(() => {
     if (!sessionId) return;
@@ -126,12 +174,28 @@ export function GripSessionScreen() {
   // can" reference the spare flag compares against. Keying this on the per-lap
   // detection index instead compares unrelated bends: detection finds 6 to 9
   // corners on ten laps of the same circuit, and on the local fixture that made
-  // the flag wrong on 10 of 74 cards, by up to 30 points against a 10-point
+  // the flag wrong on 10 of 74 rows, by up to 30 points against a 10-point
   // threshold. See turns.ts.
   const bestApexG = useMemo(
     () => (metric ? bestApexPerTurn(laps, (c) => cornerStats(c, metric).apex) : new Map<number, number>()),
     [laps, metric],
   );
+
+  /** The lap's own path length, so the plan view can state a real scale. */
+  const lapMetres = useMemo(() => {
+    if (!analysis || !lap) return 0;
+    let m = 0;
+    for (let i = lap.start + 1; i <= lap.end; i++) {
+      m += Math.hypot(analysis.px[i] - analysis.px[i - 1], analysis.py[i] - analysis.py[i - 1]);
+    }
+    return m;
+  }, [analysis, lap]);
+
+  const sampleHz = useMemo(() => {
+    if (!analysis || analysis.n < 2) return null;
+    const span = analysis.ch.t[analysis.n - 1] - analysis.ch.t[0];
+    return span > 0 ? Math.round((analysis.n - 1) / span) : null;
+  }, [analysis]);
 
   // Persist tuned settings, debounced; skip the initial load's setSettings.
   const persistArmed = useRef(false);
@@ -152,6 +216,21 @@ export function GripSessionScreen() {
   const changeSetting = useCallback((key: GripSettingKey, value: number) => {
     setSettings((s) => ({ ...s, [key]: value }));
   }, []);
+
+  // a hover index from the previous lap means nothing on this one
+  useEffect(() => { setHoverLocal(null); }, [lap?.num, sessionId]);
+
+  const readIdx = hoverLocal ?? playback.cursor;
+
+  // One instant, published once, read by every view on the sheet.
+  useEffect(() => {
+    if (!analysis || !lap) return;
+    const i = Math.max(lap.start, Math.min(lap.end, lap.start + readIdx));
+    setPosition({
+      at: analysis.ch.t[i] - analysis.ch.t[lap.start],
+      source: hoverLocal != null ? 'pointer' : 'playback',
+    });
+  }, [analysis, lap, readIdx, hoverLocal, setPosition]);
 
   function saveLabel() {
     if (!session) return;
@@ -188,165 +267,194 @@ export function GripSessionScreen() {
 
   if (loadError) {
     return (
-      <div className="py-16 text-center">
-        <p className="text-sm text-zinc-400">{loadError}</p>
-        <Link to="/grip" className="mt-3 inline-block text-sm font-semibold text-sky-400 hover:text-sky-300">
-          ← Back to Grip sessions
-        </Link>
-      </div>
+      <Plate>
+        <Advisory>{loadError}</Advisory>
+        <PlateLink to="/grip">Back to Grip sessions</PlateLink>
+      </Plate>
     );
   }
   if (!session || !analysis || !lap || !metric || !dynC) {
-    return <div className="py-16 text-center text-sm text-zinc-500">Loading session…</div>;
+    return <p className="t-annotation py-16 text-center">Loading session…</p>;
   }
 
-  const globalCursor = lap.start + playback.cursor;
+  const globalCursor = lap.start + readIdx;
   const activeCorner = lap.corners.find((c) => globalCursor >= c.l && globalCursor <= c.r) ?? null;
   const tCur = analysis.ch.t[globalCursor] - analysis.ch.t[lap.start];
+  const hasEnvelope = analysis.fitSamples > 0;
+  const vehicleLabel = vehicles.find((v) => v.id === session.vehicle_id)?.name;
 
   return (
-    <div className="space-y-4">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <Link to="/grip" className="text-xs font-semibold text-zinc-500 transition-colors hover:text-zinc-300">
-            ← Grip sessions
-          </Link>
-          <input
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            onBlur={saveLabel}
-            onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-            placeholder={session.track || 'Untitled session'}
-            aria-label="Session label"
-            className="mt-0.5 block w-full max-w-md truncate rounded-md border border-transparent bg-transparent text-2xl font-bold text-zinc-100 outline-none transition-colors placeholder:text-zinc-100 hover:border-zinc-700 focus:border-sky-600 focus:placeholder:text-zinc-600"
-          />
-          <p className="mt-1 text-xs text-zinc-500">
-            {[session.track, session.config, session.session_date].filter(Boolean).join(' · ')}
-            {session.best_lap_s != null && <> · best <span className="font-mono text-zinc-400">{formatLapTime(session.best_lap_s)}</span></>}
-            {' · '}{laps.length} timed laps
-            {analysis.turnCount > 0 && <> · {analysis.turnCount} turns</>}
-            {' · '}session score{' '}
-            <span className="font-mono text-zinc-300">
-              {analysis.fitSamples > 0 ? Math.round(analysis.sessionScore) : 'n/a'}
-            </span>
-            {/* The score is monotone in lap count (measured +8.3 points from 1 to
-                10 laps of the same riding), so it is not comparable between
-                sessions of different length unless that is stated. Compare
-                already equalises the lap budget; here we at least name it. */}
-            {analysis.fitSamples > 0 && (
-              <span className="text-zinc-600"> over {laps.length} lap{laps.length === 1 ? '' : 's'}</span>
-            )}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <select
-            value={session.vehicle_id ?? ''}
-            onChange={(e) => setVehicle(e.target.value)}
-            aria-label="Linked vehicle"
-            className="rounded-lg border border-zinc-700 bg-zinc-800 px-2.5 py-2 text-xs font-medium text-zinc-300 outline-none focus:border-sky-600"
-          >
-            <option value="">No vehicle</option>
-            {vehicles.map((v) => (
-              <option key={v.id} value={v.id}>{v.name}</option>
-            ))}
-          </select>
-          <Link
-            to={`/grip/compare?sessions=${session.id}&laps=${session.id}:${lap.num}&ref=${session.id}:${lap.num}&m=${mode}`}
-            className="rounded-lg border border-sky-800/40 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-300 transition-colors hover:bg-sky-500/20"
-          >
-            Compare laps
-          </Link>
-          <button
-            type="button"
-            onClick={() => setDrawer('help')}
-            title="Help & how it works"
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-800 text-sm text-zinc-400 transition-colors hover:border-sky-600 hover:text-zinc-100"
-          >
-            ?
-          </button>
-          <button
-            type="button"
-            onClick={() => setDrawer('settings')}
-            title="Settings"
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-800 text-sm text-zinc-400 transition-colors hover:border-sky-600 hover:text-zinc-100"
-          >
-            ⚙
-          </button>
-        </div>
-      </header>
+    <Plate className="plate-issue">
+      <TitleBlock
+        ident={[session.config, session.session_date].filter(Boolean).join(' · ') || 'Grip session'}
+        title={label.trim() || session.track || 'Untitled session'}
+        meta={[
+          { label: 'Track', value: session.track || <Na /> },
+          {
+            label: 'Best lap',
+            value: session.best_lap_s != null ? formatLapTime(session.best_lap_s) : <Na title="No timed lap" />,
+          },
+          {
+            label: 'Timed laps',
+            value: (
+              <>
+                {laps.length}
+                {analysis.turnCount > 0 && (
+                  <span className="t-annotation ml-1.5">{analysis.turnCount} turns</span>
+                )}
+              </>
+            ),
+          },
+          {
+            // The score is monotone in lap count (measured +8.3 points from 1 to
+            // 10 laps of the same riding), so it is only readable next to that
+            // count. Compare equalises the lap budget; here we name it.
+            label: 'Session score',
+            value: hasEnvelope ? (
+              <>
+                {Math.round(analysis.sessionScore)}
+                <span className="t-annotation ml-1.5">
+                  over {laps.length} lap{laps.length === 1 ? '' : 's'}
+                </span>
+              </>
+            ) : (
+              <Na title="No traction envelope could be fitted" />
+            ),
+          },
+        ]}
+        actions={
+          <>
+            <PlateLink
+              to={`/grip/compare?sessions=${session.id}&laps=${session.id}:${lap.num}&ref=${session.id}:${lap.num}&m=${mode}`}
+              variant="solid"
+            >
+              Compare laps
+            </PlateLink>
+            <PlateButton onClick={() => setDrawer('help')} title="Help and how it works" aria-label="Help and how it works">
+              <HelpIcon />
+              Notes
+            </PlateButton>
+            <PlateButton onClick={() => setDrawer('settings')} title="Settings" aria-label="Settings">
+              <SettingsIcon />
+            </PlateButton>
+          </>
+        }
+      />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {!hasEnvelope && (
+        <Advisory>
+          No traction envelope could be fitted to this session, so the session score reads n/a rather than zero.
+          That is not an envelope of 0 g, it is the absence of one: too few samples survived the fit.
+        </Advisory>
+      )}
+
+      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
         <LapTabs laps={laps} bestNum={bestLap(laps).num} activeNum={lap.num} onSelect={(l) => setLapNum(l.num)} />
-        <SegmentedControl
-          ariaLabel="Colour metric"
-          compact
+        <PlateSegmented
+          label="Colour metric"
+          value={mode}
           options={[
             { value: 'grip', label: 'Grip' },
             { value: 'load', label: 'Dynamic load' },
           ]}
-          value={mode}
           onChange={setMode}
         />
       </div>
 
-      {/* items-start: the track map's canvas has a fixed aspect ratio, so a
-          stretching panel left a third of the column as dead space next to the
-          taller traction-circle + telemetry stack */}
+      {/* items-start: the plan view has a fixed aspect ratio, so a stretching
+          column left a third of it as dead space beside the taller stack */}
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
-        <Panel
-          title={<>Track map: {metricModeName(mode).toLowerCase()}</>}
-          hint={
-            <span className="flex items-center gap-2 text-[11px] text-zinc-500">
-              0
-              <span className="h-2 w-24 rounded" style={{ background: 'linear-gradient(90deg,#0ca30c,#fab219,#d03b3b)' }} />
-              tyre {settings.anchorG.toFixed(2)}g
-            </span>
-          }
-        >
-          <TrackMap
-            analysis={analysis}
-            lap={lap}
-            cursor={playback.cursor}
-            metric={metric}
-            cornerApexG={cornerApexG}
-            anchorG={settings.anchorG}
-            onSeek={playback.scrub}
-          />
-        </Panel>
+        <div className="space-y-4">
+          <PlanView
+            label={`Track map: ${metricModeName(mode).toLowerCase()}`}
+            scale={`Lap ${Math.round(lapMetres)} m, north up`}
+            legend={
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <span className="t-annotation">Demand</span>
+                <span className="flex" aria-hidden="true">
+                  {demandSwatches(ink, settings.anchorG).map((s) => (
+                    <span key={s.g} className="h-3 w-7" style={{ background: s.color }} />
+                  ))}
+                </span>
+                <span className="t-annotation">0 to tyre class {settings.anchorG.toFixed(2)} g</span>
+                <span className="t-annotation">Ring marks the cursor</span>
+              </div>
+            }
+          >
+            <TrackMap
+              analysis={analysis}
+              lap={lap}
+              cursor={playback.cursor}
+              metric={metric}
+              cornerApexG={cornerApexG}
+              anchorG={settings.anchorG}
+              onSeek={playback.scrub}
+              xref={hoverLocal}
+              onHover={setHoverLocal}
+            />
+          </PlanView>
 
-        <div className="flex flex-col gap-4">
-          <Panel title="Traction circle">
-            <TractionCircle analysis={analysis} lap={lap} cursor={playback.cursor} metric={metric} rateFS={settings.rateFS} anchorG={settings.anchorG} />
-          </Panel>
-          <Panel
-            title="Live telemetry"
-            hint={
+          <ProfileView
+            label="Profile: longitudinal g and transfer rate"
+            axis={`Lap time, 0 to ${lap.time.toFixed(2)} s`}
+          >
+            <LoadTimeline
+              analysis={analysis}
+              lap={lap}
+              cursor={playback.cursor}
+              rateFS={settings.rateFS}
+              onSeek={playback.scrub}
+              xref={hoverLocal}
+              onHover={setHoverLocal}
+            />
+          </ProfileView>
+
+          <Zone label="Playback">
+            <TransportBar playback={playback} lapLength={lapLength} tCur={tCur} tTot={lap.time} />
+          </Zone>
+        </div>
+
+        <div className="space-y-4">
+          <Zone label="Traction circle" note="lateral by longitudinal g">
+            <TractionCircle
+              analysis={analysis}
+              lap={lap}
+              cursor={playback.cursor}
+              metric={metric}
+              rateFS={settings.rateFS}
+              anchorG={settings.anchorG}
+              xref={hoverLocal}
+              onHover={setHoverLocal}
+            />
+            <div className="rule-t flex flex-wrap gap-x-4 gap-y-1 px-3 py-2">
+              <span className="t-annotation">Dashed inner boundary: your fitted envelope</span>
+              <span className="t-annotation" style={{ color: 'var(--color-caution)' }}>
+                Dotted ring: tyre class, an advisory, not a limit
+              </span>
+            </div>
+          </Zone>
+
+          <Zone
+            label="Instant readout"
+            note={
               activeCorner
-                ? `In ${activeCorner.turn ? `turn ${activeCorner.turn}` : 'a bend'} (${activeCorner.dir})`
-                : 'Straight / transition'
+                ? `in ${activeCorner.turn ? `turn ${activeCorner.turn}` : 'an extra bend'} (${activeCorner.dir === 'L' ? 'left' : 'right'})`
+                : 'straight or transition'
             }
           >
             <TelemetryReadout
               analysis={analysis}
               lap={lap}
-              cursor={playback.cursor}
+              cursor={readIdx}
               metric={metric}
               mode={mode}
               settings={settings}
             />
-          </Panel>
+          </Zone>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <TransportBar playback={playback} lapLength={lapLength} tCur={tCur} tTot={lap.time} />
-      </div>
-
-      <Panel title="Load & transient timeline" hint="accel / brake · transfer rate">
-        <LoadTimeline analysis={analysis} lap={lap} cursor={playback.cursor} rateFS={settings.rateFS} onSeek={playback.scrub} />
-      </Panel>
-
-      <CornerCards
+      <CornerMinima
         lap={lap}
         liveStats={cornerLive}
         bestApexG={bestApexG}
@@ -356,16 +464,76 @@ export function GripSessionScreen() {
         onSelect={(c: GripCorner) => playback.seek(c.ap - lap.start)}
       />
 
-      <p className="pt-2 text-xs text-zinc-600">
-        Physics assumptions and how to read each panel are in{' '}
-        <button type="button" onClick={() => setDrawer('help')} className="text-sky-400 underline underline-offset-2 hover:text-sky-300">
-          Help &amp; how it works →
+      <NotesBox>
+        Scores are absolute: g demand × 100, so 100 is roughly 1 g, and they compare honestly between laps,
+        sessions, bikes and riders. The traction envelope is descriptive, never a divisor: it is the boundary of
+        what you actually did, and it can only grow with more laps, so the session score is only comparable at
+        equal lap count. Longitudinal g is tyre demand, corrected for a fixed generic drag model rather than
+        measured per bike. Lateral g comes from lean angle. Physics assumptions and every tunable estimate are
+        in{' '}
+        <button
+          type="button"
+          onClick={() => setDrawer('help')}
+          className="underline underline-offset-2"
+          style={{ color: 'var(--color-ink)', font: 'inherit' }}
+        >
+          Notes and how it works
         </button>{' '}
-        · tune every estimate in{' '}
-        <button type="button" onClick={() => setDrawer('settings')} className="text-sky-400 underline underline-offset-2 hover:text-sky-300">
-          Settings ⚙
+        and{' '}
+        <button
+          type="button"
+          onClick={() => setDrawer('settings')}
+          className="underline underline-offset-2"
+          style={{ color: 'var(--color-ink)', font: 'inherit' }}
+        >
+          Settings
         </button>
-      </p>
+        .
+      </NotesBox>
+
+      <Zone label="Session record" note="amends this sheet's identification">
+        <div className="grid gap-3 px-3 py-3 sm:grid-cols-2">
+          <PlateField label="Session label" id="grip-session-label" hint="Blank falls back to the track name">
+            <input
+              id="grip-session-label"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              onBlur={saveLabel}
+              onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+              placeholder={session.track || 'Untitled session'}
+              className="field"
+            />
+          </PlateField>
+          <PlateField
+            label="Linked vehicle"
+            id="grip-session-vehicle"
+            hint={vehicleLabel ? undefined : 'Not linked to a vehicle yet'}
+          >
+            <select
+              id="grip-session-vehicle"
+              value={session.vehicle_id ?? ''}
+              onChange={(e) => setVehicle(e.target.value)}
+              className="field"
+            >
+              <option value="">No vehicle</option>
+              {vehicles.map((v) => (
+                <option key={v.id} value={v.id}>{v.name}</option>
+              ))}
+            </select>
+          </PlateField>
+        </div>
+      </Zone>
+
+      <RevisionBar
+        entries={[
+          { label: 'Data version', value: GRIP_DATA_VERSION },
+          { label: 'Sample rate', value: sampleHz ? `${sampleHz} Hz` : <Na /> },
+          { label: 'Samples', value: session.sample_count.toLocaleString('en') },
+          { label: 'Timed laps', value: laps.length },
+          { label: 'Source', value: 'RaceBox CSV export' },
+          { label: 'Imported', value: formatRelativeTime(session.created_at) },
+        ]}
+      />
 
       <GripSettingsDrawer
         open={drawer !== null}
@@ -375,6 +543,6 @@ export function GripSessionScreen() {
         onReset={() => setSettings(DEFAULT_GRIP_SETTINGS)}
         onClose={() => setDrawer(null)}
       />
-    </div>
+    </Plate>
   );
 }

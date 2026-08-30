@@ -38,18 +38,19 @@ const DEFAULT_DURATION: Record<ToastVariant, number> = {
   error: 6000,
 };
 
-const BORDER_BY_VARIANT: Record<ToastVariant, string> = {
-  info: 'border-l-zinc-700',
-  success: 'border-l-emerald-500',
-  warning: 'border-l-amber-500',
-  error: 'border-l-red-500',
-};
-
-const TEXT_BY_VARIANT: Record<ToastVariant, string> = {
-  info: 'text-zinc-200',
-  success: 'text-emerald-300',
-  warning: 'text-amber-300',
-  error: 'text-red-300',
+/**
+ * A toast is a marginal note stuck to the sheet, so it is a ruled box carrying
+ * the same square swatch an `Advisory` uses, not a panel with a coloured edge.
+ * Only the variants that demand something spend colour; an error additionally
+ * tints its ground and frame so it cannot be scanned past. There is no red on
+ * this plate, so warning and error share caution ink and the ground separates
+ * them.
+ */
+const SWATCH_BY_VARIANT: Record<ToastVariant, string> = {
+  info: 'var(--color-terrain)',
+  success: 'var(--color-gain)',
+  warning: 'var(--color-caution)',
+  error: 'var(--color-caution)',
 };
 
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -112,16 +113,30 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={t.id}
             role="status"
-            className={`pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-lg border border-zinc-800 ${BORDER_BY_VARIANT[t.variant]} border-l-4 bg-zinc-900 px-3 py-2 shadow-lg`}
+            className="box pointer-events-auto flex w-full max-w-md items-start gap-3 px-3 py-2.5"
+            style={
+              t.variant === 'error'
+                ? {
+                    borderColor: 'var(--color-caution)',
+                    background: 'var(--color-caution-tint)',
+                  }
+                : undefined
+            }
           >
-            <p className={`flex-1 text-sm leading-snug ${TEXT_BY_VARIANT[t.variant]}`}>
+            <span
+              aria-hidden="true"
+              className="mt-1 h-3.5 w-3.5 shrink-0"
+              style={{ background: SWATCH_BY_VARIANT[t.variant] }}
+            />
+            <p className="t-body m-0 flex-1 text-[0.8125rem] leading-6" style={{ color: 'var(--color-ink)' }}>
               {t.message}
             </p>
             <button
               type="button"
               aria-label="Dismiss"
               onClick={() => dismiss(t.id)}
-              className="-mr-1 -mt-1 rounded p-1 text-zinc-500 hover:text-zinc-200"
+              className="-mr-1 -mt-1 p-1"
+              style={{ color: 'var(--color-ink-3)' }}
             >
               <svg
                 width="14"
@@ -129,9 +144,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+                strokeWidth="1.6"
+                strokeLinecap="square"
               >
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />

@@ -19,6 +19,7 @@ import {
   inputClass,
   primaryButtonClass,
 } from '@/ui/auth/auth-layout';
+import { PlateField } from '@/ui/plate';
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string;
 
@@ -150,49 +151,43 @@ export function LoginScreen() {
 
   return (
     <AuthLayout>
-      <form onSubmit={handleSubmit} className="w-full space-y-6">
-        <BrandHeader />
-        <div className="space-y-4">
-          {mode === 'signup' && (
-            <div className="space-y-1">
-              <label htmlFor="name" className="text-sm text-zinc-400">Name</label>
-              <input
-                id="name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Optional"
-                autoComplete="name"
-                className={inputClass}
-              />
-            </div>
-          )}
+      <BrandHeader
+        title={mode === 'signup' ? 'Create account' : 'Sign in'}
+        subtitle={mode === 'signup' ? 'New account' : 'Account access'}
+      />
 
-          <div className="space-y-1">
-            <label htmlFor="email" className="text-sm text-zinc-400">Email address</label>
+      <form onSubmit={handleSubmit} className="box-frame flex flex-col gap-4 px-4 py-4 sm:px-5 sm:py-5">
+        {mode === 'signup' && (
+          <PlateField label="Name" id="name" hint="Optional">
             <input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              autoComplete="email"
-              aria-invalid={Boolean(error)}
-              aria-describedby={error ? 'login-error' : undefined}
+              id="name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Optional"
+              autoComplete="name"
               className={inputClass}
             />
-          </div>
+          </PlateField>
+        )}
 
-          <div className="space-y-1">
-            <div className="flex items-baseline justify-between">
-              <label htmlFor="password" className="text-sm text-zinc-400">Password</label>
-              {mode === 'signin' && (
-                <Link to="/forgot-password" className="text-xs text-zinc-500 hover:text-amber-400 underline">
-                  Forgot password?
-                </Link>
-              )}
-            </div>
+        <PlateField label="Email address" id="email">
+          <input
+            id="email"
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            autoComplete="email"
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? 'login-error' : undefined}
+            className={inputClass}
+          />
+        </PlateField>
+
+        <div>
+          <PlateField label="Password" id="password">
             <input
               id="password"
               type="password"
@@ -200,63 +195,85 @@ export function LoginScreen() {
               minLength={mode === 'signup' ? 8 : undefined}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder={mode === 'signup' ? 'At least 8 characters' : '••••••••'}
+              placeholder={mode === 'signup' ? 'At least 8 characters' : 'Your password'}
               autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
               className={inputClass}
             />
-          </div>
-
-          {needsCaptcha && (
-            <TurnstileWidget
-              ref={turnstileRef}
-              siteKey={TURNSTILE_SITE_KEY}
-              onToken={setCaptchaToken}
-              onExpire={() => setCaptchaToken(null)}
-              onError={(reason) => {
-                setCaptchaToken(null);
-                if (reason === 'load') {
-                  setError('The anti-bot check could not load. Disable your ad blocker for this page, or try another network.');
-                }
-              }}
-            />
+          </PlateField>
+          {mode === 'signin' && (
+            <p className="mt-1.5 text-right">
+              <Link to="/forgot-password" className="t-annotation no-underline hover:underline">
+                Forgot password?
+              </Link>
+            </p>
           )}
-
-          {error && <p id="login-error" role="alert" className="text-red-400 text-sm">{error}</p>}
-
-          <button
-            type="submit"
-            disabled={loading || (needsCaptcha && !captchaToken)}
-            className={primaryButtonClass}
-          >
-            {loading ? 'Working…' : submitLabel}
-          </button>
-
-          <SocialButtons
-            onSelect={handleSocial}
-            disabled={loading}
-            verb={mode === 'signup' ? 'Sign up' : 'Sign in'}
-          />
-
-          <p className="text-center text-sm text-zinc-500">
-            {mode === 'signin' ? (
-              <>
-                No account yet?{' '}
-                <button type="button" onClick={() => switchMode('signup')} className="text-amber-400 hover:text-amber-300 underline">
-                  Create one
-                </button>
-              </>
-            ) : (
-              <>
-                Already have an account?{' '}
-                <button type="button" onClick={() => switchMode('signin')} className="text-amber-400 hover:text-amber-300 underline">
-                  Sign in
-                </button>
-              </>
-            )}
-          </p>
         </div>
-        <LegalFootnote />
+
+        {needsCaptcha && (
+          <TurnstileWidget
+            ref={turnstileRef}
+            siteKey={TURNSTILE_SITE_KEY}
+            onToken={setCaptchaToken}
+            onExpire={() => setCaptchaToken(null)}
+            onError={(reason) => {
+              setCaptchaToken(null);
+              if (reason === 'load') {
+                setError('The anti-bot check could not load. Disable your ad blocker for this page, or try another network.');
+              }
+            }}
+          />
+        )}
+
+        {error && (
+          <p id="login-error" role="alert" className="t-body m-0 text-[0.8125rem] leading-6" style={{ color: 'var(--color-caution)' }}>
+            {error}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading || (needsCaptcha && !captchaToken)}
+          className={primaryButtonClass}
+        >
+          {loading ? 'Working…' : submitLabel}
+        </button>
+
+        <SocialButtons
+          onSelect={handleSocial}
+          disabled={loading}
+          verb={mode === 'signup' ? 'Sign up' : 'Sign in'}
+        />
+
+        <p className="rule-t t-annotation pt-3 text-center">
+          {mode === 'signin' ? (
+            <>
+              No account yet?{' '}
+              <button
+                type="button"
+                onClick={() => switchMode('signup')}
+                className="underline"
+                style={{ color: 'var(--color-ink)' }}
+              >
+                Create one
+              </button>
+            </>
+          ) : (
+            <>
+              Already have an account?{' '}
+              <button
+                type="button"
+                onClick={() => switchMode('signin')}
+                className="underline"
+                style={{ color: 'var(--color-ink)' }}
+              >
+                Sign in
+              </button>
+            </>
+          )}
+        </p>
       </form>
+
+      <LegalFootnote />
       {import.meta.env.DEV && <DevLoginPanel />}
     </AuthLayout>
   );

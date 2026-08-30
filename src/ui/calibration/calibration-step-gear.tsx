@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { SegmentedControl } from '@/ui/components/segmented-control';
+import { NotesBox, PlateButton, PlateField, Zone } from '@/ui/plate';
 
 export interface GearInput {
   gear_label: string;
@@ -18,20 +19,38 @@ const MODE_OPTIONS: ReadonlyArray<{ value: MeasureMode; label: string }> = [
   { value: 'tap', label: 'On screen' },
 ];
 
-const labelClass = 'text-xs font-medium text-zinc-400 uppercase tracking-wider';
-const inputClass = 'w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-500 transition-colors text-sm';
-const chipBase = 'px-4 py-2.5 rounded-xl text-sm transition-colors';
-const chipInactive = 'bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700';
-const chipActive = 'bg-amber-500 text-zinc-950 border border-amber-500 font-semibold';
-const stepperBtnClass = 'flex-1 bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-900 text-zinc-200 font-mono text-sm py-2 rounded-lg border border-zinc-700 transition-colors';
-
 const GEAR_PRESETS = ['2nd', '3rd', '4th', '5th', '6th'] as const;
+
+const RPM_STEPS = [-250, -100, 100, 250] as const;
 
 type GearMode = 'preset' | 'custom';
 
 interface Props {
   onSubmit: (g: GearInput, measureMode: MeasureMode) => void;
   defaultMeasureMode?: MeasureMode;
+}
+
+function NextMark() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="square"
+      aria-hidden="true"
+    >
+      <line x1="4" y1="12" x2="19" y2="12" />
+      <polyline points="13 6 19 12 13 18" />
+    </svg>
+  );
+}
+
+function stepLabel(delta: number): string {
+  // U+2212 is the maths minus, not a dash: these are signed operators.
+  return delta < 0 ? `−${Math.abs(delta)}` : `+${delta}`;
 }
 
 export function CalibrationStepGear({ onSubmit, defaultMeasureMode = 'tap' }: Props) {
@@ -64,100 +83,99 @@ export function CalibrationStepGear({ onSubmit, defaultMeasureMode = 'tap' }: Pr
   }
 
   return (
-    <form onSubmit={submit} className="space-y-5">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-1">
-        <p className="text-zinc-100 font-medium text-sm">Choose the gear you'll use for the run</p>
-        <p className="text-zinc-500 text-xs">You'll hold a steady RPM in this gear to calibrate the speed/RPM ratio.</p>
-      </div>
+    <form onSubmit={submit} className="plate-stack">
+      <NotesBox title="What this step sets">
+        Choose the gear you will use for the run. You will hold a steady RPM in this gear, and the
+        measured speed at that RPM is what fixes the speed-to-RPM ratio (rollout) for every later
+        run in this gear.
+      </NotesBox>
 
-      <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0">
-        <div className="flex flex-col gap-2">
-          <span className={labelClass}>Gear</span>
-          <div className="flex gap-2 flex-wrap">
-            {GEAR_PRESETS.map((preset) => {
-              const active = mode === 'preset' && gearLabel === preset;
-              return (
-                <button
+      <div className="grid gap-10 lg:grid-cols-2 lg:gap-6">
+        <Zone label="Gear">
+          <div className="space-y-3 px-3 py-3">
+            <div className="flex flex-wrap gap-2">
+              {GEAR_PRESETS.map((preset) => (
+                <PlateButton
                   key={preset}
-                  type="button"
                   onClick={() => selectPreset(preset)}
-                  aria-pressed={active}
-                  className={`${chipBase} ${active ? chipActive : chipInactive}`}
+                  aria-pressed={mode === 'preset' && gearLabel === preset}
                 >
                   {preset}
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              onClick={selectCustom}
-              aria-pressed={mode === 'custom'}
-              className={`${chipBase} ${mode === 'custom' ? chipActive : chipInactive}`}
+                </PlateButton>
+              ))}
+              <PlateButton onClick={selectCustom} aria-pressed={mode === 'custom'}>
+                Custom
+              </PlateButton>
+            </div>
+            {mode === 'custom' && (
+              <PlateField label="Custom gear label" id="cal-gear">
+                <input
+                  id="cal-gear"
+                  required
+                  maxLength={80}
+                  className="field"
+                  value={gearLabel}
+                  placeholder="e.g. 1st, Top"
+                  onChange={(e) => setGearLabel(e.target.value)}
+                />
+              </PlateField>
+            )}
+          </div>
+        </Zone>
+
+        <Zone label="Hold target">
+          <div className="space-y-3 px-3 py-3">
+            <PlateField
+              label="Target RPM"
+              id="cal-rpm"
+              hint="You will hold this RPM steady during calibration."
             >
-              Custom
-            </button>
-          </div>
-          {mode === 'custom' && (
-            <>
-              <label htmlFor="cal-gear" className="sr-only">Custom gear label</label>
               <input
-                id="cal-gear"
+                id="cal-rpm"
+                type="number"
+                min="1"
+                step="1"
                 required
-                maxLength={80}
-                className={inputClass}
-                value={gearLabel}
-                placeholder="e.g. 1st, Top"
-                onChange={(e) => setGearLabel(e.target.value)}
+                className="field"
+                value={rpm}
+                inputMode="decimal"
+                placeholder="e.g. 3000"
+                onChange={(e) => setRpm(e.target.value)}
               />
-            </>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label htmlFor="cal-rpm" className={labelClass}>Target RPM</label>
-          <input
-            id="cal-rpm"
-            type="number"
-            min="1"
-            step="1"
-            required
-            className={inputClass}
-            value={rpm}
-            inputMode="decimal"
-            placeholder="e.g. 3000"
-            onChange={(e) => setRpm(e.target.value)}
-          />
-          <div className="flex items-stretch gap-2">
-            <button type="button" onClick={() => bump(-250)} className={stepperBtnClass}>−250</button>
-            <button type="button" onClick={() => bump(-100)} className={stepperBtnClass}>−100</button>
-            <button type="button" onClick={() => bump(+100)} className={stepperBtnClass}>+100</button>
-            <button type="button" onClick={() => bump(+250)} className={stepperBtnClass}>+250</button>
+            </PlateField>
+            <div className="flex items-stretch gap-2">
+              {RPM_STEPS.map((delta) => (
+                <PlateButton key={delta} onClick={() => bump(delta)} className="flex-1">
+                  {stepLabel(delta)}
+                </PlateButton>
+              ))}
+            </div>
           </div>
-          <p className="text-zinc-600 text-xs">You'll hold this RPM steady during calibration.</p>
+        </Zone>
+      </div>
+
+      <Zone label="How to capture it">
+        <div className="space-y-2.5 px-3 py-3">
+          <SegmentedControl
+            options={MODE_OPTIONS}
+            value={measureMode}
+            onChange={setMeasureMode}
+            ariaLabel="How to capture the calibration"
+          />
+          <p className="t-body text-[0.8125rem] leading-6">
+            {measureMode === 'hands_free'
+              ? 'Records the whole ride and asks afterwards which steady hold to keep. Nothing to tap while moving, so this is the one for a motorcycle.'
+              : 'Watch the screen and confirm when it locks on. Fine in a car, not on a bike.'}
+          </p>
         </div>
-      </div>
+      </Zone>
 
-      <div className="flex flex-col gap-2">
-        <span className={labelClass}>How to capture it</span>
-        <SegmentedControl
-          options={MODE_OPTIONS}
-          value={measureMode}
-          onChange={setMeasureMode}
-          ariaLabel="How to capture the calibration"
-        />
-        <p className="text-zinc-600 text-xs">
-          {measureMode === 'hands_free'
-            ? 'Records the whole ride and asks afterwards which steady hold to keep. Nothing to tap while moving, so this is the one for a motorcycle.'
-            : 'Watch the screen and confirm when it locks on. Fine in a car, not on a bike.'}
-        </p>
+      <div className="flex justify-end">
+        <PlateButton type="submit" variant="procedure" className="w-full lg:w-auto lg:px-10">
+          Next
+          <NextMark />
+        </PlateButton>
       </div>
-
-      <button
-        type="submit"
-        className="w-full bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-zinc-950 font-semibold py-3.5 rounded-xl transition-colors lg:block lg:w-fit lg:ml-auto lg:px-8"
-      >
-        Next →
-      </button>
     </form>
   );
 }

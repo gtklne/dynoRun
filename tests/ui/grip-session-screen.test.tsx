@@ -80,12 +80,15 @@ describe('GripSessionScreen', () => {
     getSession.mockResolvedValue(makeFull());
     await renderScreen();
 
-    // best lap (Lap 1 per metadata) is preselected, both laps offered
-    expect(screen.getByText('Lap 1 ★')).toBeInTheDocument();
-    expect(screen.getByText('Lap 2')).toBeInTheDocument();
-    // two synthetic corners
-    expect(screen.getByText(/Turn 1 · Left/i)).toBeInTheDocument();
-    expect(screen.getByText(/Turn 2 · Right/i)).toBeInTheDocument();
+    // best lap (Lap 1 per metadata) is preselected, both laps offered. The lap
+    // strip names the best lap in words rather than with a glyph, so the
+    // accessible name is what carries it.
+    expect(screen.getByRole('radio', { name: /^Lap 1,.*, best$/ })).toBeChecked();
+    expect(screen.getByRole('radio', { name: /^Lap 2,/ })).toBeInTheDocument();
+    // two synthetic corners, now rows of the corner minima table
+    const cornerRows = screen.getAllByRole('row').map((r) => r.textContent ?? '');
+    expect(cornerRows.some((t) => /Turn 1(?!\d)/.test(t) && /Left/.test(t))).toBe(true);
+    expect(cornerRows.some((t) => /Turn 2(?!\d)/.test(t) && /Right/.test(t))).toBe(true);
     // dynamic-load metric is the default colouring
     expect(screen.getByText(/Track map: dynamic load/i)).toBeInTheDocument();
     cleanup();
@@ -108,7 +111,7 @@ describe('GripSessionScreen', () => {
     getSession.mockResolvedValue(makeFull());
     await renderScreen();
 
-    fireEvent.click(screen.getByRole('tab', { name: /^Grip$/i }));
+    fireEvent.click(screen.getByRole('radio', { name: /^Grip$/i }));
     expect(screen.getByText(/Track map: grip score/i)).toBeInTheDocument();
     cleanup();
   });

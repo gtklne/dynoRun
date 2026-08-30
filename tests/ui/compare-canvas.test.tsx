@@ -13,7 +13,8 @@ import { CompareDeltaChart } from '@/ui/grip/compare-delta-chart';
 import { CompareEnvelopes } from '@/ui/grip/compare-envelopes';
 import { CompareTraceChart, TRACE_CHANNELS } from '@/ui/grip/compare-trace-chart';
 import { CompareTrackMap } from '@/ui/grip/compare-track-map';
-import { seriesColor } from '@/ui/grip/compare-colors';
+import { seriesColor, seriesDash } from '@/ui/grip/compare-colors';
+import { readPlateInk } from '@/ui/plate';
 import { BASE_PACE, circuitCsv, simulateSession, type LapPace } from '../analysis/grip/synthetic-circuit';
 
 const SLOW: LapPace = { aLat: 0.8, aAcc: 0.44, aBrk: 0.74, vMax: 54 };
@@ -69,8 +70,16 @@ function build(paces: LapPace[], mutate?: (parsed: ReturnType<typeof parseRacebo
   return { analysis: a, cmp: compareLaps(inputs, inputs[0].key)! };
 }
 
+// jsdom resolves no custom properties, so this is the day plate's fallback ink,
+// read from the same place the components read it.
+const INK = readPlateInk();
+
 function colorsFor(cmp: GripComparison) {
-  return new Map(cmp.laps.map((l, i) => [l.key, seriesColor(i)]));
+  return new Map(cmp.laps.map((l, i) => [l.key, seriesColor(INK, i)]));
+}
+
+function dashesFor(cmp: GripComparison) {
+  return new Map(cmp.laps.map((l, i) => [l.key, seriesDash(i)]));
 }
 
 describe('compare canvases draw without throwing', () => {
@@ -95,13 +104,20 @@ describe('compare canvases draw without throwing', () => {
     const keys = cmp.laps.map((l) => l.key);
     const subject = cmp.laps.find((l) => !l.isReference)!.key;
 
-    render(<CompareDeltaChart cmp={cmp} colorOf={colorOf} keys={keys} cursor={500} onSeek={() => {}} />);
-    render(<CompareTrackMap cmp={cmp} subjectKey={subject} colorOf={colorOf} cursor={500} onSeek={() => {}} />);
+    const dashOf = dashesFor(cmp);
+
+    render(<CompareDeltaChart cmp={cmp} colorOf={colorOf} dashOf={dashOf} keys={keys} cursor={500} onSeek={() => {}} />);
+    render(<CompareTrackMap cmp={cmp} subjectKey={subject} colorOf={colorOf} dashOf={dashOf} cursor={500} onSeek={() => {}} />);
     for (const c of TRACE_CHANNELS) {
-      render(<CompareTraceChart cmp={cmp} channel={c.value} colorOf={colorOf} keys={keys} cursor={500} onSeek={() => {}} />);
+      render(<CompareTraceChart cmp={cmp} channel={c.value} colorOf={colorOf} dashOf={dashOf} keys={keys} cursor={500} onSeek={() => {}} />);
     }
     const env = equalBudgetEnvelope(analysis, DEFAULT_GRIP_SETTINGS, 1);
-    render(<CompareEnvelopes series={[{ key: 's', label: 'S', env: env.env, color: '#4c95ec' }]} anchorG={1.1} />);
+    render(
+      <CompareEnvelopes
+        series={[{ key: 's', label: 'S', env: env.env, color: seriesColor(INK, 1), dash: seriesDash(1) }]}
+        anchorG={1.1}
+      />,
+    );
     expectClean();
     expectDrew(30);
     cleanup();

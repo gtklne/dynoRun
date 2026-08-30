@@ -1,11 +1,19 @@
 import type uPlot from 'uplot';
+import { readPlateInk, seriesInk, SERIES_DASH, type PlateInk } from '@/ui/plate/tokens';
 
-export const CHART_FONT = '13px system-ui, -apple-system, sans-serif';
-export const CHART_LABEL_FONT = '600 13px system-ui, -apple-system, sans-serif';
+/**
+ * uPlot drawn on the plate.
+ *
+ * Canvas cannot read a Tailwind utility or a custom property, so every ink a
+ * chart uses is resolved from the same `--color-*` tokens the DOM half uses
+ * (see `plate/tokens.ts`). Nothing here carries a literal colour: a hex in
+ * chart code is exactly how the night plate ends up with a day-plate grid.
+ */
 
-export const AXIS_STROKE = '#a1a1aa';
-export const GRID_STROKE = '#27272a';
-export const CURSOR_STROKE = '#fbbf24';
+const FAMILY = 'Archivo, system-ui, -apple-system, sans-serif';
+
+export const CHART_FONT = `500 11px ${FAMILY}`;
+export const CHART_LABEL_FONT = `700 11px ${FAMILY}`;
 export const HOVER_POINT_SIZE = 9;
 
 const MOBILE_BREAKPOINT = 640;
@@ -27,7 +35,7 @@ export function responsiveChartHeight(baseHeight: number): number {
  * Keep a uPlot instance sized to its container. uPlot captures width once at
  * construction; without this it never reflows when the container changes,
  * which is exactly what happens with the desktop multi-column layouts, a
- * window resize, or crossing the mobile↔desktop breakpoint. Re-derives height
+ * window resize, or crossing the mobile/desktop breakpoint. Re-derives height
  * from {@link responsiveChartHeight} on each change so the breakpoint tiers
  * apply live. No-ops where ResizeObserver is unavailable (e.g. jsdom in tests).
  *
@@ -50,12 +58,27 @@ export function attachChartResize(
   return () => ro.disconnect();
 }
 
+/**
+ * One overlaid series: an ink AND a dash pattern, never one alone. A legend
+ * that separates runs by hue only fails a colour-blind reader and fails anyone
+ * reading a phone in direct sun, which is most of this product's audience.
+ */
+export function seriesStyle(index: number, ink: PlateInk): { stroke: string; dash: number[] } {
+  const inks = seriesInk(ink);
+  return {
+    stroke: inks[index % inks.length],
+    dash: SERIES_DASH[index % SERIES_DASH.length],
+  };
+}
+
 interface ThemedAxisOptions {
   label?: string;
   scale?: string;
   side?: 0 | 1 | 2 | 3;
   showGrid?: boolean;
   labelSize?: number;
+  /** Resolved plate inks. Defaults to reading them off the document. */
+  ink?: PlateInk;
   /** Fix the tick-label decimals. Without it uPlot derives precision from its
    *  auto-chosen increment, so a narrow value range prints fractional ticks
    *  (e.g. `117.5` kW). Use 0 for absolute power/torque/speed; leave unset for
@@ -64,12 +87,13 @@ interface ThemedAxisOptions {
 }
 
 export function themedAxis(opts: ThemedAxisOptions = {}): uPlot.Axis {
+  const ink = opts.ink ?? readPlateInk();
   const axis: uPlot.Axis = {
-    stroke: AXIS_STROKE,
+    stroke: ink.ink2,
     font: CHART_FONT,
     labelFont: CHART_LABEL_FONT,
-    grid: { stroke: GRID_STROKE, width: 1, show: opts.showGrid !== false },
-    ticks: { stroke: GRID_STROKE, width: 1 },
+    grid: { stroke: ink.ruleFaint, width: 1, show: opts.showGrid !== false },
+    ticks: { stroke: ink.rule, width: 1 },
   };
   if (opts.label !== undefined) axis.label = opts.label;
   if (opts.scale !== undefined) axis.scale = opts.scale;
@@ -84,18 +108,22 @@ export function themedAxis(opts: ThemedAxisOptions = {}): uPlot.Axis {
 
 /** Legend value formatter: rounds the hovered value to `decimals` and appends a
  *  unit. Without this uPlot prints the raw bin value at full float precision
- *  (e.g. `117.23412` hp) with no unit. Renders an em dash when the cursor is off
- *  the data (raw is null). */
+ *  (e.g. `117.23412` hp) with no unit. A reading the cursor cannot take prints
+ *  `n/a`, never a dash glyph and never a fabricated zero. */
 export function legendValue(unit: string, decimals = 1) {
   return (_self: uPlot, raw: number | null): string =>
     raw == null || !Number.isFinite(raw) ? 'n/a' : `${raw.toFixed(decimals)} ${unit}`;
 }
 
-export function themedCursor(extras: uPlot.Cursor = {}): uPlot.Cursor {
+/** The cursor is the one place magenta appears in a chart: it marks the instant
+ *  you are reading, which is the cross-reference the whole plate is built on. */
+export function themedCursor(extras: uPlot.Cursor = {}, ink?: PlateInk): uPlot.Cursor {
+  const resolved = ink ?? readPlateInk();
   return {
     ...extras,
     points: {
       size: HOVER_POINT_SIZE,
+      stroke: resolved.procedure,
       ...(extras.points ?? {}),
     },
   };

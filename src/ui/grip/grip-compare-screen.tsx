@@ -1,5 +1,5 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { analyzeGripSession } from '@/analysis/grip/analyze';
 import { compareLaps, type CompareLapInput, type CompareLapResult } from '@/analysis/grip/compare';
 import { RECOMPUTE_KEYS } from '@/analysis/grip/settings';
@@ -18,8 +18,28 @@ import type { GripAnalysis } from '@/analysis/grip/types';
 import { gripSessionRepository } from '@/api/repositories/grip-session-repository';
 import { loadGripSession } from './grip-session-cache';
 import type { GripSessionFull, GripSessionSummary } from '@/api/repositories/types';
-import { SegmentedControl } from '@/ui/components/segmented-control';
-import { MAX_COMPARE_LAPS, deltaTextClass, formatDelta, seriesColor } from './compare-colors';
+import {
+  Advisory,
+  ChannelStrip,
+  Na,
+  NotesBox,
+  Plate,
+  PlanView,
+  PlateButton,
+  PlateField,
+  PlateLink,
+  PlateSegmented,
+  TitleBlock,
+  Zone,
+  usePlateInk,
+} from '@/ui/plate';
+import {
+  MAX_COMPARE_LAPS,
+  deltaTextClass,
+  formatDelta,
+  seriesColor,
+  seriesDash,
+} from './compare-colors';
 import { CompareDeltaChart } from './compare-delta-chart';
 import { CompareEnvelopes, type EnvelopeSeries } from './compare-envelopes';
 import { CompareLapPicker, lapKey, type PickerSession } from './compare-lap-picker';
@@ -29,24 +49,13 @@ import { CompareTurnTable } from './compare-turn-table';
 import { formatLapTime } from './format-lap';
 import { metricModeName, type GripMetricMode } from './metric-mode';
 
-function Panel({ title, hint, children }: { title: React.ReactNode; hint?: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-      <h3 className="mb-2.5 flex flex-wrap items-center justify-between gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
-        <span>{title}</span>
-        {hint && <span className="font-normal normal-case tracking-normal">{hint}</span>}
-      </h3>
-      {children}
-    </div>
-  );
-}
-
 const sessionTitle = (s: GripSessionSummary) => s.label ?? s.track ?? 'Untitled session';
 const sessionSubtitle = (s: GripSessionSummary) =>
   [s.label ? s.track : null, s.config, s.session_date].filter(Boolean).join(' · ') || 'n/a';
 
 export function GripCompareScreen() {
   const [params, setParams] = useSearchParams();
+  const ink = usePlateInk();
   const [library, setLibrary] = useState<GripSessionSummary[] | null>(null);
   const [loaded, setLoaded] = useState<Map<string, GripSessionFull>>(new Map());
   const [loading, setLoading] = useState(false);
@@ -55,9 +64,9 @@ export function GripCompareScreen() {
     () => (params.get('sessions') ?? '').split(',').filter(Boolean),
   );
   // Deduped and capped on the way in: `toggle` enforces MAX_COMPARE_LAPS but the
-  // URL did not, and seriesColor wraps modulo 6, a hand-edited link with seven
-  // laps gave the seventh the reference's own near-white, and a repeated key gave
-  // two traces one colour plus duplicate React keys.
+  // URL did not, and the series palette wraps modulo 6, a hand-edited link with
+  // seven laps gave the seventh the reference's own ink and dash, and a repeated
+  // key gave two traces one identity plus duplicate React keys.
   const [selected, setSelected] = useState<string[]>(() =>
     [...new Set((params.get('laps') ?? '').split(',').filter(Boolean))].slice(0, MAX_COMPARE_LAPS),
   );
@@ -258,13 +267,23 @@ export function GripCompareScreen() {
     [inputs, refKey],
   );
 
-  const colorOf = useMemo(() => {
-    const map = new Map<string, string>();
-    // the reference always takes the baseline colour, then selection order
+  // Series identity: the reference always takes index 0 (plain ink, solid), then
+  // selection order. Colour and dash travel together, so six overlaid laps stay
+  // separable for a colour-blind reader and in direct sun.
+  const seriesIndex = useMemo(() => {
+    const map = new Map<string, number>();
     let next = 1;
-    for (const key of selected) map.set(key, key === refKey ? seriesColor(0) : seriesColor(next++));
+    for (const key of selected) map.set(key, key === refKey ? 0 : next++);
     return map;
   }, [selected, refKey]);
+  const colorOf = useMemo(
+    () => new Map([...seriesIndex].map(([k, i]) => [k, seriesColor(ink, i)])),
+    [seriesIndex, ink],
+  );
+  const dashOf = useMemo(
+    () => new Map([...seriesIndex].map(([k, i]) => [k, seriesDash(i)])),
+    [seriesIndex],
+  );
 
   const aligned = useMemo(() => cmp?.laps.filter((l) => l.verdict !== 'incompatible') ?? [], [cmp]);
   const alignedKeys = useMemo(() => aligned.map((l) => l.key), [aligned]);
@@ -310,8 +329,13 @@ export function GripCompareScreen() {
   }, [selected, analyses, activeSessions, settings]);
 
   const envelopeColored = useMemo(
-    () => envelopeSeries.map((s) => ({ ...s, color: colorOf.get(s.firstKey) ?? seriesColor(0) })),
-    [envelopeSeries, colorOf],
+    () =>
+      envelopeSeries.map((s) => ({
+        ...s,
+        color: colorOf.get(s.firstKey) ?? seriesColor(ink, 0),
+        dash: dashOf.get(s.firstKey) ?? [],
+      })),
+    [envelopeSeries, colorOf, dashOf, ink],
   );
 
   const toggle = useCallback((key: string) => {
@@ -360,75 +384,77 @@ export function GripCompareScreen() {
   const bridged = cmp?.laps.filter((l) => l.maxGapM > 15) ?? [];
 
   return (
-    <div className="space-y-4">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <Link to="/grip" className="text-xs font-semibold text-zinc-500 transition-colors hover:text-zinc-300">
-            ← Grip sessions
-          </Link>
-          <h1 className="mt-0.5 text-2xl font-bold text-zinc-100">Compare laps</h1>
-          <p className="mt-1 text-xs text-zinc-500">
-            Laps are lined up by position on track, not by the clock, so the delta shows where the time actually went.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {cmp && cmp.laps.length > 1 && (
-            <select
-              value={refKey ?? ''}
-              onChange={(e) => setRefKey(e.target.value)}
-              aria-label="Reference lap"
-              className="max-w-[220px] rounded-lg border border-zinc-700 bg-zinc-800 px-2.5 py-2 text-xs font-medium text-zinc-300 outline-none focus:border-sky-600"
-            >
-              {cmp.laps.map((l) => (
-                <option key={l.key} value={l.key}>
-                  Ref: {l.label} ({formatLapTime(l.lapTime)})
-                </option>
-              ))}
-            </select>
-          )}
-          <SegmentedControl
-            ariaLabel="Colour metric"
-            compact
-            options={[
-              { value: 'grip', label: 'Grip' },
-              { value: 'load', label: 'Dynamic load' },
-            ]}
-            value={mode}
-            onChange={setMode}
-          />
-        </div>
-      </header>
+    <Plate className="plate-issue">
+      <TitleBlock
+        ident="Grip Utilization"
+        title="Compare laps"
+        meta={[
+          { label: 'Axis', value: 'Position on track, not the clock' },
+          {
+            label: 'Reference',
+            value: reference ? `${formatLapTime(reference.lapTime)}` : <Na title="Nothing selected yet" />,
+          },
+          { label: 'Laps on sheet', value: `${selected.length} of ${MAX_COMPARE_LAPS}` },
+          { label: 'Metric', value: metricModeName(mode) },
+        ]}
+        actions={
+          <>
+            {cmp && cmp.laps.length > 1 && (
+              <select
+                value={refKey ?? ''}
+                onChange={(e) => setRefKey(e.target.value)}
+                aria-label="Reference lap"
+                className="field max-w-[16rem]"
+                style={{ width: 'auto' }}
+              >
+                {cmp.laps.map((l) => (
+                  <option key={l.key} value={l.key}>
+                    Ref: {l.label} ({formatLapTime(l.lapTime)})
+                  </option>
+                ))}
+              </select>
+            )}
+            <PlateSegmented
+              label="Colour metric"
+              value={mode}
+              options={[
+                { value: 'grip', label: 'Grip' },
+                { value: 'load', label: 'Dynamic load' },
+              ]}
+              onChange={setMode}
+            />
+            <PlateLink to="/grip">Sessions</PlateLink>
+          </>
+        }
+      />
 
-      {error && (
-        <div className="rounded-2xl border border-red-800/60 bg-red-950/40 p-3">
-          <p className="text-xs text-red-300">⚠ {error}</p>
-        </div>
-      )}
+      {error && <Advisory>{error}</Advisory>}
 
       {missingIds.length > 0 && (
-        <div className="rounded-2xl border border-amber-900/60 bg-amber-950/25 p-3">
-          <p className="text-xs text-amber-300">
-            {missingIds.length === 1 ? 'One session in this link is not available' : `${missingIds.length} sessions in this link are not available`}
-            {': '}it may have been deleted, or it belongs to another account. The remaining laps are compared normally.
-          </p>
-          <button
-            type="button"
+        <Advisory>
+          {missingIds.length === 1
+            ? 'One session in this link is not available'
+            : `${missingIds.length} sessions in this link are not available`}
+          {': '}it may have been deleted, or it belongs to another account. The remaining laps are compared
+          normally.{' '}
+          <PlateButton
             onClick={() => {
               setSessionIds((prev) => prev.filter((id) => !missingIds.includes(id)));
               setSelected((prev) => prev.filter((k) => !missingIds.includes(k.split(':')[0])));
               setMissingIds([]);
             }}
-            className="mt-1.5 rounded-md border border-amber-800/60 bg-amber-900/20 px-2 py-1 text-[11px] font-semibold text-amber-200 transition-colors hover:bg-amber-900/40"
+            style={{ minHeight: 30, padding: '0.2rem 0.5rem', fontSize: '0.6875rem' }}
           >
             Remove from this comparison
-          </button>
-        </div>
+          </PlateButton>
+        </Advisory>
       )}
 
       <CompareLapPicker
         sessions={pickerSessions}
         selected={selected}
         colorOf={colorOf}
+        dashOf={dashOf}
         refKey={refKey}
         onToggle={toggle}
         available={available}
@@ -438,11 +464,11 @@ export function GripCompareScreen() {
       />
 
       {diverged.length > 0 && (
-        <p className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-[11px] text-zinc-500">
-          These sessions were tuned differently, so {diverged.length === 1 ? 'one setting' : `${diverged.length} settings`} fell
-          back to the default for both, otherwise the channels would not be the same measurement.
-          <span className="ml-1 font-mono text-zinc-600">{diverged.join(', ')}</span>
-        </p>
+        <Advisory tone="plain">
+          These sessions were tuned differently, so {diverged.length === 1 ? 'one setting' : `${diverged.length} settings`}{' '}
+          fell back to the default for both, otherwise the channels would not be the same measurement.{' '}
+          <span className="t-data">{diverged.join(', ')}</span>
+        </Advisory>
       )}
 
       {excluded.map((l) => (
@@ -450,89 +476,101 @@ export function GripCompareScreen() {
       ))}
 
       {partial.map((l) => (
-        <p key={l.key} className="rounded-xl border border-amber-900/50 bg-amber-950/20 px-3 py-2 text-[11px] text-amber-300/90">
-          <b>{l.label}</b> shares {Math.round(l.sectionFraction * 100)}% of the reference lap,
-          {' '}{Math.round(l.section.sIn)} m to {Math.round(l.section.sOut)} m. Beyond that the two are on different
+        <Advisory key={l.key}>
+          <b>{l.label}</b> shares {Math.round(l.sectionFraction * 100)}% of the reference lap,{' '}
+          {Math.round(l.section.sIn)} m to {Math.round(l.section.sOut)} m. Beyond that the two are on different
           ground, so the delta stops there and no lap-time difference is shown; across the shared stretch it is{' '}
-          <b className="font-mono">{formatDelta(l.sectionDelta)}s</b>.
-        </p>
+          <b>{formatDelta(l.sectionDelta)}s</b>. Everything outside that stretch is hatched on the charts.
+        </Advisory>
       ))}
 
       {bridged.map((l) => (
-        <p key={l.key} className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-[11px] text-zinc-500">
-          <b>{l.label}</b> has a {l.maxGapM.toFixed(0)} m gap between GPS fixes; that stretch is interpolated, not measured.
-        </p>
+        <Advisory key={l.key} tone="plain">
+          <b>{l.label}</b> has a {l.maxGapM.toFixed(0)} m gap between GPS fixes; that stretch is interpolated,
+          not measured.
+        </Advisory>
       ))}
 
       {!cmp || selected.length === 0 ? (
-        <p className="rounded-2xl border border-zinc-800 bg-zinc-900 p-8 text-center text-sm text-zinc-500">
-          Pick at least one lap above.
-        </p>
+        <div className="box-frame hatch px-3 py-10 text-center">
+          <p className="t-annotation" style={{ color: 'var(--color-ink-2)' }}>
+            Pick at least one lap above.
+          </p>
+        </div>
       ) : (
         <>
           <Legend
             cmp={cmp}
             colorOf={colorOf}
+            dashOf={dashOf}
             refKey={refKey}
             theoreticalBest={segments?.theoreticalBest ?? null}
             referenceTotal={segments?.referenceTotal ?? null}
           />
 
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-            <Panel
-              title="Where the time went"
-              hint={
-                <span className="flex items-center gap-2 text-[11px] text-zinc-500">
-                  gaining
-                  <span className="h-2 w-20 rounded" style={{ background: 'linear-gradient(90deg,#38bdf8,#52525b,#fb7185)' }} />
-                  losing
-                </span>
-              }
+          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+            <Zone
+              label="Where the time went"
+              note="slope, not height: an upward trace is losing time right there"
             >
               <CompareDeltaChart
                 cmp={cmp}
                 colorOf={colorOf}
+                dashOf={dashOf}
                 keys={alignedKeys}
                 cursor={cursor}
                 onSeek={setCursor}
               />
-            </Panel>
+              <div className="rule-t flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2">
+                <span className="t-annotation" style={{ color: 'var(--color-gain)' }}>
+                  Gaining
+                </span>
+                <span className="t-annotation">through neutral to</span>
+                <span className="t-annotation" style={{ color: 'var(--color-procedure)' }}>
+                  Losing
+                </span>
+                <span className="t-annotation">Hatched: not on every lap&rsquo;s section of track</span>
+              </div>
+            </Zone>
 
-            <Panel
-              title="On track"
-              hint={
+            <PlanView
+              label="On track"
+              scale={`Reference lap ${Math.round(cmp.refLength)} m, north up`}
+              legend={
                 subjectKey && cmp.laps.length > 1 ? (
-                  <select
-                    value={subjectKey}
-                    onChange={(e) => setSubjectKey(e.target.value)}
-                    aria-label="Lap shown on the map"
-                    className="rounded-md border border-zinc-700 bg-zinc-800 px-1.5 py-1 text-[11px] text-zinc-300 outline-none focus:border-sky-600"
-                  >
-                    {aligned.filter((l) => !l.isReference).map((l) => (
-                      <option key={l.key} value={l.key}>{l.label}</option>
-                    ))}
-                  </select>
-                ) : null
+                  <PlateField label="Lap shown on the map" id="compare-subject-lap">
+                    <select
+                      id="compare-subject-lap"
+                      value={subjectKey}
+                      onChange={(e) => setSubjectKey(e.target.value)}
+                      className="field"
+                    >
+                      {aligned.filter((l) => !l.isReference).map((l) => (
+                        <option key={l.key} value={l.key}>{l.label}</option>
+                      ))}
+                    </select>
+                  </PlateField>
+                ) : undefined
               }
             >
               <CompareTrackMap
                 cmp={cmp}
                 subjectKey={subjectKey ?? ''}
                 colorOf={colorOf}
+                dashOf={dashOf}
                 cursor={cursor}
                 onSeek={setCursor}
               />
-            </Panel>
+            </PlanView>
           </div>
 
-          <Panel
-            title="Channel overlay"
-            hint={
-              <SegmentedControl
-                ariaLabel="Trace channel"
-                compact
-                options={TRACE_CHANNELS}
+          <Zone
+            label="Channel overlay"
+            actions={
+              <PlateSegmented
+                label="Trace channel"
                 value={channel}
+                options={TRACE_CHANNELS}
                 onChange={setChannel}
               />
             }
@@ -541,16 +579,17 @@ export function GripCompareScreen() {
               cmp={cmp}
               channel={channel}
               colorOf={colorOf}
+              dashOf={dashOf}
               keys={alignedKeys}
               cursor={cursor}
               onSeek={setCursor}
             />
-            <p className="mt-2 text-[11px] text-zinc-600">
+            <p className="rule-t t-annotation px-3 py-2" style={{ textTransform: 'none', letterSpacing: '0.02em' }}>
               Cursor at {Math.round(cursor)} m of {Math.round(cmp.refLength)} m
               {channel === 'metric' && <> · {metricModeName(mode).toLowerCase()} in points (100 ≈ 1 g)</>}
-              {' · '}← → to scrub, shift for 50 m
+              {' · '}arrow keys to scrub, shift for 50 m
             </p>
-          </Panel>
+          </Zone>
 
           {subjectKey && refKey && (
             <CompareTurnTable
@@ -563,119 +602,140 @@ export function GripCompareScreen() {
             />
           )}
 
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-            <Panel
-              title="Traction envelope"
-              hint={
+          <div className="grid items-start gap-4 lg:grid-cols-2">
+            <Zone
+              label="Traction envelope"
+              note={
                 envelopeSeries.length
                   ? `fitted on ${envelopeSeries[0].laps} lap${envelopeSeries[0].laps === 1 ? '' : 's'} each`
                   : undefined
               }
             >
               <CompareEnvelopes series={envelopeColored} anchorG={settings.anchorG} />
-              <div className="mt-3 space-y-2">
+              <div>
                 {envelopeColored.map((s) => (
-                  <div key={s.key} className="rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="flex min-w-0 items-center gap-2">
-                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: s.color }} />
-                        <span className="truncate text-[12px] text-zinc-300">{s.label}</span>
-                      </span>
-                      <span className="shrink-0 font-mono text-sm text-zinc-100">{Math.round(s.score)}</span>
-                    </div>
-                    <div className="mt-1.5 grid grid-cols-4 gap-1.5 font-mono text-[11px] text-zinc-400">
+                  <div key={s.key} className="rule-t px-3 py-2">
+                    <ChannelStrip
+                      color={s.color}
+                      dash={s.dash}
+                      name={s.label}
+                      value={Math.round(s.score)}
+                      unit="score"
+                    />
+                    <dl className="mt-1 grid grid-cols-4 gap-2 px-3">
                       {(['brake', 'left', 'right', 'accel'] as const).map((sec) => (
-                        <span key={sec} className="flex flex-col">
-                          <span className="text-[9px] uppercase tracking-wider text-zinc-600">{SECTOR_LABEL[sec]}</span>
-                          {Math.round(s.sectors[sec])}
-                        </span>
+                        <div key={sec}>
+                          <dt className="t-annotation">{SECTOR_LABEL[sec]}</dt>
+                          <dd className="t-data mt-0.5 text-sm">{Math.round(s.sectors[sec])}</dd>
+                        </div>
                       ))}
-                    </div>
+                    </dl>
                   </div>
                 ))}
               </div>
-              <p className="mt-2 text-[11px] text-zinc-600">
-                Scores are absolute: 100 ≈ working a full 1 g circle. Both sides are fitted on the same number of laps,
-                because the boundary can only grow with more laps.
+              <p className="rule-t t-annotation px-3 py-2" style={{ textTransform: 'none', letterSpacing: '0.02em' }}>
+                Scores are absolute: 100 ≈ working a full 1 g circle. Both sides are fitted on the same number of
+                laps, because the boundary can only grow with more laps.
               </p>
-            </Panel>
+            </Zone>
 
-            <Panel title="How the lap was spent" hint="metres of track">
-              <div className="space-y-2.5">
-                {aligned.map((l) => {
+            <Zone label="How the lap was spent" note="metres of track, never percentages">
+              <div>
+                {aligned.map((l, i) => {
                   // only the stretch this lap actually rode: outside its section
                   // every channel holds its last real value
                   const duty = dutyMetres(cmp.s, l.grid, { section: l.section });
+                  // a lap whose common section collapsed has no metres to split
+                  const pct = (v: number) => (duty.total > 0 ? (100 * v) / duty.total : 0);
                   return (
-                    <div key={l.key} className="rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5">
-                      <div className="mb-1.5 flex items-center gap-2">
-                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: colorOf.get(l.key) }} />
-                        <span className="truncate text-[12px] text-zinc-300">{l.label}</span>
+                    <div key={l.key} className={`px-3 py-2.5 ${i > 0 ? 'rule-t' : ''}`}>
+                      <ChannelStrip
+                        color={colorOf.get(l.key) ?? ink.ink}
+                        dash={dashOf.get(l.key)}
+                        name={l.label}
+                        value={`${Math.round(duty.total)} m`}
+                      />
+                      <div
+                        className="mt-1 flex h-3"
+                        style={{ border: 'var(--rule-hair) solid var(--color-rule)' }}
+                      >
+                        <i style={{ width: `${pct(duty.brake)}%`, background: 'var(--color-procedure)' }} />
+                        <i style={{ width: `${pct(duty.coast)}%`, background: 'var(--color-terrain)' }} />
+                        <i style={{ width: `${pct(duty.drive)}%`, background: 'var(--color-gain)' }} />
                       </div>
-                      <div className="flex h-3 overflow-hidden rounded-md border border-zinc-800">
-                        <i className="bg-rose-500/70" style={{ width: `${(100 * duty.brake) / duty.total}%` }} />
-                        <i className="bg-zinc-600/70" style={{ width: `${(100 * duty.coast) / duty.total}%` }} />
-                        <i className="bg-emerald-500/70" style={{ width: `${(100 * duty.drive) / duty.total}%` }} />
-                      </div>
-                      <div className="mt-1.5 flex flex-wrap justify-between gap-x-3 font-mono text-[11px] text-zinc-400">
-                        <span className="text-rose-400/90">{Math.round(duty.brake)} m brake</span>
-                        <span className="text-zinc-500">{Math.round(duty.coast)} m coast</span>
-                        <span className="text-emerald-400/90">{Math.round(duty.drive)} m drive</span>
-                      </div>
-                      <div className="mt-1 flex flex-wrap justify-between gap-x-3 font-mono text-[11px] text-zinc-500">
-                        <span>{Math.round(duty.aboveG)} m over 0.8 g</span>
-                        <span>{Math.round(duty.aboveLean)} m over 40°</span>
-                      </div>
-                      {l.sectionFraction < 0.98 && (
-                        <p className="mt-1 text-[10.5px] text-amber-400/70">
-                          over the {Math.round(duty.total)} m this lap shares with the reference, not a full lap
-                        </p>
-                      )}
+                      <dl className="mt-1.5 grid grid-cols-3 gap-2">
+                        <div>
+                          <dt className="t-annotation" style={{ color: 'var(--color-procedure)' }}>Brake</dt>
+                          <dd className="t-data mt-0.5 text-sm">{Math.round(duty.brake)} m</dd>
+                        </div>
+                        <div>
+                          <dt className="t-annotation">Coast</dt>
+                          <dd className="t-data mt-0.5 text-sm">{Math.round(duty.coast)} m</dd>
+                        </div>
+                        <div>
+                          <dt className="t-annotation" style={{ color: 'var(--color-gain)' }}>Drive</dt>
+                          <dd className="t-data mt-0.5 text-sm">{Math.round(duty.drive)} m</dd>
+                        </div>
+                      </dl>
+                      <p className="t-annotation mt-1.5">
+                        {Math.round(duty.aboveG)} m over 0.8 g · {Math.round(duty.aboveLean)} m over 40°
+                        {l.sectionFraction < 0.98 && (
+                          <> · over the {Math.round(duty.total)} m this lap shares with the reference, not a full lap</>
+                        )}
+                      </p>
                     </div>
                   );
                 })}
               </div>
-              <p className="mt-2 text-[11px] text-zinc-600">
-                Metres, not percentages: a percentage would hide that one lap covers more ground than the other. Coast is
-                where the tyre is neither driving nor braking, after the drag the tyre has to overcome is accounted for.
+              <p className="rule-t t-annotation px-3 py-2" style={{ textTransform: 'none', letterSpacing: '0.02em' }}>
+                Metres, not percentages: a percentage would hide that one lap covers more ground than the other.
+                Coast is where the tyre is neither driving nor braking, after the drag the tyre has to overcome is
+                accounted for.
               </p>
-            </Panel>
+            </Zone>
           </div>
+
+          <NotesBox>
+            Laps are lined up by position on track, not by the clock, so the delta shows where the time actually
+            went. Where a lap left the reference layout its channels are masked rather than clamped, and every
+            chart hatches that stretch: a held value outside a lap&rsquo;s own section is not a measurement.
+            Nothing on this screen is stored, the URL is the artefact worth keeping.
+          </NotesBox>
         </>
       )}
-    </div>
+    </Plate>
   );
 }
 
 function LayoutMismatch({ lap, reference }: { lap: CompareLapResult; reference: CompareLapResult | null }) {
   const note = reference ? paceNote(reference, lap) : null;
   return (
-    <div className="rounded-xl border border-rose-900/50 bg-rose-950/20 px-3 py-2.5">
-      <p className="text-[12px] font-semibold text-rose-300">{lap.label} is not the same layout as the reference</p>
-      <p className="mt-0.5 text-[11px] text-rose-200/80">
-        Its lap measures {Math.round(lap.pathLength)} m and only {Math.round(lap.coverage * 100)}% of it follows the
-        reference line, so a time delta would be meaningless. It is left out of the aligned panels.
-        {note && (
-          <>
-            {' '}Comparable on pace only: {(note.subjectPace * 3.6).toFixed(1)} km/h average against{' '}
-            {(note.refPace * 3.6).toFixed(1)} km/h, a {note.pacePct >= 0 ? '+' : '−'}
-            {Math.abs(note.pacePct).toFixed(1)}% difference.
-          </>
-        )}
-      </p>
-    </div>
+    <Advisory>
+      <b>{lap.label}</b> is not the same layout as the reference. Its lap measures{' '}
+      {Math.round(lap.pathLength)} m and only {Math.round(lap.coverage * 100)}% of it follows the reference line,
+      so a time delta would be meaningless. It is left out of the aligned panels.
+      {note && (
+        <>
+          {' '}Comparable on pace only: {(note.subjectPace * 3.6).toFixed(1)} km/h average against{' '}
+          {(note.refPace * 3.6).toFixed(1)} km/h, a {note.pacePct >= 0 ? '+' : '−'}
+          {Math.abs(note.pacePct).toFixed(1)}% difference.
+        </>
+      )}
+    </Advisory>
   );
 }
 
 function Legend({
   cmp,
   colorOf,
+  dashOf,
   refKey,
   theoreticalBest,
   referenceTotal,
 }: {
   cmp: NonNullable<ReturnType<typeof compareLaps>>;
   colorOf: Map<string, string>;
+  dashOf: Map<string, number[]>;
   refKey: string | null;
   theoreticalBest: number | null;
   /** Σ of the reference's own segments: the only baseline on the same clock */
@@ -689,41 +749,34 @@ function Legend({
     theoreticalBest != null && referenceTotal != null && Number.isFinite(referenceTotal)
       ? theoreticalBest - referenceTotal
       : NaN;
+
   return (
-    <div className="flex flex-wrap items-stretch gap-2">
-      {cmp.laps.map((l) => (
-        <div
-          key={l.key}
-          className="flex min-w-[168px] flex-1 items-center gap-2.5 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2"
-        >
-          <span className="h-8 w-1 shrink-0 rounded-full" style={{ background: colorOf.get(l.key) }} />
-          <div className="min-w-0">
-            <p className="truncate text-[12px] text-zinc-300">{l.label}</p>
-            <p className="font-mono text-[13px] text-zinc-100 tabular-nums">
-              {formatLapTime(l.lapTime)}
-              {l.key !== refKey && Number.isFinite(l.finishDelta) && (
-                <span className={`ml-1.5 text-[11px] ${deltaTextClass(l.finishDelta)}`}>
-                  {formatDelta(l.finishDelta)}s
-                </span>
-              )}
-              {l.key === refKey && <span className="ml-1.5 text-[10px] uppercase text-zinc-500">reference</span>}
-            </p>
+    <Zone label="Lap times and deltas">
+      {cmp.laps.map((l, i) => (
+        <div key={l.key} className={`flex flex-wrap items-baseline gap-x-3 ${i > 0 ? 'rule-t' : ''}`}>
+          <div className="min-w-0 flex-1">
+            <ChannelStrip color={colorOf.get(l.key) ?? 'currentColor'} dash={dashOf.get(l.key)} name={l.label} />
           </div>
+          <p className="t-data shrink-0 px-3 py-2 text-sm">
+            {formatLapTime(l.lapTime)}
+            {l.key !== refKey && Number.isFinite(l.finishDelta) && (
+              <span className={`ml-2 ${deltaTextClass(l.finishDelta)}`}>{formatDelta(l.finishDelta)}s</span>
+            )}
+            {l.key === refKey && <span className="t-annotation ml-2">reference</span>}
+          </p>
         </div>
       ))}
       {theoreticalBest != null && Number.isFinite(theoreticalBest) && ref && cmp.laps.length > 1 && (
-        <div className="flex min-w-[168px] flex-1 items-center gap-2.5 rounded-xl border border-sky-900/50 bg-sky-950/20 px-3 py-2">
-          <div className="min-w-0">
-            <p className="truncate text-[11px] uppercase tracking-wider text-sky-400/80">Best of these laps, joined up</p>
-            <p className="font-mono text-[13px] text-sky-200 tabular-nums">
-              {formatLapTime(theoreticalBest)}
-              {Number.isFinite(gain) && (
-                <span className="ml-1.5 text-[11px] text-sky-400/80">{formatDelta(gain)}s vs ref</span>
-              )}
-            </p>
-          </div>
+        <div className="rule-t flex flex-wrap items-baseline justify-between gap-x-3 px-3 py-2">
+          <span className="t-annotation">Best of these laps, joined up</span>
+          <span className="t-data text-sm">
+            {formatLapTime(theoreticalBest)}
+            {Number.isFinite(gain) && (
+              <span className={`ml-2 ${deltaTextClass(gain)}`}>{formatDelta(gain)}s vs ref</span>
+            )}
+          </span>
         </div>
       )}
-    </div>
+    </Zone>
   );
 }

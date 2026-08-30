@@ -6,9 +6,20 @@
  * add it here so all three surfaces get it, or the product goes back to being
  * three products that merely share a repository.
  */
-export { Plate, TitleBlock, Zone, PlanView, ProfileView, NotesBox, Advisory, RevisionBar } from './plate';
+export {
+  Plate,
+  TitleBlock,
+  Zone,
+  PlanView,
+  ProfileView,
+  NotesBox,
+  Advisory,
+  RevisionBar,
+  PlateRow,
+  Chevron,
+} from './plate';
 export { Readout, NoReading, ChannelStrip } from './readout';
-export { PlateButton, PlateLink, PlateAnchor, PlateSegmented, PlateField } from './controls';
+export { PlateButton, PlateLink, PlateAnchor, PlateSegmented, PlateField, PlateGauge } from './controls';
 export { MinimaTable, Na } from './minima-table';
 export type { MinimaColumn } from './minima-table';
 export { CrossRefProvider, useCrossRef, CrossRefReadout } from './cross-reference';

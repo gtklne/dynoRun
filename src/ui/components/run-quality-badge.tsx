@@ -12,47 +12,84 @@ interface RunQualityBadgeProps {
   quality: RunQuality;
 }
 
+function DisclosureIcon() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="square"
+      aria-hidden="true"
+      className="transition-transform group-open:rotate-180"
+    >
+      <polyline points="5 9 12 16 19 9" />
+    </svg>
+  );
+}
+
+/**
+ * The sheet's own confidence stamp. A rating is a decision input, not
+ * decoration, so it takes a ruled box and the caution ink only when the run
+ * actually needs reading twice; a good run stays in plain ink rather than
+ * spending a second colour on "everything is fine".
+ */
 export function RunQualityBadge({ quality }: RunQualityBadgeProps) {
-  const tone = quality.rating === 'good'
-    ? { ring: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300', dot: 'bg-emerald-400' }
-    : quality.rating === 'fair'
-      ? { ring: 'border-amber-500/40 bg-amber-500/10 text-amber-300', dot: 'bg-amber-400' }
-      : { ring: 'border-red-500/40 bg-red-500/10 text-red-300', dot: 'bg-red-400' };
+  const poor = quality.rating === 'poor';
+  const fair = quality.rating === 'fair';
+  const flagged = poor || fair;
 
   return (
-    <details className="group inline-block">
+    <details className="group inline-block" data-rating={quality.rating}>
       <summary
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-full border ${tone.ring} cursor-pointer select-none list-none text-xs font-medium tabular-nums`}
+        className="box flex cursor-pointer list-none select-none items-center gap-2 px-2.5 py-1.5"
+        style={
+          flagged
+            ? { borderColor: 'var(--color-caution)', background: 'var(--color-caution-tint)' }
+            : undefined
+        }
       >
-        <span className={`w-1.5 h-1.5 rounded-full ${tone.dot}`} />
-        <span className="capitalize">{quality.rating}</span>
-        <span className="text-zinc-500">·</span>
-        <span>{quality.score}/100</span>
-        <span className="text-zinc-500 group-open:rotate-180 transition-transform">▾</span>
+        <span
+          aria-hidden="true"
+          className="h-2 w-2 shrink-0"
+          style={{ background: flagged ? 'var(--color-caution)' : 'var(--color-ink)' }}
+        />
+        <span className="t-label" style={{ color: 'var(--color-ink)' }}>
+          Signal {quality.rating}
+        </span>
+        <span className="t-data text-xs">{quality.score}/100</span>
+        <DisclosureIcon />
       </summary>
-      <div className="mt-2 bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs space-y-2 max-w-xs">
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-zinc-400">
-          <span>Samples</span>
-          <span className="text-zinc-200 tabular-nums text-right">{quality.sample_count}</span>
-          <span>Duration</span>
-          <span className="text-zinc-200 tabular-nums text-right">{quality.duration_s.toFixed(1)} s</span>
-          <span>Fix rate</span>
-          <span className="text-zinc-200 tabular-nums text-right">{quality.avg_fix_rate_hz.toFixed(1)} Hz</span>
-          <span>Max gap</span>
-          <span className="text-zinc-200 tabular-nums text-right">{Math.round(quality.max_gap_ms)} ms</span>
-        </div>
-        {quality.flags.length > 0 && (
-          <ul className="space-y-1 pt-2 border-t border-zinc-800">
+
+      <div className="box mt-2 max-w-xs px-3 py-2.5">
+        <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+          <dt className="t-annotation">Samples</dt>
+          <dd className="t-data text-right text-sm">{quality.sample_count}</dd>
+          <dt className="t-annotation">Duration</dt>
+          <dd className="t-data text-right text-sm">{quality.duration_s.toFixed(1)} s</dd>
+          <dt className="t-annotation">Fix rate</dt>
+          <dd className="t-data text-right text-sm">{quality.avg_fix_rate_hz.toFixed(1)} Hz</dd>
+          <dt className="t-annotation">Max gap</dt>
+          <dd className="t-data text-right text-sm">{Math.round(quality.max_gap_ms)} ms</dd>
+        </dl>
+
+        {quality.flags.length > 0 ? (
+          <ul className="rule-t mt-2.5 space-y-1.5 pt-2.5">
             {quality.flags.map((flag) => (
-              <li key={flag} className="text-zinc-300 flex gap-2">
-                <span className="text-red-400">!</span>
-                <span>{FLAG_LABELS[flag]}</span>
+              <li key={flag} className="t-body flex gap-2 text-xs leading-5">
+                <span
+                  aria-hidden="true"
+                  className="mt-1.5 h-2 w-2 shrink-0"
+                  style={{ background: 'var(--color-caution)' }}
+                />
+                <span style={{ color: 'var(--color-ink)' }}>{FLAG_LABELS[flag]}</span>
               </li>
             ))}
           </ul>
-        )}
-        {quality.flags.length === 0 && (
-          <p className="text-emerald-400 pt-2 border-t border-zinc-800">No quality issues detected.</p>
+        ) : (
+          <p className="rule-t t-annotation mt-2.5 pt-2.5">No quality issues detected.</p>
         )}
       </div>
     </details>

@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { calibrationRepository } from '@/api/repositories/calibration-repository';
 import { recordingRepository } from '@/api/repositories/recording-repository';
 import {
   CalibrationSessionController,
   type CalibrationSessionLiveSample,
 } from '@/run/calibration-session-controller';
-import type { CalibrationSessionState } from '@/run/types';
+import type { CalibrationSessionState, CalibrationCandidate } from '@/run/types';
 import type { StandstillProgress } from '@/run/standstill-detector';
 import { useSpeedSourceFactory } from './speed-source-context';
 import { PlateauSparkline } from './plateau-sparkline';
@@ -16,6 +15,17 @@ import { setLastRecording } from '@/sensors/replay-state';
 import { WakeLock } from '@/app/wake-lock';
 import { speak } from '@/app/speech';
 import { pulseStart, pulseStop, pulseTick } from '@/app/haptics';
+import {
+  Advisory,
+  MinimaTable,
+  NoReading,
+  NotesBox,
+  PlateButton,
+  PlateLink,
+  Readout,
+  Zone,
+  type MinimaColumn,
+} from '@/ui/plate';
 import { GpsWarmupCard, isGpsLocked, isGpsPoor, GPS_ACCURACY_GOOD_M } from '@/ui/components/gps-warmup-card';
 import { HoldToFinishButton } from '@/ui/session/hold-to-finish-button';
 import { useToast } from '@/ui/components/toast';
@@ -32,6 +42,11 @@ function formatElapsed(ms: number): string {
   const m = Math.floor(total / 60);
   const s = total % 60;
   return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+interface CandidateRow {
+  candidate: CalibrationCandidate;
+  index: number;
 }
 
 export function CalibrationStepMeasureHandsFree({ vehicleId, gear, onConfirmed, onCancel }: Props) {
@@ -200,35 +215,137 @@ export function CalibrationStepMeasureHandsFree({ vehicleId, gear, onConfirmed, 
   const elapsed = startedWallRef.current != null ? now - startedWallRef.current : 0;
   const countingDown = standstill != null && standstill.armed && standstill.stopped;
 
-  return (
-    <div className="space-y-4">
-      {warning && (
-        <div className="bg-zinc-900 border border-red-800/60 rounded-2xl p-4">
-          <p className="text-red-400 text-xs font-semibold uppercase tracking-widest mb-1">Sensor problem</p>
-          <p className="text-zinc-300 text-sm">{warning}</p>
+  const rows: CandidateRow[] = candidates.map((candidate, index) => ({ candidate, index }));
+
+  const columns: MinimaColumn<CandidateRow>[] = [
+    {
+      key: 'keep',
+      head: 'Keep',
+      cell: ({ candidate, index }) => (
+        <input
+          type="radio"
+          name="calibration-candidate"
+          checked={selected === index}
+          disabled={!candidate.plausible}
+          onChange={() => setSelected(index)}
+          aria-label={`Keep the ${candidate.plateau.mean_speed_kmh.toFixed(1)} km/h hold`}
+          className="h-5 w-5 align-middle"
+        />
+      ),
+    },
+    {
+      key: 'speed',
+      head: 'Speed (km/h)',
+      numeric: true,
+      cell: ({ candidate, index }) => (
+        <>
+          <span className="t-data text-base">{candidate.plateau.mean_speed_kmh.toFixed(1)}</span>
+          {index === 0 && candidate.plausible && (
+            <span
+              className="t-annotation mt-1 block"
+              style={{ color: 'var(--color-procedure)' }}
+            >
+              Steadiest
+            </span>
+          )}
+        </>
+      ),
+    },
+    {
+      key: 'at',
+      head: 'At',
+      numeric: true,
+      cell: ({ candidate }) => formatElapsed(candidate.plateau.t_start_ms),
+    },
+    {
+      key: 'profile',
+      head: 'Profile',
+      cell: ({ candidate }) => (
+        <div style={{ minWidth: 200 }}>
+          <PlateauSparkline samples={candidate.samples} />
         </div>
-      )}
+      ),
+    },
+    {
+      key: 'rollout',
+      head: 'Rollout (m/rev)',
+      numeric: true,
+      cell: ({ candidate }) => candidate.rollout_m_per_rev.toFixed(3),
+    },
+    {
+      key: 'implies',
+      head: `Implies in ${gear.gear_label}`,
+      cell: ({ candidate }) =>
+        candidate.plausible ? (
+          <span className="t-data text-xs">
+            {((candidate.plateau.mean_speed_kmh / gear.user_rpm) * 1000).toFixed(1)} km/h per 1,000
+            RPM
+          </span>
+        ) : (
+          <span className="t-annotation" style={{ color: 'var(--color-caution)' }}>
+            Outside any usable gear ratio for {gear.user_rpm.toLocaleString()} RPM, so it cannot be
+            saved
+          </span>
+        ),
+    },
+  ];
+
+  return (
+    <>
+      {warning && <Advisory>{warning}</Advisory>}
 
       {isReady && (
         <>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-2">
-            <p className="text-xs font-semibold text-amber-400 uppercase tracking-widest">How it works</p>
-            <ol className="text-zinc-400 text-sm space-y-1.5 list-decimal list-inside">
-              <li>Start the recording here while stopped, then put the phone away.</li>
-              <li>
-                Ride, settle into <span className="text-zinc-200 font-medium">{gear.gear_label}</span>, and hold{' '}
-                <span className="text-zinc-200 font-medium">{gear.user_rpm.toLocaleString()} RPM</span> on your own
-                tacho for about five seconds. You will hear the speed called out when a hold registers.
+          <Zone label="How it works">
+            <ol>
+              <li className="flex items-start gap-3 px-3 py-2.5">
+                <span
+                  aria-hidden="true"
+                  className="t-data flex h-6 w-6 shrink-0 items-center justify-center text-xs"
+                  style={{ border: 'var(--rule-hair) solid var(--color-rule)' }}
+                >
+                  1
+                </span>
+                <span className="t-body text-[0.875rem] leading-6">
+                  Start the recording here while stopped, then put the phone away.
+                </span>
               </li>
-              <li>
-                Come to a stop. The recording ends itself shortly after, and you pick which hold to keep.
+              <li className="rule-t flex items-start gap-3 px-3 py-2.5">
+                <span
+                  aria-hidden="true"
+                  className="t-data flex h-6 w-6 shrink-0 items-center justify-center text-xs"
+                  style={{ border: 'var(--rule-hair) solid var(--color-rule)' }}
+                >
+                  2
+                </span>
+                <span className="t-body text-[0.875rem] leading-6">
+                  Ride, settle into <span className="t-data">{gear.gear_label}</span>, and hold{' '}
+                  <span className="t-data">{gear.user_rpm.toLocaleString()} RPM</span> on your own
+                  tacho for about five seconds. You will hear the speed called out when a hold
+                  registers.
+                </span>
+              </li>
+              <li className="rule-t flex items-start gap-3 px-3 py-2.5">
+                <span
+                  aria-hidden="true"
+                  className="t-data flex h-6 w-6 shrink-0 items-center justify-center text-xs"
+                  style={{ border: 'var(--rule-hair) solid var(--color-rule)' }}
+                >
+                  3
+                </span>
+                <span className="t-body text-[0.875rem] leading-6">
+                  Come to a stop. The recording ends itself shortly after, and you pick which hold
+                  to keep.
+                </span>
               </li>
             </ol>
-            <p className="text-zinc-600 text-xs pt-1">
-              Nothing is captured while you ride, so a steady stretch in the wrong gear cannot spoil the
-              calibration. Hold as many times as you like.
-            </p>
-          </div>
+          </Zone>
+
+          <NotesBox title="Why this is safe">
+            Nothing is captured while you ride, so a steady stretch in the wrong gear cannot spoil
+            the calibration. Hold as many times as you like: you choose the one you meant once you
+            have stopped.
+          </NotesBox>
 
           <GpsWarmupCard
             telemetry={live ? { accuracy_m: live.accuracy_m, quality: live.quality, fix_rate_hz: live.fix_rate_hz } : null}
@@ -239,221 +356,141 @@ export function CalibrationStepMeasureHandsFree({ vehicleId, gear, onConfirmed, 
             poorOutcome="calibration"
           />
 
-          <button
-            onClick={startSession}
-            disabled={!canStart}
-            className={`w-full font-bold py-5 rounded-xl transition-colors text-lg ${
-              canStart
-                ? showPoorWarning
-                  ? 'bg-red-600 hover:bg-red-500 active:bg-red-700 text-white'
-                  : 'bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-zinc-950'
-                : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
-            }`}
-          >
-            {showPoorWarning && forceStart ? 'Start recording anyway' : 'Start recording'}
-          </button>
-          {showPoorWarning && !forceStart && (
-            <button
-              onClick={() => setForceStart(true)}
-              className="w-full text-zinc-500 hover:text-zinc-300 text-xs underline underline-offset-2"
-            >
-              Start anyway (calibration will be unreliable)
-            </button>
-          )}
+          <div className="space-y-3">
+            <PlateButton variant="procedure" major onClick={startSession} disabled={!canStart}>
+              {showPoorWarning && forceStart ? 'Start recording anyway' : 'Start recording'}
+            </PlateButton>
+            {showPoorWarning && !forceStart && (
+              <button
+                type="button"
+                onClick={() => setForceStart(true)}
+                className="t-annotation w-full py-2 underline underline-offset-4"
+              >
+                Start anyway (calibration will be unreliable)
+              </button>
+            )}
+          </div>
         </>
       )}
 
       {isRecording && (
         <>
-          <div className="bg-zinc-900 border border-amber-700/60 rounded-2xl p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-red-400 text-xs font-semibold uppercase tracking-widest">Recording</span>
-              <span className="ml-auto tabular-nums text-zinc-100 text-xl font-bold">{formatElapsed(elapsed)}</span>
+          <Zone label="Recording" note={`Elapsed ${formatElapsed(elapsed)}`}>
+            <div className="rule-b px-3 py-4">
+              {live == null ? (
+                <NoReading label="Speed" reason="No fix yet" />
+              ) : (
+                <Readout label="Speed" value={live.speed_kmh.toFixed(0)} unit="km/h" size="xl" />
+              )}
             </div>
-            <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Speed</p>
-            <p className="tabular-nums">
-              <span className="text-5xl font-bold text-zinc-100">
-                {live != null ? live.speed_kmh.toFixed(0) : 'n/a'}
-              </span>
-              <span className="text-sm text-zinc-500 ml-1">km/h</span>
+            <p className="t-body px-3 py-2.5 text-[0.8125rem] leading-6">
+              Hold {gear.user_rpm.toLocaleString()} RPM in {gear.gear_label}. Listen for the
+              callout.
             </p>
-            <p className="text-zinc-400 text-sm mt-4">
-              Hold {gear.user_rpm.toLocaleString()} RPM in {gear.gear_label}. Listen for the callout.
-            </p>
-          </div>
+          </Zone>
 
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-            <p className="text-zinc-500 text-xs uppercase tracking-wider mb-2">Holds heard so far</p>
+          <Zone label="Holds heard so far" note={heardHolds.length === 0 ? 'none yet' : `${heardHolds.length} registered`}>
             {heardHolds.length === 0 ? (
-              <p className="text-zinc-600 text-sm">None yet. Settle at a constant RPM and wait five seconds.</p>
+              <p className="t-body px-3 py-2.5 text-[0.8125rem] leading-6">
+                None yet. Settle at a constant RPM and wait five seconds.
+              </p>
             ) : (
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 px-3 py-2.5">
                 {heardHolds.map((s, i) => (
-                  <span
-                    key={i}
-                    className="tabular-nums bg-amber-500/15 text-amber-400 text-xs font-semibold px-2.5 py-1 rounded-full"
-                  >
+                  <span key={i} className="box t-data px-2.5 py-1 text-xs">
                     {s.toFixed(1)} km/h
                   </span>
                 ))}
               </div>
             )}
-          </div>
+          </Zone>
 
           {countingDown && (
-            <div className="bg-zinc-900 border border-amber-700/60 rounded-2xl p-4">
-              <div className="flex items-baseline justify-between">
-                <p className="text-amber-400 text-xs font-semibold uppercase tracking-widest">Stopped</p>
-                <p className="tabular-nums text-zinc-100 text-2xl font-bold">
-                  {Math.ceil((standstill?.remaining_ms ?? 0) / 1000)}s
-                </p>
-              </div>
-              <p className="text-zinc-400 text-sm mt-1">
-                Finishing by itself. Ride on to cancel.
-              </p>
-            </div>
+            <Advisory>
+              Stopped. Finishing by itself in {Math.ceil((standstill?.remaining_ms ?? 0) / 1000)} s.
+              Ride on to cancel.
+            </Advisory>
           )}
 
-          <HoldToFinishButton onFinish={finishSession} label="Hold to finish now" />
-          <p className="text-zinc-600 text-xs text-center">
-            Hold for 1.5 s, so stray pocket touches won't stop the recording.
-          </p>
+          <div className="space-y-2">
+            <HoldToFinishButton onFinish={finishSession} label="Hold to finish now" />
+            <p className="t-annotation text-center">
+              Hold for 1.5 s, so stray pocket touches will not stop the recording.
+            </p>
+          </div>
         </>
       )}
 
       {isDetecting && (
-        <div className="flex items-center justify-center gap-3 py-10">
-          <div className="w-4 h-4 rounded-full border-2 border-amber-500 border-t-transparent animate-spin" />
-          <p className="text-amber-400 font-medium">Looking for steady holds…</p>
-        </div>
+        <p className="t-label py-10 text-center">Looking for steady holds...</p>
       )}
 
       {(isReviewing || isSaving) && candidates.length === 0 && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-3">
-          <p className="text-zinc-100 font-semibold">No steady speed found</p>
-          <p className="text-zinc-400 text-sm leading-relaxed">
-            The ride never held a constant speed for long enough (about five seconds above 20 km/h, within
-            1.5 km/h). Ride a flat road with little traffic and settle on the throttle before you start
-            counting. The raw recording was saved, so you can inspect it in the Replay Lab.
-          </p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="flex-1 text-center bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold text-sm py-3 rounded-xl transition-colors"
-            >
+        <>
+          <Zone label="No steady speed found">
+            <p className="t-body px-3 py-3 text-[0.875rem] leading-6">
+              The ride never held a constant speed for long enough (about five seconds above
+              20 km/h, within 1.5 km/h). Ride a flat road with little traffic and settle on the
+              throttle before you start counting. The raw recording was saved, so you can inspect
+              it in the Replay Lab.
+            </p>
+          </Zone>
+          <div className="grid grid-cols-2 gap-3">
+            <PlateButton type="button" onClick={onCancel} className="w-full">
               Back
-            </button>
-            <Link
-              to="/replay"
-              className="flex-1 text-center bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold text-sm py-3 rounded-xl transition-colors"
-            >
+            </PlateButton>
+            <PlateLink to="/replay" className="w-full">
               Replay Lab
-            </Link>
+            </PlateLink>
           </div>
-        </div>
+        </>
       )}
 
       {(isReviewing || isSaving) && candidates.length > 0 && (
         <>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-1">
-            <p className="text-zinc-100 font-medium text-sm">
-              Which hold was {gear.user_rpm.toLocaleString()} RPM in {gear.gear_label}?
+          <Zone
+            label={`Which hold was ${gear.user_rpm.toLocaleString()} RPM in ${gear.gear_label}?`}
+            note={
+              candidates.length === 1
+                ? 'One steady hold, best first'
+                : `${candidates.length} steady holds, best first`
+            }
+          >
+            <p className="rule-b t-body px-3 py-2.5 text-[0.8125rem] leading-6">
+              Pick the speed you remember seeing. Only you know which hold you meant, so the app
+              does not guess.
             </p>
-            <p className="text-zinc-500 text-xs">
-              {candidates.length === 1 ? 'One steady hold' : `${candidates.length} steady holds`} found, best
-              first. Pick the speed you remember seeing. Only you know which one you meant, so the app does
-              not guess.
-            </p>
-          </div>
+            <MinimaTable
+              columns={columns}
+              rows={rows}
+              rowKey={(r) => String(r.index)}
+              selectedKey={String(selected)}
+              onSelect={(r) => {
+                if (r.candidate.plausible) setSelected(r.index);
+              }}
+            />
+          </Zone>
 
-          <div className="space-y-2">
-            {candidates.map((c, i) => {
-              const checked = selected === i;
-              const kmhPerRpm = c.plateau.mean_speed_kmh / gear.user_rpm;
-              return (
-                <button
-                  key={i}
-                  onClick={() => c.plausible && setSelected(i)}
-                  disabled={!c.plausible}
-                  aria-pressed={checked}
-                  className={`w-full text-left bg-zinc-900 border rounded-2xl p-4 transition-colors ${
-                    checked ? 'border-amber-500' : 'border-zinc-800'
-                  } ${c.plausible ? 'hover:border-amber-700' : 'opacity-60 cursor-not-allowed'}`}
-                >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div
-                      className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
-                        checked ? 'border-amber-500' : 'border-zinc-600'
-                      }`}
-                    >
-                      {checked && <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />}
-                    </div>
-                    <p className="tabular-nums text-zinc-100 font-bold text-lg">
-                      {c.plateau.mean_speed_kmh.toFixed(1)}
-                      <span className="text-zinc-500 text-sm font-normal ml-1">km/h</span>
-                    </p>
-                    {i === 0 && c.plausible && (
-                      <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-400 px-2 py-0.5 rounded-full">
-                        Steadiest
-                      </span>
-                    )}
-                    <span className="ml-auto tabular-nums text-zinc-500 text-xs">
-                      at {formatElapsed(c.plateau.t_start_ms)}
-                    </span>
-                  </div>
-
-                  <PlateauSparkline samples={c.samples} />
-
-                  <div className="flex items-baseline justify-between mt-2 text-xs text-zinc-500 tabular-nums">
-                    <span>held {(c.plateau.duration_ms / 1000).toFixed(0)} s</span>
-                    <span>±{(c.plateau.spread_kmh / 2).toFixed(2)} km/h</span>
-                    <span>{c.rollout_m_per_rev.toFixed(3)} m/rev</span>
-                  </div>
-                  {c.plausible ? (
-                    <p className="text-zinc-600 text-xs mt-1.5 tabular-nums">
-                      Would put {(kmhPerRpm * 1000).toFixed(1)} km/h per 1,000 RPM in {gear.gear_label}.
-                    </p>
-                  ) : (
-                    <p className="text-red-400 text-xs mt-1.5">
-                      Outside any usable gear ratio for {gear.user_rpm.toLocaleString()} RPM, so it cannot be saved.
-                    </p>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          <button
+          <PlateButton
+            variant="procedure"
+            major
             onClick={save}
             disabled={usable === 0 || isSaving}
-            className={`w-full font-bold py-4 rounded-xl transition-colors text-lg ${
-              usable > 0 && !isSaving
-                ? 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white'
-                : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
-            }`}
           >
-            {isSaving ? 'Saving…' : 'Save calibration'}
-          </button>
+            {isSaving ? 'Saving...' : 'Save calibration'}
+          </PlateButton>
         </>
       )}
 
       {state.kind === 'idle' && (
-        <div className="flex items-center justify-center py-4">
-          <p className="text-zinc-500 text-sm">Initializing sensors…</p>
-        </div>
+        <p className="t-annotation py-4 text-center">Initializing sensors...</p>
       )}
 
       {(isReady || isReviewing) && (
-        <button
-          type="button"
-          onClick={onCancel}
-          className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium py-3 rounded-xl transition-colors border border-zinc-700 text-sm"
-        >
+        <PlateButton type="button" onClick={onCancel} className="w-full">
           Cancel
-        </button>
+        </PlateButton>
       )}
-    </div>
+    </>
   );
 }

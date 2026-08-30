@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import type { GripSessionSummary, NewGripSession } from '@/api/repositories/types';
 import { syntheticCsv } from '../analysis/grip/synthetic';
@@ -81,11 +81,13 @@ describe('GripHome', () => {
     ]);
     await renderScreen();
 
-    expect(screen.getByText('Testring')).toBeInTheDocument();
+    // the library is a minima table now: lap count and best lap are their own
+    // columns rather than one run-together caption line
+    const first = screen.getByText('Testring').closest('tr')!;
+    expect(within(first).getByText('8')).toBeInTheDocument();
+    expect(within(first).getByText('1:35.42')).toBeInTheDocument();
     expect(screen.getByText('Rain day')).toBeInTheDocument();
-    expect(screen.getByText(/8 laps/)).toBeInTheDocument();
-    expect(screen.getByText(/best 1:35\.42/)).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByText('R6')).toBeInTheDocument());
+    await waitFor(() => expect(within(first).getByText('R6')).toBeInTheDocument());
     cleanup();
   });
 

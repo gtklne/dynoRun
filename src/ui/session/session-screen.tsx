@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { vehicleRepository } from '@/api/repositories/vehicle-repository';
 import { calibrationRepository } from '@/api/repositories/calibration-repository';
 import { runRepository } from '@/api/repositories/run-repository';
@@ -18,6 +18,17 @@ import { setLastRecording } from '@/sensors/replay-state';
 import { mpsToKmh } from '@/shared/units';
 import { useUnits } from '@/app/units-context';
 import { useToast } from '@/ui/components/toast';
+import {
+  Advisory,
+  Na,
+  NotesBox,
+  Plate,
+  PlateButton,
+  PlateLink,
+  Readout,
+  TitleBlock,
+  Zone,
+} from '@/ui/plate';
 import { HoldToFinishButton } from './hold-to-finish-button';
 import { PullSparkline } from './pull-sparkline';
 import { assessSignal, type SignalIntegrity } from '@/analysis/signal-integrity';
@@ -38,6 +49,19 @@ function formatElapsed(ms: number): string {
 function peakPowerKw(p: SessionPull): number {
   if (!p.analysis || p.analysis.points.length === 0) return 0;
   return Math.max(...p.analysis.points.map((pt) => pt.wheel_power_kw));
+}
+
+/** A marginal label on a row: ruled, never a filled pill. */
+function RowMark({ children, tone }: { children: string; tone: 'procedure' | 'caution' }) {
+  const color = tone === 'procedure' ? 'var(--color-procedure)' : 'var(--color-caution)';
+  return (
+    <span
+      className="t-annotation shrink-0 px-1.5 py-0.5"
+      style={{ border: 'var(--rule-hair) solid ' + color, color }}
+    >
+      {children}
+    </span>
+  );
 }
 
 export function SessionScreen() {
@@ -253,29 +277,69 @@ export function SessionScreen() {
   }, [pulls, integrity]);
 
   return (
-    <div className="space-y-4 lg:max-w-3xl lg:mx-auto">
-      <h1 className="text-2xl font-bold text-zinc-100">Hands-free session</h1>
+    <Plate className="lg:mx-auto lg:max-w-3xl">
+      <TitleBlock
+        ident={gearLabel ? `Gear ${gearLabel}` : undefined}
+        title="Hands-free session"
+        meta={[
+          { label: 'Capture', value: 'Whole ride, nothing chosen while moving' },
+          { label: 'Ends', value: '20 s stopped, or hold to finish' },
+        ]}
+      />
 
       {sensorWarning && (isRecording || isDetecting || isReviewing || isSaving) && (
-        <div className="bg-red-950/40 border border-red-800/60 rounded-2xl p-4 space-y-1">
-          <p className="text-red-400 text-xs font-semibold uppercase tracking-widest">Sensor problem</p>
-          <p className="text-zinc-300 text-sm leading-relaxed">{sensorWarning}</p>
-        </div>
+        <Advisory>{sensorWarning}</Advisory>
       )}
 
       {isReady && (
         <>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-2">
-            <p className="text-xs font-semibold text-amber-400 uppercase tracking-widest">How it works</p>
-            <ol className="text-zinc-400 text-sm space-y-1.5 list-decimal list-inside">
-              <li>Start the session here while stopped, then put the phone away.</li>
-              <li>Ride normally: shift up into <span className="text-zinc-200 font-medium">{gearLabel}</span>, settle briefly, then make your full pull.</li>
-              <li>Ride back and stop: the session finishes itself a short while later, or hold the finish button to finish now. Your pulls are detected automatically.</li>
+          <Zone label="How it works">
+            <ol>
+              <li className="flex items-start gap-3 px-3 py-2.5">
+                <span
+                  aria-hidden="true"
+                  className="t-data flex h-6 w-6 shrink-0 items-center justify-center text-xs"
+                  style={{ border: 'var(--rule-hair) solid var(--color-rule)' }}
+                >
+                  1
+                </span>
+                <span className="t-body text-[0.875rem] leading-6">
+                  Start the session here while stopped, then put the phone away.
+                </span>
+              </li>
+              <li className="rule-t flex items-start gap-3 px-3 py-2.5">
+                <span
+                  aria-hidden="true"
+                  className="t-data flex h-6 w-6 shrink-0 items-center justify-center text-xs"
+                  style={{ border: 'var(--rule-hair) solid var(--color-rule)' }}
+                >
+                  2
+                </span>
+                <span className="t-body text-[0.875rem] leading-6">
+                  Ride normally: shift up into <span className="t-data">{gearLabel}</span>, settle
+                  briefly, then make your full pull.
+                </span>
+              </li>
+              <li className="rule-t flex items-start gap-3 px-3 py-2.5">
+                <span
+                  aria-hidden="true"
+                  className="t-data flex h-6 w-6 shrink-0 items-center justify-center text-xs"
+                  style={{ border: 'var(--rule-hair) solid var(--color-rule)' }}
+                >
+                  3
+                </span>
+                <span className="t-body text-[0.875rem] leading-6">
+                  Ride back and stop: the session finishes itself a short while later, or hold the
+                  finish button to finish now. Your pulls are detected automatically.
+                </span>
+              </li>
             </ol>
-            <p className="text-zinc-600 text-xs pt-1">
-              Keep the screen on (it stays awake by itself). You can make several pulls in one session.
-            </p>
-          </div>
+          </Zone>
+
+          <NotesBox title="While you ride">
+            Keep the screen on (it stays awake by itself). You can make several pulls in one
+            session, and nothing is committed until you pick the ones you meant.
+          </NotesBox>
 
           <GpsWarmupCard
             telemetry={gps}
@@ -286,221 +350,185 @@ export function SessionScreen() {
             poorOutcome="dyno data"
           />
 
-          <button
-            onClick={startSession}
-            disabled={!canStart}
-            className={`w-full font-bold py-5 rounded-xl transition-colors text-lg ${
-              canStart
-                ? showPoorWarning
-                  ? 'bg-red-600 hover:bg-red-500 active:bg-red-700 text-white'
-                  : 'bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-zinc-950'
-                : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
-            }`}
-          >
-            {showPoorWarning && forceStart ? 'Start session anyway' : 'Start session'}
-          </button>
-          {showPoorWarning && !forceStart && (
-            <button
-              onClick={() => setForceStart(true)}
-              className="w-full text-zinc-500 hover:text-zinc-300 text-xs underline underline-offset-2"
-            >
-              Start anyway (data will be unreliable)
-            </button>
-          )}
+          <div className="space-y-3">
+            <PlateButton variant="procedure" major onClick={startSession} disabled={!canStart}>
+              {showPoorWarning && forceStart ? 'Start session anyway' : 'Start session'}
+            </PlateButton>
+            {showPoorWarning && !forceStart && (
+              <button
+                type="button"
+                onClick={() => setForceStart(true)}
+                className="t-annotation w-full py-2 underline underline-offset-4"
+              >
+                Start anyway (data will be unreliable)
+              </button>
+            )}
+          </div>
         </>
       )}
 
       {isRecording && (
         <>
-          <div className="bg-zinc-900 border border-amber-700/60 rounded-2xl p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-red-400 text-xs font-semibold uppercase tracking-widest">Recording session</span>
-              <span className="ml-auto tabular-nums text-zinc-100 text-xl font-bold">{formatElapsed(elapsed)}</span>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Speed</p>
-                <p className="tabular-nums">
-                  <span className="text-5xl font-bold text-zinc-100">{currentSpeed.toFixed(0)}</span>
-                  <span className="text-sm text-zinc-500 ml-1">km/h</span>
-                </p>
+          <Zone label="Recording session" note={`Elapsed ${formatElapsed(elapsed)}`}>
+            <div className="rule-b grid grid-cols-2">
+              <div className="px-3 py-4">
+                <Readout label="Speed" value={currentSpeed.toFixed(0)} unit="km/h" size="xl" />
               </div>
-              <div>
-                <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">RPM</p>
-                <p className="tabular-nums">
-                  <span className="text-4xl font-bold text-zinc-100">{currentRpm.toFixed(0)}</span>
-                </p>
+              <div className="rule-l px-3 py-4">
+                <Readout label="RPM" value={currentRpm.toFixed(0)} />
               </div>
             </div>
-            <p className="text-zinc-500 text-sm mt-4">
-              Put the phone away and ride. Everything is recorded, and your pulls are picked out afterwards.
+            <p className="t-body px-3 py-2.5 text-[0.8125rem] leading-6">
+              Put the phone away and ride. Everything is recorded, and your pulls are picked out
+              afterwards.
+            </p>
+          </Zone>
+
+          {standstill?.armed && standstill.stopped && (
+            <Advisory>
+              You have stopped, so the session ends by itself in{' '}
+              {Math.ceil(standstill.remaining_ms / 1000)} s and starts picking out your pulls.
+              Riding on cancels the countdown.
+            </Advisory>
+          )}
+
+          <div className="space-y-2">
+            <HoldToFinishButton onFinish={finishSession} label="Hold to finish session" />
+            <p className="t-annotation text-center">
+              Hold for 1.5 s, so stray pocket touches will not stop the session.
             </p>
           </div>
-          {standstill?.armed && standstill.stopped && (
-            <div className="bg-zinc-900 border border-amber-700/60 rounded-2xl p-4 space-y-1">
-              <div className="flex items-baseline gap-2">
-                <span className="text-amber-400 text-xs font-semibold uppercase tracking-widest">Finishing session</span>
-                <span className="ml-auto tabular-nums text-amber-400 text-3xl font-bold">
-                  {Math.ceil(standstill.remaining_ms / 1000)}
-                </span>
-                <span className="text-zinc-500 text-sm">s</span>
-              </div>
-              <p className="text-zinc-400 text-sm">
-                You've stopped, so the session ends by itself and starts picking out your pulls.
-              </p>
-              <p className="text-zinc-500 text-xs">Riding on cancels the countdown.</p>
-            </div>
-          )}
-          <HoldToFinishButton onFinish={finishSession} label="Hold to finish session" />
-          <p className="text-zinc-600 text-xs text-center">
-            Hold for 1.5 s, so stray pocket touches won't stop the session.
-          </p>
         </>
       )}
 
-      {isDetecting && (
-        <div className="flex items-center justify-center gap-3 py-10">
-          <div className="w-4 h-4 rounded-full border-2 border-amber-500 border-t-transparent animate-spin" />
-          <p className="text-amber-400 font-medium">Analyzing session…</p>
-        </div>
-      )}
+      {isDetecting && <p className="t-label py-10 text-center">Analyzing session...</p>}
 
       {(isReviewing || isSaving) && pulls.length === 0 && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-3">
-          <p className="text-zinc-100 font-semibold">No pulls detected</p>
-          <p className="text-zinc-400 text-sm leading-relaxed">
-            The session didn't contain a clear acceleration run (at least ~15 km/h of sustained
-            speed gain). The raw recording was still saved, so you can inspect it in the Replay Lab.
-          </p>
-          <div className="flex gap-2">
-            <Link
-              to={`/vehicles/${vehicleId}`}
-              className="flex-1 text-center bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold text-sm py-3 rounded-xl transition-colors"
-            >
+        <>
+          <Zone label="No pulls detected">
+            <p className="t-body px-3 py-3 text-[0.875rem] leading-6">
+              The session did not contain a clear acceleration run (at least about 15 km/h of
+              sustained speed gain). The raw recording was still saved, so you can inspect it in
+              the Replay Lab.
+            </p>
+          </Zone>
+          <div className="grid grid-cols-2 gap-3">
+            <PlateLink to={`/vehicles/${vehicleId}`} className="w-full">
               Back to vehicle
-            </Link>
-            <Link
-              to="/replay"
-              className="flex-1 text-center bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold text-sm py-3 rounded-xl transition-colors"
-            >
+            </PlateLink>
+            <PlateLink to="/replay" className="w-full">
               Replay Lab
-            </Link>
+            </PlateLink>
           </div>
-        </div>
+        </>
       )}
 
       {(isReviewing || isSaving) && pulls.length > 0 && (
         <>
-          <p className="text-zinc-400 text-sm">
-            {pulls.length === 1 ? 'One pull detected.' : `${pulls.length} pulls detected.`} Select
-            the ones to keep as runs. The rest are discarded (the raw session recording stays available for replay).
-          </p>
+          <Zone
+            label="Detected pulls"
+            note={`${pulls.length === 1 ? 'One pull' : `${pulls.length} pulls`}, ${selected.size} selected`}
+          >
+            <p className="rule-b t-body px-3 py-2.5 text-[0.8125rem] leading-6">
+              Select the ones to keep as runs. The rest are discarded, and the raw session
+              recording stays available for replay.
+            </p>
 
-          <div className="space-y-2">
             {pulls.map((p, i) => {
               const analyzable = p.analysis != null;
               const checked = selected.has(i);
               const kw = peakPowerKw(p);
               const corrupt = integrity[i]?.verdict === 'corrupt';
               return (
-                <button
+                <label
                   key={i}
-                  onClick={() => analyzable && toggle(i)}
-                  disabled={!analyzable}
-                  className={`w-full text-left bg-zinc-900 border rounded-2xl p-4 transition-colors ${
-                    checked ? 'border-amber-500' : corrupt ? 'border-red-500/40' : 'border-zinc-800'
-                  } ${analyzable ? 'hover:border-amber-700' : 'opacity-60 cursor-not-allowed'}`}
+                  className={`block px-3 py-3 ${i > 0 ? 'rule-t' : ''} ${analyzable ? 'cursor-pointer' : ''}`}
+                  style={checked ? { background: 'var(--color-procedure-tint)' } : undefined}
                 >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div
-                      className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${
-                        checked ? 'bg-amber-500 border-amber-500' : 'border-zinc-600'
-                      }`}
-                    >
-                      {checked && (
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#18181b" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      className="h-5 w-5 shrink-0"
+                      checked={checked}
+                      disabled={!analyzable}
+                      onChange={() => toggle(i)}
+                      aria-label={`Keep pull ${i + 1}`}
+                    />
+                    <span className="t-data text-sm">Pull {i + 1}</span>
+                    {corrupt && <RowMark tone="caution">GPS drift</RowMark>}
+                    {i === bestIndex && <RowMark tone="procedure">Best</RowMark>}
+                    <span className="t-data ml-auto shrink-0 text-sm">
+                      {analyzable ? format(kw) : <Na title="Could not be analysed" />}
+                    </span>
+                  </div>
+
+                  <div className="mt-2.5">
+                    <PullSparkline samples={p.samples} />
+                  </div>
+
+                  <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                    <span className="t-annotation">
+                      {mpsToKmh(p.pull.v_start_mps).toFixed(0)} to{' '}
+                      {mpsToKmh(p.pull.v_peak_mps).toFixed(0)} km/h
+                    </span>
+                    <span className="t-annotation">{(p.pull.duration_ms / 1000).toFixed(1)} s</span>
+                    <span className="t-annotation">
+                      {analyzable ? (
+                        `${p.analysis!.rpm_min.toFixed(0)}-${p.analysis!.rpm_max.toFixed(0)} RPM`
+                      ) : (
+                        <Na title="Could not be analysed" />
                       )}
-                    </div>
-                    <p className="text-zinc-100 font-semibold text-sm">Pull {i + 1}</p>
-                    {corrupt && (
-                      <span className="text-[10px] font-bold uppercase tracking-wider bg-red-500/15 text-red-400 px-2 py-0.5 rounded-full">
-                        GPS drift
-                      </span>
-                    )}
-                    {i === bestIndex && (
-                      <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-400 px-2 py-0.5 rounded-full">
-                        Best
-                      </span>
-                    )}
-                    <span className="ml-auto tabular-nums text-amber-400 font-bold text-sm">
-                      {analyzable ? format(kw) : 'n/a'}
                     </span>
                   </div>
-                  <PullSparkline samples={p.samples} />
-                  <div className="flex items-baseline justify-between mt-2 text-xs text-zinc-500 tabular-nums">
-                    <span>
-                      {mpsToKmh(p.pull.v_start_mps).toFixed(0)} → {mpsToKmh(p.pull.v_peak_mps).toFixed(0)} km/h
-                    </span>
-                    <span>{(p.pull.duration_ms / 1000).toFixed(1)} s</span>
-                    {analyzable ? (
-                      <span>
-                        {p.analysis!.rpm_min.toFixed(0)}-{p.analysis!.rpm_max.toFixed(0)} RPM
-                      </span>
-                    ) : (
-                      <span className="text-red-400">couldn't analyze</span>
-                    )}
-                  </div>
+
+                  {!analyzable && (
+                    <p className="t-annotation mt-2" style={{ color: 'var(--color-caution)' }}>
+                      This pull could not be analysed, so it cannot be saved as a run.
+                    </p>
+                  )}
+
                   {corrupt && (
-                    <p className="text-red-400 text-xs mt-2 leading-relaxed">
+                    <p className="t-body mt-2 text-[0.8125rem] leading-6" style={{ color: 'var(--color-ink)' }}>
                       The GPS lost the speed signal mid-pull and caught up in one step, so this
                       power figure is the receiver, not the bike. Ride this pull again.
                     </p>
                   )}
-                </button>
+                </label>
               );
             })}
-          </div>
+          </Zone>
 
+          {/* role=alert, not the Advisory's own role=status: this one has to
+              interrupt, because the next tap writes the bad figure to the DB. */}
           {corruptSelected > 0 && (
-            <p className="text-red-400 text-xs" role="alert">
-              {corruptSelected === 1
-                ? 'One selected pull has a corrupt speed signal.'
-                : `${corruptSelected} selected pulls have a corrupt speed signal.`}{' '}
-              Saving will store a power figure the bike never made.
-            </p>
+            <div role="alert">
+              <Advisory>
+                {corruptSelected === 1
+                  ? 'One selected pull has a corrupt speed signal.'
+                  : `${corruptSelected} selected pulls have a corrupt speed signal.`}{' '}
+                Saving will store a power figure the bike never made.
+              </Advisory>
+            </div>
           )}
-          <button
+
+          <PlateButton
+            variant="procedure"
+            major
             onClick={saveSelected}
             disabled={selected.size === 0 || isSaving}
-            className={`w-full font-bold py-4 rounded-xl transition-colors text-lg ${
-              selected.size > 0 && !isSaving
-                ? 'bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-zinc-950'
-                : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
-            }`}
           >
-            {isSaving
-              ? 'Saving…'
-              : selected.size <= 1
-                ? 'Save as run'
-                : `Save ${selected.size} runs`}
-          </button>
-          <Link
-            to={`/vehicles/${vehicleId}`}
-            className="block w-full text-center text-zinc-500 hover:text-zinc-300 text-sm py-2 transition-colors"
-          >
+            {isSaving ? 'Saving...' : selected.size <= 1 ? 'Save as run' : `Save ${selected.size} runs`}
+          </PlateButton>
+
+          <PlateLink to={`/vehicles/${vehicleId}`} className="w-full">
             Discard all
-          </Link>
+          </PlateLink>
         </>
       )}
 
       {state.kind === 'idle' && (
-        <div className="flex items-center justify-center py-4">
-          <p className="text-zinc-500 text-sm">Initializing sensors…</p>
-        </div>
+        <p className="t-annotation py-4 text-center">Initializing sensors...</p>
       )}
-    </div>
+    </Plate>
   );
 }

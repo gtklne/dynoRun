@@ -2,6 +2,8 @@ import { useNavigate } from 'react-router-dom';
 import type { Calibration } from '@/shared/types';
 import { useReplayState, setPendingReplay } from '@/sensors/replay-state';
 import { describeRecording } from '@/sensors/recording';
+import { formatShortDateTime } from '@/shared/format-time';
+import { NotesBox, PlateButton, RevisionBar, TitleBlock, Zone } from '@/ui/plate';
 
 export function CalibrationStepConfirm({ calibration, onDone }: { calibration: Calibration; onDone: () => void }) {
   const navigate = useNavigate();
@@ -27,77 +29,52 @@ export function CalibrationStepConfirm({ calibration, onDone }: { calibration: C
   }
 
   return (
-    <div className="space-y-5">
-      {/* Success header */}
-      <div className="flex flex-col items-center gap-3 py-4">
-        <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center">
-          <svg className="text-emerald-400" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12"/>
-          </svg>
-        </div>
-        <div className="text-center">
-          <p className="text-xl font-bold text-zinc-100">Calibration saved</p>
-          <p className="text-zinc-500 text-sm mt-1">Gear <span className="text-amber-400 font-semibold">{calibration.gear_label}</span> is ready for dyno runs</p>
-        </div>
-      </div>
+    <>
+      {/* The four numbers ARE the calibration, so they sit in the title block's
+          own ruled meta row rather than in a panel below it: there is nothing
+          else on this sheet to read first. */}
+      <TitleBlock
+        ident={`Gear ${calibration.gear_label} is ready for dyno runs`}
+        title="Calibration saved"
+        meta={[
+          { label: 'Gear', value: calibration.gear_label },
+          { label: 'RPM', value: calibration.rpm.toFixed(0) },
+          { label: 'Speed', value: `${calibration.speed_kmh.toFixed(1)} km/h` },
+          { label: 'Rollout', value: `${calibration.rollout_m_per_rev.toFixed(4)} m/rev` },
+        ]}
+      />
 
-      <div className="space-y-5 lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start lg:space-y-0">
-      {/* Data card */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-zinc-800">
-          <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Calibration data</p>
-        </div>
-        <div className="divide-y divide-zinc-800">
-          <div className="flex items-center justify-between px-4 py-3">
-            <span className="text-zinc-400 text-sm">Gear</span>
-            <span className="text-zinc-100 font-medium text-sm">{calibration.gear_label}</span>
-          </div>
-          <div className="flex items-center justify-between px-4 py-3">
-            <span className="text-zinc-400 text-sm">RPM</span>
-            <span className="text-zinc-100 font-medium text-sm tabular-nums">{calibration.rpm.toFixed(0)}</span>
-          </div>
-          <div className="flex items-center justify-between px-4 py-3">
-            <span className="text-zinc-400 text-sm">Speed</span>
-            <span className="text-zinc-100 font-medium text-sm tabular-nums">{calibration.speed_kmh.toFixed(1)} km/h</span>
-          </div>
-          <div className="flex items-center justify-between px-4 py-3">
-            <span className="text-zinc-400 text-sm">Rollout</span>
-            <span className="text-zinc-100 font-medium text-sm tabular-nums">{calibration.rollout_m_per_rev.toFixed(4)} m/rev</span>
-          </div>
-        </div>
-      </div>
+      <NotesBox title="What rollout is">
+        Rollout bundles tyre circumference, gear ratio and final drive into one number, measured
+        from a single steady hold. Every later run divides by it to get its RPM axis, so if the
+        tyres, sprockets or wheel size change, calibrate that gear again.
+      </NotesBox>
 
-      {/* Raw sensor recording */}
       {recordingMatches && lastRecording && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
-          <div>
-            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Raw sensor recording</p>
-            <p className="text-zinc-400 text-xs mt-1.5 font-mono">{describeRecording(lastRecording)}</p>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={downloadRecording}
-              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium py-2.5 rounded-xl transition-colors text-sm border border-zinc-700"
-            >
+        <Zone label="Raw sensor recording" note={describeRecording(lastRecording)}>
+          <div className="grid grid-cols-2">
+            <PlateButton onClick={downloadRecording} className="border-0">
               Download JSON
-            </button>
-            <button
-              onClick={useRecordingForReplay}
-              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium py-2.5 rounded-xl transition-colors text-sm border border-zinc-700"
-            >
+            </PlateButton>
+            <PlateButton onClick={useRecordingForReplay} className="rule-l border-0">
               Use for replay
-            </button>
+            </PlateButton>
           </div>
-        </div>
+        </Zone>
       )}
+
+      <div className="flex justify-end">
+        <PlateButton variant="procedure" onClick={onDone} className="w-full lg:w-auto lg:px-10">
+          Done
+        </PlateButton>
       </div>
 
-      <button
-        onClick={onDone}
-        className="w-full bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-zinc-950 font-semibold py-3.5 rounded-xl transition-colors lg:block lg:w-fit lg:ml-auto lg:px-8"
-      >
-        Done
-      </button>
-    </div>
+      <RevisionBar
+        entries={[
+          { label: 'Measured', value: formatShortDateTime(calibration.recorded_at) },
+          { label: 'Method', value: 'GPS speed at a held RPM' },
+        ]}
+      />
+    </>
   );
 }

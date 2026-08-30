@@ -3,12 +3,13 @@ import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
 import type { RpmPoint } from '@/shared/types';
 import { convertPower, type PowerUnit } from '@/shared/format-power';
+import { usePlateInk } from '@/ui/plate';
 import {
   attachChartResize,
-  CURSOR_STROKE,
   HOVER_POINT_SIZE,
   legendValue,
   responsiveChartHeight,
+  seriesStyle,
   themedAxis,
   themedCursor,
 } from '@/ui/components/uplot-theme';
@@ -16,37 +17,49 @@ import {
 export interface CurveSeries {
   label: string;
   points: RpmPoint[];
+  /** Override ink. Leave unset to take the plate's own series order. */
   stroke?: string;
+  /** Override the dash pattern that goes with that ink. */
+  dash?: number[];
 }
 
 export type CurveDisplayMode = 'power' | 'torque' | 'both';
-
-const DEFAULT_PALETTE = ['#f59e0b', '#22d3ee', '#a78bfa', '#34d399', '#f472b6', '#fbbf24', '#60a5fa'];
 
 interface Props {
   series: CurveSeries[];
   /** Default 'power'. 'both' draws power on left axis + torque on right axis. */
   mode?: CurveDisplayMode;
-  /** Default amber-led app palette. */
+  /** Override the plate's series inks. Rarely needed. */
   palette?: string[];
   /** When supplied, converts power values to the user's unit and updates axis label.
    *  Default 'kW' (no conversion). */
   unit?: PowerUnit;
-  /** Optional series label to mark as "best": adds a star and a thicker stroke. */
+  /** Optional series label to mark as "best": adds a marker and a thicker stroke. */
   highlightLabel?: string;
   height?: number;
+  /**
+   * Publishes the RPM under the cursor, so the rest of the plate can report the
+   * same instant. Null when the cursor leaves the plot.
+   */
+  onCursor?: (rpm: number | null) => void;
 }
 
 export function PowerCurveChart({
   series,
   mode = 'power',
-  palette = DEFAULT_PALETTE,
+  palette,
   unit = 'kW',
   highlightLabel,
   height = 320,
+  onCursor,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const plotRef = useRef<uPlot | null>(null);
+  const ink = usePlateInk();
+  // Held in a ref so a new callback identity does not tear down and rebuild the
+  // plot, which would drop the cursor the caller is currently reading.
+  const onCursorRef = useRef(onCursor);
+  onCursorRef.current = onCursor;
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -78,10 +91,19 @@ export function PowerCurveChart({
       return xs.map((x) => map.get(x) ?? null);
     };
 
+    // Colour AND dash together: a phone screen in direct sun, and a
+    // colour-blind reader, both lose the hue and keep the pattern.
+    const styleAt = (i: number, s?: CurveSeries) => {
+      const base = seriesStyle(i, ink);
+      return {
+        stroke: s?.stroke ?? palette?.[i % palette.length] ?? base.stroke,
+        dash: s?.dash ?? base.dash,
+      };
+    };
+
     const isHighlight = (label: string): boolean =>
       highlightLabel != null && label === highlightLabel;
-    const decorate = (label: string): string =>
-      isHighlight(label) ? `★ ${label}` : label;
+    const decorate = (label: string): string => (isHighlight(label) ? `[best] ${label}` : label);
     const widthOf = (label: string): number => (isHighlight(label) ? 3 : 2);
 
     const seriesPoints = (color: string): uPlot.Series.Points => ({
@@ -92,6 +114,18 @@ export function PowerCurveChart({
 
     const computedHeight = responsiveChartHeight(height);
 
+    const cursor = themedCursor({ x: true, y: true }, ink);
+    const hooks: uPlot.Hooks.Arrays = {
+      setCursor: [
+        (u): void => {
+          const cb = onCursorRef.current;
+          if (!cb) return;
+          const idx = u.cursor.idx;
+          cb(idx == null ? null : (u.data[0][idx] as number));
+        },
+      ],
+    };
+
     let data: uPlot.AlignedData;
     let opts: uPlot.Options;
 
@@ -99,27 +133,29 @@ export function PowerCurveChart({
       const yArrays: (number | null)[][] = [];
       const plotSeries: uPlot.Series[] = [{ value: rpmValue }];
       series.forEach((s, i) => {
-        const colorP = s.stroke ?? palette[i % palette.length];
-        const colorT = palette[(i + series.length) % palette.length];
+        const power = styleAt(i * 2, s);
+        const torque = styleAt(i * 2 + 1);
         yArrays.push(buildPowerY(s));
         plotSeries.push({
           label: `${decorate(s.label)} (P)`,
-          stroke: colorP,
+          stroke: power.stroke,
+          dash: power.dash.length ? power.dash : undefined,
           width: widthOf(s.label),
           spanGaps: true,
           scale: 'power',
           value: powerValue,
-          points: seriesPoints(colorP),
+          points: seriesPoints(power.stroke),
         });
         yArrays.push(buildTorqueY(s));
         plotSeries.push({
           label: `${decorate(s.label)} (T)`,
-          stroke: colorT,
+          stroke: torque.stroke,
+          dash: torque.dash.length ? torque.dash : undefined,
           width: widthOf(s.label),
           spanGaps: true,
           scale: 'torque',
           value: torqueValue,
-          points: seriesPoints(colorT),
+          points: seriesPoints(torque.stroke),
         });
       });
       data = [xs, ...yArrays] as uPlot.AlignedData;
@@ -128,13 +164,14 @@ export function PowerCurveChart({
         height: computedHeight,
         scales: { x: { time: false }, power: {}, torque: {} },
         axes: [
-          themedAxis({ label: 'RPM' }),
-          themedAxis({ label: powerLabel, scale: 'power', decimals: 0 }),
-          themedAxis({ label: torqueLabel, scale: 'torque', side: 1, showGrid: false, decimals: 0 }),
+          themedAxis({ label: 'RPM', ink }),
+          themedAxis({ label: powerLabel, scale: 'power', decimals: 0, ink }),
+          themedAxis({ label: torqueLabel, scale: 'torque', side: 1, showGrid: false, decimals: 0, ink }),
         ],
         series: plotSeries,
         legend: { show: true },
-        cursor: themedCursor({ x: true, y: true, points: { stroke: CURSOR_STROKE } }),
+        cursor,
+        hooks,
       };
     } else {
       const useTorque = mode === 'torque';
@@ -147,25 +184,27 @@ export function PowerCurveChart({
         height: computedHeight,
         scales: { x: { time: false } },
         axes: [
-          themedAxis({ label: 'RPM' }),
-          themedAxis({ label: useTorque ? torqueLabel : powerLabel, decimals: 0 }),
+          themedAxis({ label: 'RPM', ink }),
+          themedAxis({ label: useTorque ? torqueLabel : powerLabel, decimals: 0, ink }),
         ],
         series: [
           { value: rpmValue },
           ...series.map((s, i) => {
-            const color = s.stroke ?? palette[i % palette.length];
+            const style = styleAt(i, s);
             return {
               label: decorate(s.label),
-              stroke: color,
+              stroke: style.stroke,
+              dash: style.dash.length ? style.dash : undefined,
               width: widthOf(s.label),
               spanGaps: true,
               value: useTorque ? torqueValue : powerValue,
-              points: seriesPoints(color),
+              points: seriesPoints(style.stroke),
             };
           }),
         ],
         legend: { show: true },
-        cursor: themedCursor({ x: true, y: true, points: { stroke: CURSOR_STROKE } }),
+        cursor,
+        hooks,
       };
     }
 
@@ -176,8 +215,8 @@ export function PowerCurveChart({
       plotRef.current?.destroy();
       plotRef.current = null;
     };
-  }, [series, mode, palette, unit, highlightLabel, height]);
+  }, [series, mode, palette, unit, highlightLabel, height, ink]);
 
-  if (series.length === 0) return <p>No data.</p>;
-  return <div ref={containerRef} />;
+  if (series.length === 0) return <p className="t-annotation px-3 py-6 text-center">No data.</p>;
+  return <div ref={containerRef} data-plate-figures />;
 }
