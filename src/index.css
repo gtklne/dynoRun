@@ -340,9 +340,11 @@
     opacity: 0;
   }
 
+  /* Tint only, never a border: uPlot keeps this element in the DOM at zero
+     size between drags, so any border paints a stray mark on an idle plot. */
   .uplot .u-select {
     background: var(--color-procedure-tint);
-    border: var(--rule-hair) solid var(--color-procedure);
+    border: 0;
   }
 
   /* ------------------------------------------------------------ lettering --- */

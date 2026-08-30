@@ -42,7 +42,15 @@ export function TitleBlock({
         {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
       </div>
       {meta && meta.length > 0 && (
-        <dl className="rule-t grid grid-cols-2 sm:grid-cols-4">
+        <dl
+          className="rule-t grid grid-cols-2"
+          style={{
+            // Track sized to the cells present. A fixed four-column grid put
+            // two cells at a quarter of a narrow column each, so both wrapped
+            // inside a row that was mostly blank sheet.
+            gridTemplateColumns: `repeat(${Math.min(meta.length, 4)}, minmax(0, 1fr))`,
+          }}
+        >
           {meta.map((m, i) => (
             <div
               key={m.label}

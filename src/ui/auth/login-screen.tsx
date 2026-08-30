@@ -151,10 +151,11 @@ export function LoginScreen() {
 
   return (
     <AuthLayout>
-      <BrandHeader
-        title={mode === 'signup' ? 'Create account' : 'Sign in'}
-        subtitle={mode === 'signup' ? 'New account' : 'Account access'}
-      />
+      {/* No subtitle: "Account access" under "Sign in" and "New account" under
+          "Create account" both restated the title directly above them. The
+          reset and hand-off screens keep theirs, because those say something
+          the title does not. */}
+      <BrandHeader title={mode === 'signup' ? 'Create account' : 'Sign in'} />
 
       <form onSubmit={handleSubmit} className="box-frame flex flex-col gap-4 px-4 py-4 sm:px-5 sm:py-5">
         {mode === 'signup' && (

@@ -1,7 +1,6 @@
 import { analyzeRun } from '@/analysis/pipeline';
 import { PIPELINE_VERSION, type RawSpeedSample } from '@/analysis/types';
-import { SuiteMark, Wordmark, GripMark } from '@/ui/components/brand-wordmark';
-import { BrandLogo } from '@/ui/components/brand-logo';
+import { SuiteMark, Wordmark } from '@/ui/components/brand-wordmark';
 import {
   MinimaTable,
   PlanView,
@@ -218,16 +217,23 @@ const TURN_READINGS: TurnReading[] = TURN_SHAPES.map((shape) => {
 
 /* ----------------------------------------------------------------- plots --- */
 
-const PLAN_W = 680;
 /**
- * Type inside these plots is specified in viewBox units, and the viewBox is
- * scaled down hard on a phone (680 units into roughly a 326 px column, about
- * 0.48x). A 10-unit label lands near 4.8 CSS px there, so annotation sizes are
- * declared at their intended CSS size and multiplied up. Kept as one constant
- * so a later plot cannot quietly reintroduce raw unit sizes.
+ * Two renditions of every plot, one per column width, chosen by CSS.
+ *
+ * Text inside an SVG is measured in viewBox units, so it scales with the frame.
+ * A single 680-unit plot squeezed into a phone's ~326 px column renders its
+ * tick labels near 5 CSS px, and sizing them for the phone makes the desktop
+ * axis shout: one viewBox cannot serve both, and a constant multiplier only
+ * moves the problem. These screens are hook-free by contract (the landing page
+ * is prerendered without a single script, so there is no ResizeObserver to
+ * reach for), which leaves the honest answer: draw the plot at the width it
+ * will actually be read at. Same functions, same data, two frames.
  */
-const TYPE_SCALE = 2.1;
-const tSize = (cssPx: number) => cssPx * TYPE_SCALE;
+type PlotWidth = 'wide' | 'narrow';
+const PLAN_W_BY: Record<PlotWidth, number> = { wide: 680, narrow: 340 };
+/** The column each rendition is read in, so ts() lands on a real CSS size. */
+const COLUMN_PX_BY: Record<PlotWidth, number> = { wide: 700, narrow: 326 };
+const ts = (cssPx: number, w: PlotWidth) => (cssPx * PLAN_W_BY[w]) / COLUMN_PX_BY[w];
 const PLAN_H = 300;
 const PROFILE_H = 150;
 const PAD_L = 52;
@@ -243,8 +249,8 @@ const RPM_TICKS = [2000, 3000, 4000, 5000, 6000, 7000];
 /** Round steps only: a 187.5 kW gridline is a tell that nobody chose the axis. */
 const POWER_TICKS = Array.from({ length: POWER_MAX / 50 + 1 }, (_, i) => i * 50);
 
-function xAt(rpm: number): number {
-  return PAD_L + ((rpm - RPM_MIN) / (RPM_MAX - RPM_MIN)) * (PLAN_W - PAD_L - PAD_R);
+function xAt(rpm: number, pw: number): number {
+  return PAD_L + ((rpm - RPM_MIN) / (RPM_MAX - RPM_MIN)) * (pw - PAD_L - PAD_R);
 }
 
 function yAt(value: number, max: number, height: number): number {
@@ -255,18 +261,22 @@ function polyline(
   read: (p: (typeof DYNO_POINTS)[number]) => number,
   max: number,
   height: number,
+  pw: number,
 ): string {
-  return DYNO_POINTS.map((p) => `${xAt(p.rpm).toFixed(1)},${yAt(read(p), max, height).toFixed(1)}`)
-    .join(' ');
+  return DYNO_POINTS.map(
+    (p) => `${xAt(p.rpm, pw).toFixed(1)},${yAt(read(p), max, height).toFixed(1)}`,
+  ).join(' ');
 }
 
 /** The plan view: the field the procedure is flown across. */
-function PowerPlot() {
-  const peakX = xAt(PEAK_POWER.rpm);
+function PowerPlot({ w }: { w: PlotWidth }) {
+  const PW = PLAN_W_BY[w];
+  const tp = (cssPx: number) => ts(cssPx, w);
+  const peakX = xAt(PEAK_POWER.rpm, PW);
   const peakY = yAt(PEAK_POWER.wheel_power_kw, POWER_MAX, PLAN_H);
   return (
     <svg
-      viewBox={`0 0 ${PLAN_W} ${PLAN_H}`}
+      viewBox={`0 0 ${PW} ${PLAN_H}`}
       role="img"
       aria-label={`Wheel power against engine RPM, peaking at ${PEAK_POWER.wheel_power_kw.toFixed(0)} kilowatts near ${PEAK_POWER.rpm.toFixed(0)} RPM`}
       style={{ display: 'block', width: '100%', height: 'auto' }}
@@ -275,7 +285,7 @@ function PowerPlot() {
         <g key={t}>
           <line
             x1={PAD_L}
-            x2={PLAN_W - PAD_R}
+            x2={PW - PAD_R}
             y1={yAt(t, POWER_MAX, PLAN_H)}
             y2={yAt(t, POWER_MAX, PLAN_H)}
             className="stroke-rule-faint"
@@ -286,7 +296,7 @@ function PowerPlot() {
             y={yAt(t, POWER_MAX, PLAN_H) + 3.5}
             textAnchor="end"
             className="fill-ink-3"
-            style={{ fontSize: tSize(5.0), fontStretch: '75%', fontWeight: 600 }}
+            style={{ fontSize: tp(10), fontStretch: '75%', fontWeight: 600 }}
           >
             {t}
           </text>
@@ -295,19 +305,19 @@ function PowerPlot() {
       {RPM_TICKS.map((r) => (
         <g key={r}>
           <line
-            x1={xAt(r)}
-            x2={xAt(r)}
+            x1={xAt(r, PW)}
+            x2={xAt(r, PW)}
             y1={PAD_T}
             y2={PLAN_H - PAD_B}
             className="stroke-rule-faint"
             strokeWidth="1"
           />
           <text
-            x={xAt(r)}
+            x={xAt(r, PW)}
             y={PLAN_H - PAD_B + 15}
             textAnchor="middle"
             className="fill-ink-3"
-            style={{ fontSize: tSize(5.0), fontStretch: '75%', fontWeight: 600 }}
+            style={{ fontSize: tp(10), fontStretch: '75%', fontWeight: 600 }}
           >
             {r}
           </text>
@@ -315,7 +325,7 @@ function PowerPlot() {
       ))}
       <line
         x1={PAD_L}
-        x2={PLAN_W - PAD_R}
+        x2={PW - PAD_R}
         y1={PLAN_H - PAD_B}
         y2={PLAN_H - PAD_B}
         className="stroke-ink"
@@ -330,7 +340,7 @@ function PowerPlot() {
         strokeWidth="1.5"
       />
       <polyline
-        points={polyline((p) => p.wheel_power_kw, POWER_MAX, PLAN_H)}
+        points={polyline((p) => p.wheel_power_kw, POWER_MAX, PLAN_H, PW)}
         fill="none"
         className="stroke-procedure"
         strokeWidth="2.4"
@@ -352,7 +362,7 @@ function PowerPlot() {
           y={peakY - 8}
           textAnchor="end"
           className="fill-ink"
-          style={{ fontSize: tSize(6.0), fontStretch: '87%', fontWeight: 700 }}
+          style={{ fontSize: tp(11.5), fontStretch: '87%', fontWeight: 700 }}
         >
           {PEAK_POWER.wheel_power_kw.toFixed(0)} kW at {PEAK_POWER.rpm.toFixed(0)} RPM
         </text>
@@ -361,16 +371,16 @@ function PowerPlot() {
         x={PAD_L}
         y={11}
         className="fill-ink-3"
-        style={{ fontSize: tSize(4.6), fontStretch: '75%', fontWeight: 700, letterSpacing: '0.09em' }}
+        style={{ fontSize: tp(9.5), fontStretch: '75%', fontWeight: 700, letterSpacing: '0.09em' }}
       >
         KW
       </text>
       <text
-        x={PLAN_W - PAD_R}
+        x={PW - PAD_R}
         y={11}
         textAnchor="end"
         className="fill-ink-3"
-        style={{ fontSize: tSize(4.6), fontStretch: '75%', fontWeight: 700, letterSpacing: '0.09em' }}
+        style={{ fontSize: tp(9.5), fontStretch: '75%', fontWeight: 700, letterSpacing: '0.09em' }}
       >
         RPM
       </text>
@@ -379,10 +389,12 @@ function PowerPlot() {
 }
 
 /** The profile view: the same axis, one level down. */
-function TorquePlot() {
+function TorquePlot({ w }: { w: PlotWidth }) {
+  const PW = PLAN_W_BY[w];
+  const tp = (cssPx: number) => ts(cssPx, w);
   return (
     <svg
-      viewBox={`0 0 ${PLAN_W} ${PROFILE_H}`}
+      viewBox={`0 0 ${PW} ${PROFILE_H}`}
       role="img"
       aria-label={`Wheel torque against the same RPM axis, peaking at ${PEAK_TORQUE.wheel_torque_nm.toFixed(0)} newton metres`}
       style={{ display: 'block', width: '100%', height: 'auto' }}
@@ -391,7 +403,7 @@ function TorquePlot() {
         <g key={t}>
           <line
             x1={PAD_L}
-            x2={PLAN_W - PAD_R}
+            x2={PW - PAD_R}
             y1={yAt(t, TORQUE_MAX, PROFILE_H)}
             y2={yAt(t, TORQUE_MAX, PROFILE_H)}
             className="stroke-rule-faint"
@@ -402,7 +414,7 @@ function TorquePlot() {
             y={yAt(t, TORQUE_MAX, PROFILE_H) + 3.5}
             textAnchor="end"
             className="fill-ink-3"
-            style={{ fontSize: tSize(5.0), fontStretch: '75%', fontWeight: 600 }}
+            style={{ fontSize: tp(10), fontStretch: '75%', fontWeight: 600 }}
           >
             {t}
           </text>
@@ -411,8 +423,8 @@ function TorquePlot() {
       {RPM_TICKS.map((r) => (
         <line
           key={r}
-          x1={xAt(r)}
-          x2={xAt(r)}
+          x1={xAt(r, PW)}
+          x2={xAt(r, PW)}
           y1={PAD_T}
           y2={PROFILE_H - PAD_B}
           className="stroke-rule-faint"
@@ -421,14 +433,14 @@ function TorquePlot() {
       ))}
       <line
         x1={PAD_L}
-        x2={PLAN_W - PAD_R}
+        x2={PW - PAD_R}
         y1={PROFILE_H - PAD_B}
         y2={PROFILE_H - PAD_B}
         className="stroke-ink"
         strokeWidth="1.5"
       />
       <polyline
-        points={polyline((p) => p.wheel_torque_nm, TORQUE_MAX, PROFILE_H)}
+        points={polyline((p) => p.wheel_torque_nm, TORQUE_MAX, PROFILE_H, PW)}
         fill="none"
         className="stroke-ink"
         strokeWidth="2"
@@ -438,18 +450,18 @@ function TorquePlot() {
         x={PAD_L}
         y={11}
         className="fill-ink-3"
-        style={{ fontSize: tSize(4.6), fontStretch: '75%', fontWeight: 700, letterSpacing: '0.09em' }}
+        style={{ fontSize: tp(9.5), fontStretch: '75%', fontWeight: 700, letterSpacing: '0.09em' }}
       >
         NM
       </text>
       {RPM_TICKS.map((r) => (
         <text
           key={r}
-          x={xAt(r)}
+          x={xAt(r, PW)}
           y={PROFILE_H - PAD_B + 15}
           textAnchor="middle"
           className="fill-ink-3"
-          style={{ fontSize: tSize(5.0), fontStretch: '75%', fontWeight: 600 }}
+          style={{ fontSize: tp(10), fontStretch: '75%', fontWeight: 600 }}
         >
           {r}
         </text>
@@ -472,7 +484,8 @@ function gy(along: number): number {
 }
 
 /** The traction circle, drawn the way the analyzer draws it. */
-function TractionCircle() {
+function TractionCircle({ w }: { w: PlotWidth }) {
+  const tp = (cssPx: number) => ts(cssPx, w);
   const envelopePoints = ENVELOPE.map((r, i) => {
     const a = ((i + 0.5) / ENVELOPE_BINS) * 2 * Math.PI;
     return `${gx(r * Math.cos(a)).toFixed(1)},${gy(r * Math.sin(a)).toFixed(1)}`;
@@ -500,7 +513,7 @@ function TractionCircle() {
             y={CIRCLE_C - 5}
             textAnchor="end"
             className="fill-ink-3"
-            style={{ fontSize: tSize(4.6), fontStretch: '75%', fontWeight: 700, letterSpacing: '0.08em' }}
+            style={{ fontSize: tp(9.5), fontStretch: '75%', fontWeight: 700, letterSpacing: '0.08em' }}
           >
             {g.toFixed(1)} G
           </text>
@@ -541,7 +554,7 @@ function TractionCircle() {
         y={13}
         textAnchor="middle"
         className="fill-ink-3"
-        style={{ fontSize: tSize(4.6), fontStretch: '75%', fontWeight: 700, letterSpacing: '0.09em' }}
+        style={{ fontSize: tp(9.5), fontStretch: '75%', fontWeight: 700, letterSpacing: '0.09em' }}
       >
         DRIVE
       </text>
@@ -550,7 +563,7 @@ function TractionCircle() {
         y={CIRCLE_SIZE - 4}
         textAnchor="middle"
         className="fill-ink-3"
-        style={{ fontSize: tSize(4.6), fontStretch: '75%', fontWeight: 700, letterSpacing: '0.09em' }}
+        style={{ fontSize: tp(9.5), fontStretch: '75%', fontWeight: 700, letterSpacing: '0.09em' }}
       >
         BRAKE
       </text>
@@ -714,13 +727,37 @@ export function LandingScreen() {
                 }
               >
                 <div className="px-2 py-2">
-                  <PowerPlot />
+                  <>
+                    {/* Both renditions ship and CSS picks the one whose
+                        column it was drawn for. Markup is the cheap side of
+                        this trade on a page that loads no script at all;
+                        an unreadable axis on the surface most visitors see
+                        is the expensive one. */}
+                    <div className="lg:hidden">
+                      <PowerPlot w="narrow" />
+                    </div>
+                    <div className="hidden lg:block">
+                      <PowerPlot w="wide" />
+                    </div>
+                  </>
                 </div>
               </PlanView>
 
               <ProfileView label="Wheel torque vs RPM" axis="Same RPM axis as above">
                 <div className="px-2 py-2">
-                  <TorquePlot />
+                  <>
+                    {/* Both renditions ship and CSS picks the one whose
+                        column it was drawn for. Markup is the cheap side of
+                        this trade on a page that loads no script at all;
+                        an unreadable axis on the surface most visitors see
+                        is the expensive one. */}
+                    <div className="lg:hidden">
+                      <TorquePlot w="narrow" />
+                    </div>
+                    <div className="hidden lg:block">
+                      <TorquePlot w="wide" />
+                    </div>
+                  </>
                 </div>
               </ProfileView>
             </div>
@@ -852,7 +889,19 @@ export function LandingScreen() {
                 }
               >
                 <div className="px-3 py-3">
-                  <TractionCircle />
+                  <>
+                    {/* Both renditions ship and CSS picks the one whose
+                        column it was drawn for. Markup is the cheap side of
+                        this trade on a page that loads no script at all;
+                        an unreadable axis on the surface most visitors see
+                        is the expensive one. */}
+                    <div className="lg:hidden">
+                      <TractionCircle w="narrow" />
+                    </div>
+                    <div className="hidden lg:block">
+                      <TractionCircle w="wide" />
+                    </div>
+                  </>
                 </div>
               </PlanView>
 
@@ -862,7 +911,6 @@ export function LandingScreen() {
                     <Readout
                       label="Session score"
                       value={SESSION_SCORE}
-                      tone="procedure"
                       note="100 is one g in every direction"
                     />
                   </div>
@@ -929,11 +977,8 @@ export function LandingScreen() {
             </ol>
           </Zone>
 
-          <section
-            aria-labelledby="closing-title"
-            className="box-frame grid lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]"
-          >
-            <div className="px-4 py-8 sm:px-8 sm:py-10">
+          <section aria-labelledby="closing-title" className="box-frame">
+            <div className="px-4 py-8 sm:px-8 sm:py-12">
               <h2 id="closing-title" className="t-display text-[clamp(2.2rem,4.6vw,3.4rem)]">
                 Make the next change count.
               </h2>
@@ -947,16 +992,20 @@ export function LandingScreen() {
                 <DemoAction />
               </div>
             </div>
-            {/* The empty half of this frame now carries marginal apparatus, the
-                way a chart sheet's margin does, rather than blank sheet. */}
-            <dl className="border-rule border-t lg:border-l lg:border-t-0">
+            {/* A ruled strip, not a third right-hand column: the two tool
+                sections above already own that shape, and repeating it a third
+                time turns the page into a template. */}
+            <dl className="rule-t grid sm:grid-cols-3">
               {[
                 { term: 'What it costs', def: 'Nothing. There is no paid plan today.' },
-                { term: 'What you need', def: 'A phone with GPS. No rollers, no dongle, no drum. A RaceBox CSV for the grip half.' },
-                { term: 'What we store', def: 'Your vehicles, runs and sessions. One session cookie, no analytics, no tracking.' },
+                { term: 'What you need', def: 'A phone with GPS. No rollers, no dongle, no drum.' },
+                { term: 'What we store', def: 'Your vehicles, runs and sessions. One session cookie, no analytics.' },
               ].map((row, i) => (
-                <div key={row.term} className={`px-4 py-4 sm:px-5 ${i > 0 ? 'rule-t' : ''}`}>
-                  <dt className="t-label">{row.term}</dt>
+                <div
+                  key={row.term}
+                  className={`border-rule px-4 py-4 sm:px-6 ${i > 0 ? 'border-t sm:border-l sm:border-t-0' : ''}`}
+                >
+                  <dt className="t-annotation">{row.term}</dt>
                   <dd className="t-body mt-1.5 text-[0.8125rem] leading-6">{row.def}</dd>
                 </div>
               ))}
@@ -991,20 +1040,8 @@ export function LandingScreen() {
               className="flex flex-wrap items-center gap-x-6 gap-y-2"
             >
               <a href="/demo" className="t-annotation no-underline hover:underline">Demo</a>
-              <a
-                href="#dynorun"
-                className="t-annotation inline-flex items-center gap-1.5 no-underline hover:underline"
-              >
-                <BrandLogo size={13} />
-                DynoRun
-              </a>
-              <a
-                href="/grip"
-                className="t-annotation inline-flex items-center gap-1.5 no-underline hover:underline"
-              >
-                <GripMark size={13} />
-                Grip
-              </a>
+              <a href="#dynorun" className="t-annotation no-underline hover:underline">DynoRun</a>
+              <a href="/grip" className="t-annotation no-underline hover:underline">Grip</a>
               <a href="/login" className="t-annotation no-underline hover:underline">Sign in</a>
               <a href="/privacy" className="t-annotation no-underline hover:underline">Privacy</a>
               <a href="/imprint" className="t-annotation no-underline hover:underline">Imprint</a>

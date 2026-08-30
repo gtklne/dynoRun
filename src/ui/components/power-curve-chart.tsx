@@ -167,7 +167,7 @@ export function PowerCurveChart({
           themedAxis({ scale: 'torque', side: 1, showGrid: false, decimals: 0, ink }),
         ],
         series: plotSeries,
-        legend: { show: true },
+        legend: { show: false },
         cursor,
         hooks,
       };
@@ -200,7 +200,7 @@ export function PowerCurveChart({
             };
           }),
         ],
-        legend: { show: true },
+        legend: { show: false },
         cursor,
         hooks,
       };
@@ -224,7 +224,7 @@ export function PowerCurveChart({
   return (
     <div className="relative">
       <span className="t-annotation absolute left-1 top-0 z-10">{yUnit}</span>
-      <span className="t-annotation absolute bottom-0 right-1 z-10">RPM</span>
+      <span className="t-annotation absolute right-1 top-0 z-10">RPM</span>
       <div ref={containerRef} data-plate-figures />
     </div>
   );
