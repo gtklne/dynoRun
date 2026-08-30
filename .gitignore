@@ -24,3 +24,8 @@ android/local.properties
 android/app/build/
 android/build/
 android/captures/
+
+# Impeccable live-mode runtime state (config.json is tracked, session journals are not)
+.impeccable/live/sessions/
+.impeccable/live/roots.json
+.impeccable/live/inject-journal.json
