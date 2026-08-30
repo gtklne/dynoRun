@@ -339,7 +339,7 @@ printed in one ink. Nothing here depends on a second typeface.
 
 ### Hierarchy
 
-Eight registers, each a width plus a weight plus a case. Every string on a plate
+Ten registers, each a width plus a weight plus a case. Every string on a plate
 sits in one of them.
 
 - **Display** (`.t-display`, 800, width 108%, tracking -0.035em, line-height 0.94):
@@ -350,6 +350,9 @@ sits in one of them.
 - **Readout** (`.t-readout`, 700, width 112%, clamp 2.25-4rem, line-height 0.86):
   a primary reading. It dwarfs its own label on purpose, because the number is
   what a rider reads at arm's length through a visor.
+- **Readout SM** (`.t-readout-sm`, 600, width 100%, clamp 1.75-2.5rem, `ink-3`):
+  a reading that could not be taken. Deliberately below Readout so an absent
+  measurement and a present one can never be scanned as the same kind of thing.
 - **Plate Title** (`.t-plate-title`, 800, width 87%, 17px, uppercase, tracking 0.02em):
   the `h1` in a title block. One per plate.
 - **Label** (`.t-label`, 700, width 87%, 12px, uppercase, tracking 0.07em, `ink-2`):

@@ -446,6 +446,20 @@
     font-size: clamp(2.25rem, 6vw, 4rem);
   }
 
+  /* An absent reading is set below a present one so the two can never be
+     scanned as the same kind of thing. Its own register rather than an inline
+     override on .t-readout: a size the registers do not have is a gap in the
+     system, not a licence to hard-code one at the call site. */
+  .t-readout-sm {
+    font-stretch: 100%;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    line-height: 0.9;
+    color: var(--color-ink-3);
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+  }
+
   .t-readout-xl {
     font-stretch: 118%;
     font-weight: 800;

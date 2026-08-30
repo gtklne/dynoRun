@@ -64,9 +64,7 @@ export function NoReading({ label, reason }: { label: string; reason: string }) 
   return (
     <div>
       <p className="t-annotation">{label}</p>
-      <p className="t-readout mt-1.5 na" style={{ fontSize: 'clamp(1.75rem, 4vw, 2.5rem)' }}>
-        n/a
-      </p>
+      <p className="t-readout-sm mt-1.5">n/a</p>
       <p className="t-annotation mt-1.5">{reason}</p>
     </div>
   );
