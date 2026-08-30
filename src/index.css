@@ -258,6 +258,93 @@
 }
 
 @layer components {
+  /* ---------------------------------------------------------------- uplot --- */
+  /* uPlot ships its own legend, cursor and axis chrome. Left alone it renders a
+     centred "Value:" row with a default marker box, which is exactly the
+     browser surface the plate has to reclaim: it belongs to no design system
+     and it is the cheapest tell that a page was assembled rather than built. */
+
+  .uplot,
+  .uplot * {
+    font-family: var(--font-sans);
+  }
+
+  .uplot .u-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 1.25rem;
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    border-top: var(--rule-hair) solid var(--color-rule);
+    text-align: left;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .uplot .u-legend .u-series {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.4rem;
+  }
+
+  .uplot .u-legend .u-series > * {
+    padding: 0;
+  }
+
+  /* The series label takes the annotation register; the value stays in data. */
+  .uplot .u-legend .u-series th {
+    font-stretch: 75%;
+    font-weight: 600;
+    font-size: 0.6875rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--color-ink-3);
+  }
+
+  .uplot .u-legend .u-series td {
+    font-stretch: 100%;
+    font-weight: 550;
+    font-size: 0.8125rem;
+    color: var(--color-ink);
+  }
+
+  /* uPlot's marker is a bordered box that inherits nothing. Make it the same
+     swatch ChannelStrip draws, so one chart's legend matches the next one's. */
+  .uplot .u-legend .u-marker {
+    width: 16px;
+    height: 0;
+    border-width: 0 0 2.5px 0 !important;
+    border-radius: 0 !important;
+    align-self: center;
+  }
+
+  /* The first series is the x axis: uPlot labels it "Value", which is chrome,
+     not a channel. It is relabelled per chart, but never gets a marker. */
+  .uplot .u-legend .u-series:first-child .u-marker {
+    display: none;
+  }
+
+  .uplot .u-cursor-x,
+  .uplot .u-cursor-y {
+    border-color: var(--color-procedure) !important;
+    border-width: 1.5px !important;
+  }
+
+  .uplot .u-cursor-pt {
+    border-width: 2px;
+    border-radius: 0 !important;
+  }
+
+  /* uPlot parks a cursor point at the series origin before the pointer has ever
+     entered the plot, which reads as a data marker rather than a cursor. */
+  .uplot:not(:hover) .u-cursor-pt {
+    opacity: 0;
+  }
+
+  .uplot .u-select {
+    background: var(--color-procedure-tint);
+    border: var(--rule-hair) solid var(--color-procedure);
+  }
+
   /* ------------------------------------------------------------ lettering --- */
   /* One family. Each register is a width plus a weight plus a case, so the
      hierarchy survives being printed in a single ink. */

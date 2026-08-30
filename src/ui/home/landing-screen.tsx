@@ -718,14 +718,15 @@ export function LandingScreen() {
                 above a display line reads as an eyebrow, and this world has none. */}
             <section aria-labelledby="landing-thesis">
               <h2 id="landing-thesis" className="t-display text-[clamp(2.4rem,5vw,3.6rem)]">
-                Tune the car.
+                Change one thing.
                 <br />
-                Prove the difference.
+                Prove it worked.
               </h2>
               <p className="t-body mt-5">
                 Measure wheel power from GPS. Find unused grip from RaceBox. One focused
-                toolkit for drivers who test, compare, and improve, and one document type
-                for both: the sheet on the left is exactly what the app draws for a run.
+                toolkit for the drivers and riders who test, compare, and improve, and one
+                document type for both: the sheet on the left is exactly what the app draws
+                for a run.
               </p>
               <div className="mt-6 flex flex-wrap items-center gap-2.5">
                 <StartAction />
@@ -768,9 +769,9 @@ export function LandingScreen() {
             <div className="box-frame grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
               <div className="px-4 py-5 lg:px-5">
                 <h2 id="dynorun-title" className="t-display text-[clamp(1.9rem,3.6vw,2.7rem)]">
-                  Change one thing.
+                  Calibrate once.
                   <br />
-                  See if it worked.
+                  Then just ride.
                 </h2>
                 <p className="t-body mt-4">
                   Calibrate a gear once and the phone knows your RPM from speed alone.

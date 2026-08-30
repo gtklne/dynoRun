@@ -40,13 +40,17 @@ describe('renderLandingDocument', () => {
   });
 
   it('renders the six-section evidence-led story and conversion copy', () => {
-    expect(html).toContain('Tune the car.');
-    expect(html).toContain('Prove the difference.');
+    expect(html).toContain('Change one thing.');
+    expect(html).toContain('Prove it worked.');
     expect(html).toContain('Measure wheel power from GPS. Find unused grip from RaceBox.');
     expect(html).toContain('GPS analysis');
     expect(html).toContain('RaceBox support');
     expect(html).toContain('Browser access');
-    expect(html).toContain('Change one thing.');
+    expect(html).toContain('Calibrate once.');
+    // The primary audience recorded in PRODUCT.md leads with track-day
+    // motorcycle riders, and the whole hands-free path exists for them, so the
+    // page must not address car drivers alone.
+    expect(html).toContain('drivers and riders');
     expect(html).toContain('Find the grip you left on track.');
     expect(html).toContain('Record. Compare. Decide.');
     expect(html).toContain('Make the next change count.');

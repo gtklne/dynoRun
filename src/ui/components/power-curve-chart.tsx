@@ -131,7 +131,7 @@ export function PowerCurveChart({
 
     if (mode === 'both') {
       const yArrays: (number | null)[][] = [];
-      const plotSeries: uPlot.Series[] = [{ value: rpmValue }];
+      const plotSeries: uPlot.Series[] = [{ label: 'RPM', value: rpmValue }];
       series.forEach((s, i) => {
         const power = styleAt(i * 2, s);
         const torque = styleAt(i * 2 + 1);
@@ -188,7 +188,7 @@ export function PowerCurveChart({
           themedAxis({ label: useTorque ? torqueLabel : powerLabel, decimals: 0, ink }),
         ],
         series: [
-          { value: rpmValue },
+          { label: 'RPM', value: rpmValue },
           ...series.map((s, i) => {
             const style = styleAt(i, s);
             return {
