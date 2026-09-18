@@ -29,8 +29,6 @@ export function TelemetryReadout({ analysis, lap, cursor, metric, mode, settings
   const u = metric[ci];
   const lean = d.leanS[ci];
   const along = d.along[ci];
-  const gripScore = Math.round(d.comb[ci] * 100);
-  const loadScore = Math.round(settings.tau * d.loadRate[ci] * 100);
   const front = frontWeightFraction(d.alongRaw[ci], settings.K);
   const frontPct = Math.round(front * 100);
   const rearPct = 100 - frontPct;
@@ -68,11 +66,6 @@ export function TelemetryReadout({ analysis, lap, cursor, metric, mode, settings
           value={fmt(u * 100)}
           unit="pts"
           label={metricModeName(mode)}
-          note={
-            mode === 'load'
-              ? `Heuristic index. Demand ${fmt(gripScore)} combined with rate term ${fmt(loadScore)}.`
-              : '100 points = 1 g of estimated demand.'
-          }
         />
         {/* the bar is the only place the demand ramp appears as a value, so the
             reader can match the track map's colour to a number */}
@@ -89,11 +82,10 @@ export function TelemetryReadout({ analysis, lap, cursor, metric, mode, settings
             }}
           />
         </div>
-        <p className="t-annotation mt-1.5">Full bar = display scale {settings.anchorG.toFixed(2)} g</p>
       </div>
 
       <div className="px-3 py-2.5">
-        <p className="t-annotation">50/50 static-load assumption; no aero moment or suspension model.{front === 0 || front === 1 ? ' Predicted lift boundary: this two-contact model no longer applies.' : ''}</p>
+        {(front === 0 || front === 1) && <p className="t-annotation">Weight-split model limit reached.</p>}
         <div className="flex items-baseline justify-between gap-3">
           <span className="t-annotation">
             Rear <span className="t-data ml-1 text-sm">{fmt(rearPct)}%</span>

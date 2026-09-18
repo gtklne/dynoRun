@@ -22,7 +22,6 @@ import {
   Advisory,
   ChannelStrip,
   Na,
-  NotesBox,
   Plate,
   PlanView,
   PlateButton,
@@ -525,7 +524,6 @@ export function GripCompareScreen() {
           <div className="grid items-start gap-2 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
             <Zone
               label="Where the time went"
-              note="slope, not height: an upward trace is losing time right there"
               flush
             >
               <CompareDeltaChart
@@ -602,7 +600,7 @@ export function GripCompareScreen() {
             />
             <p className="rule-t t-annotation px-3 py-1.5" style={{ textTransform: 'none', letterSpacing: '0.02em' }}>
               Cursor at {Math.round(cursor)} m of {Math.round(cmp.refLength)} m
-              {channel === 'metric' && <> · {metricModeName(mode).toLowerCase()} in points ({mode === 'grip' ? '100 = 1 g estimated demand' : 'tunable index, not tyre force'})</>}
+              {channel === 'metric' && <> · {metricModeName(mode).toLowerCase()} in points</>}
               {' · '}arrow keys to scrub, shift for 50 m
             </p>
           </Zone>
@@ -651,10 +649,6 @@ export function GripCompareScreen() {
                   </dl>
                 </div>
               ))}
-              <p className="rule-t t-annotation px-3 py-1.5" style={{ textTransform: 'none', letterSpacing: '0.02em' }}>
-                Duration-weighted p95, with at least 0.5 s of observations per direction. Gaps are unknown.
-                Full-circle and sector scores need support in every corresponding direction. Equal lap counts do not remove condition or sensor differences.
-              </p>
             </Zone>
 
             <Zone label="How the lap was spent" note="metres along the reference axis" flush>
@@ -705,19 +699,8 @@ export function GripCompareScreen() {
                   </div>
                 );
               })}
-              <p className="rule-t t-annotation px-3 py-1.5" style={{ textTransform: 'none', letterSpacing: '0.02em' }}>
-                Distance is measured on the reference axis, not each lap’s own line. Near-zero demand means
-                estimated longitudinal demand within ±0.1 g; it does not identify throttle or brake state.
-              </p>
             </Zone>
           </div>
-
-          <NotesBox>
-            Laps are lined up by position on track, not by the clock, so the delta shows where the time actually
-            went. Where a lap left the reference layout its channels are masked rather than clamped, and every
-            chart hatches that stretch: a held value outside a lap&rsquo;s own section is not a measurement.
-            Nothing on this screen is stored, the URL is the artefact worth keeping.
-          </NotesBox>
         </>
       )}
     </Plate>

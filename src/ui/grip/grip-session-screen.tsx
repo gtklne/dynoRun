@@ -14,7 +14,7 @@ import {
   type GripSettings,
 } from '@/analysis/grip/settings';
 import { isStoredGripData, unpackGripData } from '@/analysis/grip/storage';
-import { GRIP_ANALYSIS_VERSION, type GripCorner, type ParsedGripSession } from '@/analysis/grip/types';
+import type { GripCorner, ParsedGripSession } from '@/analysis/grip/types';
 import { gripSessionRepository } from '@/api/repositories/grip-session-repository';
 import { vehicleRepository } from '@/api/repositories/vehicle-repository';
 import type { GripSessionFull } from '@/api/repositories/types';
@@ -23,7 +23,6 @@ import { formatRelativeTime } from '@/shared/format-time';
 import {
   Advisory,
   CrossRefProvider,
-  NotesBox,
   Na,
   NoReading,
   Plate,
@@ -283,7 +282,6 @@ function GripSessionPlate() {
   const activeCorner = lap.corners.find((c) => globalCursor >= c.l && globalCursor <= c.r) ?? null;
   const tCur = analysis.ch.t[globalCursor] - analysis.ch.t[lap.start];
   const hasEnvelope = Number.isFinite(analysis.sessionScore);
-  const vehicleLabel = vehicles.find((v) => v.id === session.vehicle_id)?.name;
 
   return (
     <Plate className="plate-issue">
@@ -328,49 +326,15 @@ function GripSessionPlate() {
         }
       />
 
-      <p className="t-annotation">Analysis v{GRIP_ANALYSIS_VERSION} · {parsed?.noFix !== undefined ? `${parsed.noFix} missing fixes` : 'Missing-fix count unavailable'}
-        {' · '}{parsed?.dropped !== undefined ? `${parsed.dropped} dropped rows` : 'Dropped-row count unavailable'}
-        {!analysis.ch.positionValid && ' · Legacy recording: missing-fix locations are unavailable.'}
-        {lap.estimatedTime && ' · This lap time is estimated from sample boundaries.'}
-      </p>
-      {!hasEnvelope && (
-        <Advisory>
-          A full-circle score needs observations in all 72 directions. Missing directions remain blank;
-          the plotted observations still describe this recording.
-        </Advisory>
-      )}
-
-      <Zone label="Session score" note="observed demand, complete directions required" accent={hasEnvelope}>
-        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-          {hasEnvelope ? (
-            <Readout
-              value={Math.round(analysis.sessionScore)}
-              label={`Points over ${laps.length} lap${laps.length === 1 ? '' : 's'}`}
-              note="RMS of observed directional p95 demand. It does not measure grip capacity."
-            />
-          ) : (
-            <NoReading
-              label="Session score, points"
-              reason={`${analysis.emptyBins} of 72 directions lack support. A full-circle score is unavailable.`}
-            />
-          )}
-          {/* What qualifies the score, not what identifies the sheet: the title
-              block already carries track, best lap and lap count. */}
-          <dl className="flex flex-wrap gap-x-6 gap-y-2">
-            <div>
-              <dt className="t-annotation">Samples in the fit</dt>
-              <dd className="t-data mt-1 text-sm">{analysis.fitSamples.toLocaleString('en')}</dd>
-            </div>
-            <div>
-              <dt className="t-annotation">Display scale</dt>
-              <dd className="t-data mt-1 text-sm">{settings.anchorG.toFixed(2)} g</dd>
-            </div>
-            <div>
-              <dt className="t-annotation">Track turns</dt>
-              <dd className="t-data mt-1 text-sm">{analysis.turnCount}</dd>
-            </div>
-          </dl>
-        </div>
+      <Zone label="Session score" accent={hasEnvelope}>
+        {hasEnvelope ? (
+          <Readout
+            value={Math.round(analysis.sessionScore)}
+            label={`Points over ${laps.length} lap${laps.length === 1 ? '' : 's'}`}
+          />
+        ) : (
+          <NoReading label="Session score, points" reason="Not enough directional data." />
+        )}
       </Zone>
 
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
@@ -401,8 +365,7 @@ function GripSessionPlate() {
                     <span key={s.g} className="h-3 w-7" style={{ background: s.color }} />
                   ))}
                 </span>
-                <span className="t-annotation">0 to display scale {settings.anchorG.toFixed(2)} g</span>
-                <span className="t-annotation">Ring marks the cursor</span>
+                <span className="t-annotation">0 to {settings.anchorG.toFixed(2)} g</span>
               </div>
             }
           >
@@ -452,9 +415,9 @@ function GripSessionPlate() {
               onHover={setHoverLocal}
             />
             <div className="rule-t flex flex-wrap gap-x-4 gap-y-1 px-3 py-1.5">
-              <span className="t-annotation">Dashed arcs: observed directional p95 demand</span>
+              <span className="t-annotation">Dashed: observed envelope</span>
               <span className="t-annotation" style={{ color: 'var(--color-caution)' }}>
-                Dotted ring: display scale only
+                Dotted: display scale
               </span>
             </div>
           </Zone>
@@ -490,32 +453,7 @@ function GripSessionPlate() {
         onSelect={(c: GripCorner) => playback.seek(c.ap - lap.start)}
       />
 
-      <NotesBox>
-        Demand is estimated from speed, lean and a generic resistance model. It cannot establish tyre grip
-        capacity or spare grip. Banking, slope, wind, rider position and sensor errors can change the result.
-        Activity adds an adjustable rate term and is not a tyre-force measurement. Model notes are
-        in{' '}
-        <button
-          type="button"
-          onClick={() => setDrawer('help')}
-          className="underline underline-offset-2"
-          style={{ color: 'var(--color-ink)', font: 'inherit' }}
-        >
-          Notes and how it works
-        </button>{' '}
-        and{' '}
-        <button
-          type="button"
-          onClick={() => setDrawer('settings')}
-          className="underline underline-offset-2"
-          style={{ color: 'var(--color-ink)', font: 'inherit' }}
-        >
-          Settings
-        </button>
-        .
-      </NotesBox>
-
-      <Zone label="Session record" note="amends this sheet's identification">
+      <Zone label="Session record">
         <div className="grid gap-3 sm:grid-cols-2">
           <PlateField label="Session label" id="grip-session-label" hint="Blank falls back to the track name">
             <input
@@ -528,11 +466,7 @@ function GripSessionPlate() {
               className="field"
             />
           </PlateField>
-          <PlateField
-            label="Linked vehicle"
-            id="grip-session-vehicle"
-            hint={vehicleLabel ? undefined : 'Not linked to a vehicle yet'}
-          >
+          <PlateField label="Linked vehicle" id="grip-session-vehicle">
             <select
               id="grip-session-vehicle"
               value={session.vehicle_id ?? ''}
@@ -550,7 +484,6 @@ function GripSessionPlate() {
 
       <RevisionBar
         entries={[
-          { label: 'Analysis revision', value: GRIP_ANALYSIS_VERSION },
           { label: 'Sample rate', value: sampleHz ? `${sampleHz} Hz` : <Na /> },
           { label: 'Samples', value: session.sample_count.toLocaleString('en') },
           { label: 'Timed laps', value: laps.length },

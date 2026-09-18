@@ -15,7 +15,6 @@ import {
   Plate,
   PlateButton,
   PlateLink,
-  NotesBox,
   TitleBlock,
   Zone,
   type MinimaColumn,
@@ -226,16 +225,9 @@ export function GripHome() {
             rowKey={(s) => s.id}
             onSelect={(s) => navigate(`/grip/sessions/${s.id}`)}
             empty="No sessions yet. Export a session from the RaceBox app as CSV and drop it above to review estimated demand and lap differences."
-            caption="Select a row to open the analyzer."
           />
         )}
       </Zone>
-
-      <NotesBox>
-        Demand is estimated from GPS speed, lean and a generic resistance model. It does not measure tyre
-        capacity or spare grip. Activity is a separate, tunable index. Sensor errors, banking, wind, rider
-        position and conditions can affect both; use the model notes when comparing recordings.
-      </NotesBox>
     </Plate>
   );
 }

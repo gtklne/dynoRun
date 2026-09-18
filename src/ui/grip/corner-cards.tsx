@@ -168,7 +168,6 @@ export function CornerMinima({
         selectedKey={activeCorner == null ? null : String(rows.find((r) => r.c.ap === activeCorner)?.c.n ?? '')}
         onSelect={(r) => onSelect(r.c)}
         empty="No corners detected on this lap"
-        caption={`Score = ${label} × 100, using the selected metric. Turn matches are approximate${mode === 'load' ? '; activity includes a tunable rate term and is not measured tyre force' : ''}.`}
       />
     </Zone>
   );

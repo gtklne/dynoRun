@@ -243,7 +243,7 @@ export function CompareTurnTable({ cmp, refKey, subjectKey, anchorG, cursor, onS
         rowKey={(r) => String(r.c.turn)}
         selectedKey={activeTurn == null ? null : String(activeTurn)}
         onSelect={(r) => onSelectTurn(r.c.s)}
-        caption="Scores use the selected metric: estimated demand or the tunable activity index. Δ columns are the subject lap minus the reference, measured over the same stretch of track on both laps."
+        caption="Δ = selected lap minus reference."
       />
     </Zone>
   );
