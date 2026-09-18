@@ -127,10 +127,10 @@ describe('GripSessionScreen', () => {
     cleanup();
   });
 
-  it('persists tuned settings, debounced', async () => {
+  it('persists tuned settings and a display preset, debounced', async () => {
     vi.useFakeTimers();
     try {
-      getSession.mockResolvedValue(makeFull());
+      getSession.mockResolvedValue({ ...makeFull(), settings: { anchorG: 1.05 } });
       updateSession.mockResolvedValue();
       render(
         <MemoryRouter initialEntries={['/grip/sessions/s1']}>
@@ -143,13 +143,21 @@ describe('GripSessionScreen', () => {
         expect(screen.queryByText(/Loading session…/)).not.toBeInTheDocument();
       });
 
+      const preset = screen.getByRole('combobox', { name: 'Display preset' });
+      expect(preset).toHaveValue('1.05');
+      expect(screen.getByRole('option', { name: 'Custom · 1.05 g' })).toBeInTheDocument();
+      fireEvent.change(preset, { target: { value: '1.3' } });
+      expect(screen.getByText('0 to 1.30 g')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Compare laps' }).getAttribute('href')).toContain('scale=1.3');
+
       fireEvent.click(screen.getByTitle('Settings'));
+      expect(screen.getByRole('slider', { name: 'Colour display scale' })).toHaveValue('1.3');
       const slider = screen.getByLabelText(/Transient weighting/i, { selector: 'input' });
       fireEvent.change(slider, { target: { value: '0.5' } });
 
       await vi.advanceTimersByTimeAsync(1000);
       expect(updateSession).toHaveBeenCalledWith('s1', {
-        settings: expect.objectContaining({ tau: 0.5 }),
+        settings: expect.objectContaining({ tau: 0.5, anchorG: 1.3 }),
       });
     } finally {
       vi.useRealTimers();

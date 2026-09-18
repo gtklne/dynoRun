@@ -42,6 +42,7 @@ import {
 import { demandSwatches } from './colors';
 import { CornerMinima } from './corner-cards';
 import { formatLapTime } from './format-lap';
+import { GripDisplayPreset } from './grip-display-preset';
 import { invalidateGripSession, loadGripSession } from './grip-session-cache';
 import { GripSettingsDrawer } from './grip-settings-drawer';
 import { LapTabs } from './lap-tabs';
@@ -310,7 +311,7 @@ function GripSessionPlate() {
         actions={
           <>
             <PlateLink
-              to={`/grip/compare?sessions=${session.id}&laps=${session.id}:${lap.num}&ref=${session.id}:${lap.num}&m=${mode}`}
+              to={`/grip/compare?sessions=${session.id}&laps=${session.id}:${lap.num}&ref=${session.id}:${lap.num}&m=${mode}&scale=${settings.anchorG}`}
               variant="solid"
             >
               Compare laps
@@ -339,15 +340,18 @@ function GripSessionPlate() {
 
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
         <LapTabs laps={laps} bestNum={bestLap(laps).num} activeNum={lap.num} onSelect={(l) => setLapNum(l.num)} />
-        <PlateSegmented
-          label="Colour metric"
-          value={mode}
-          options={[
-            { value: 'grip', label: 'Grip' },
-            { value: 'load', label: 'Activity index' },
-          ]}
-          onChange={setMode}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <GripDisplayPreset value={settings.anchorG} onChange={(value) => changeSetting('anchorG', value)} />
+          <PlateSegmented
+            label="Colour metric"
+            value={mode}
+            options={[
+              { value: 'grip', label: 'Grip' },
+              { value: 'load', label: 'Activity index' },
+            ]}
+            onChange={setMode}
+          />
+        </div>
       </div>
 
       {/* items-start: the plan view has a fixed aspect ratio, so a stretching

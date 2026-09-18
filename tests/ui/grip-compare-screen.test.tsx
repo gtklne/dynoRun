@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { parseRaceboxCsv } from '@/analysis/grip/parse-racebox';
 import { DEFAULT_GRIP_SETTINGS } from '@/analysis/grip/settings';
 import { packGripData } from '@/analysis/grip/storage';
@@ -64,9 +64,15 @@ const summaryOf = (s: GripSessionFull): GripSessionSummary => {
   return rest;
 };
 
+function CurrentLocation() {
+  const location = useLocation();
+  return <output data-testid="location">{location.pathname}{location.search}</output>;
+}
+
 async function renderScreen(entry = '/grip/compare') {
   const result = render(
     <MemoryRouter initialEntries={[entry]}>
+      <CurrentLocation />
       <Routes>
         <Route path="/grip/compare" element={<GripCompareScreen />} />
         <Route path="/grip" element={<div data-testid="grip-home" />} />
@@ -153,15 +159,26 @@ describe('GripCompareScreen', () => {
     cleanup();
   });
 
-  it('switches the metric mode', async () => {
+  it('keeps the shared display preset when switching metric modes', async () => {
     const s = makeSession('s1', [BASE_PACE, SLOW]);
     listSessions.mockResolvedValue([summaryOf(s)]);
     getSession.mockResolvedValue(s);
 
-    await renderScreen();
+    await renderScreen('/grip/compare?sessions=s1&scale=1.2');
+    expect(screen.getByRole('combobox', { name: 'Display preset' })).toHaveValue('1.2');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Display preset' }), { target: { value: '0.8' } });
     fireEvent.click(screen.getByRole('radio', { name: /^Activity index$/i }));
     fireEvent.click(screen.getByRole('radio', { name: /^Demand$/i }));
     expect(screen.getByText(/activity index in points/i)).toBeInTheDocument();
+    const sharedUrl = screen.getByTestId('location').textContent!;
+    const query = new URL(sharedUrl, 'https://example.test').searchParams;
+    expect(query.get('scale')).toBe('0.8');
+    expect(query.get('m')).toBe('load');
+    expect(query.get('ref')).toBe('s1:1');
+    cleanup();
+
+    await renderScreen(sharedUrl);
+    expect(screen.getByRole('combobox', { name: 'Display preset' })).toHaveValue('0.8');
     cleanup();
   });
 

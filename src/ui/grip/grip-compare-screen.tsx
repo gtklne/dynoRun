@@ -2,7 +2,7 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { useSearchParams } from 'react-router-dom';
 import { analyzeGripSession } from '@/analysis/grip/analyze';
 import { compareLaps, type CompareLapInput, type CompareLapResult } from '@/analysis/grip/compare';
-import { RECOMPUTE_KEYS } from '@/analysis/grip/settings';
+import { RECOMPUTE_KEYS, sanitizeGripSettings } from '@/analysis/grip/settings';
 import {
   SECTOR_LABEL,
   compareSegments,
@@ -47,6 +47,7 @@ import { CompareTrackMap } from './compare-track-map';
 import { CompareTraceChart, TRACE_CHANNELS, type TraceChannel } from './compare-trace-chart';
 import { CompareTurnTable } from './compare-turn-table';
 import { formatLapTime } from './format-lap';
+import { GripDisplayPreset } from './grip-display-preset';
 import { metricModeName, type GripMetricMode } from './metric-mode';
 
 /**
@@ -84,11 +85,16 @@ export function GripCompareScreen() {
   const [refKey, setRefKey] = useState<string | null>(params.get('ref') || null);
   const [subjectKey, setSubjectKey] = useState<string | null>(null);
   const [mode, setMode] = useState<GripMetricMode>(params.get('m') === 'load' ? 'load' : 'grip');
+  const [scaleOverride, setScaleOverride] = useState<number | null>(() => {
+    const value = params.get('scale');
+    if (!value?.trim() || !Number.isFinite(Number(value))) return null;
+    return sanitizeGripSettings({ anchorG: Number(value) }).anchorG;
+  });
   const [channel, setChannel] = useState<TraceChannel>('spd');
   const [cursor, setCursor] = useState(0);
 
   // The URL is the shareable artefact: a link reopens the same sessions, laps,
-  // reference and metric. It is read once on mount and written from exactly one
+  // reference, metric and display scale. It is read once on mount and written from exactly one
   // place: two effects each cloning the params and calling setParams race, and
   // the loser silently drops the other's keys.
   useEffect(() => {
@@ -100,9 +106,10 @@ export function GripCompareScreen() {
     write('laps', selected.join(','));
     write('ref', refKey ?? '');
     write('m', mode);
+    write('scale', scaleOverride === null ? '' : String(scaleOverride));
     if (next.toString() !== params.toString()) setParams(next, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionIds, selected, refKey, mode]);
+  }, [sessionIds, selected, refKey, mode, scaleOverride]);
 
   useEffect(() => {
     gripSessionRepository
@@ -165,6 +172,7 @@ export function GripCompareScreen() {
     () => resolveCompareSettings(activeSessions.map((s) => s.settings)),
     [activeSessions],
   );
+  const anchorG = scaleOverride ?? settings.anchorG;
 
   // Only a 'recompute'-class setting change may re-derive channels; τ re-mixes
   // cheaply below and 'render'-class settings just flow into props.
@@ -425,6 +433,7 @@ export function GripCompareScreen() {
                 ))}
               </select>
             )}
+            <GripDisplayPreset value={anchorG} onChange={setScaleOverride} />
             <PlateSegmented
               label="Colour metric"
               value={mode}
@@ -610,7 +619,7 @@ export function GripCompareScreen() {
               cmp={cmp}
               refKey={refKey}
               subjectKey={subjectKey}
-              anchorG={settings.anchorG}
+              anchorG={anchorG}
               cursor={cursor}
               onSelectTurn={setCursor}
             />
@@ -626,7 +635,7 @@ export function GripCompareScreen() {
               }
               flush
             >
-              <CompareEnvelopes series={envelopeColored} anchorG={settings.anchorG} />
+              <CompareEnvelopes series={envelopeColored} anchorG={anchorG} />
               {/* ChannelStrip brings its own px-3 py-2, so the row wrapper adds
                   no padding of its own: nesting the two was double-padding every
                   line of this legend. */}
