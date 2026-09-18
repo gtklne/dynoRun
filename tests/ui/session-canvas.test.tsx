@@ -113,6 +113,17 @@ describe('session canvases draw', () => {
     cleanup();
   });
 
+  it('paints gaps and unavailable demand without non-finite canvas coordinates', () => {
+    const { analysis, metric } = build((p) => {
+      p.ch.positionValid![500] = false;
+      for (let i = 700; i < p.n; i++) p.ch.t[i] += 1;
+    });
+    const lap = analysis.laps[0];
+    renderAll(analysis, lap, metric, Math.max(0, 500 - lap.start));
+    expectDrew();
+    cleanup();
+  });
+
   // A one-sample lap makes the load timeline's k/(n-1) divide by zero; a zero-g
   // session leaves the traction circle with nothing to scale to.
   it('paints degenerate laps without emitting a non-finite coordinate', () => {

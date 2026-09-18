@@ -29,7 +29,7 @@ function PauseIcon() {
 }
 
 /** Lap playback: run the profile past the cursor rather than dragging it. */
-export function TransportBar({ playback, lapLength, tCur, tTot }: TransportBarProps) {
+export function TransportBar({ playback, tCur, tTot }: TransportBarProps) {
   return (
     <div className="flex flex-wrap items-center gap-3 px-3 py-2.5">
       <PlateButton
@@ -46,11 +46,11 @@ export function TransportBar({ playback, lapLength, tCur, tTot }: TransportBarPr
         <input
           type="range"
           min={0}
-          max={lapLength - 1}
-          step={1}
-          value={playback.cursor}
+          max={tTot}
+          step={0.01}
+          value={tCur}
           aria-label="Lap position"
-          onChange={(e) => playback.scrub(+e.target.value)}
+          onChange={(e) => playback.scrubSeconds(+e.target.value)}
           className="w-full"
         />
         <div className="mt-1 flex justify-between">

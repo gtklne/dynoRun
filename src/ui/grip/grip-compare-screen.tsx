@@ -57,7 +57,7 @@ import { metricModeName, type GripMetricMode } from './metric-mode';
  */
 const DUTY_BANDS = [
   { key: 'brake', label: 'Brake', fill: 'var(--color-ink)' },
-  { key: 'coast', label: 'Coast', fill: 'var(--color-grid-strong)' },
+  { key: 'coast', label: 'Near zero', fill: 'var(--color-grid-strong)' },
   { key: 'drive', label: 'Drive', fill: 'var(--color-ink-3)' },
 ] as const;
 
@@ -84,7 +84,7 @@ export function GripCompareScreen() {
   );
   const [refKey, setRefKey] = useState<string | null>(params.get('ref') || null);
   const [subjectKey, setSubjectKey] = useState<string | null>(null);
-  const [mode, setMode] = useState<GripMetricMode>(params.get('m') === 'grip' ? 'grip' : 'load');
+  const [mode, setMode] = useState<GripMetricMode>(params.get('m') === 'load' ? 'load' : 'grip');
   const [channel, setChannel] = useState<TraceChannel>('spd');
   const [cursor, setCursor] = useState(0);
 
@@ -431,7 +431,7 @@ export function GripCompareScreen() {
               value={mode}
               options={[
                 { value: 'grip', label: 'Grip' },
-                { value: 'load', label: 'Dynamic load' },
+                { value: 'load', label: 'Activity index' },
               ]}
               onChange={setMode}
             />
@@ -602,7 +602,7 @@ export function GripCompareScreen() {
             />
             <p className="rule-t t-annotation px-3 py-1.5" style={{ textTransform: 'none', letterSpacing: '0.02em' }}>
               Cursor at {Math.round(cursor)} m of {Math.round(cmp.refLength)} m
-              {channel === 'metric' && <> · {metricModeName(mode).toLowerCase()} in points (100 ≈ 1 g)</>}
+              {channel === 'metric' && <> · {metricModeName(mode).toLowerCase()} in points ({mode === 'grip' ? '100 = 1 g estimated demand' : 'tunable index, not tyre force'})</>}
               {' · '}arrow keys to scrub, shift for 50 m
             </p>
           </Zone>
@@ -620,7 +620,7 @@ export function GripCompareScreen() {
 
           <div className="grid items-start gap-2 lg:grid-cols-2">
             <Zone
-              label="Traction envelope"
+              label="Observed demand envelope"
               note={
                 envelopeSeries.length
                   ? `fitted on ${envelopeSeries[0].laps} lap${envelopeSeries[0].laps === 1 ? '' : 's'} each`
@@ -638,26 +638,26 @@ export function GripCompareScreen() {
                     color={s.color}
                     dash={s.dash}
                     name={s.label}
-                    value={Math.round(s.score)}
+                    value={Number.isFinite(s.score) ? Math.round(s.score) : 'n/a'}
                     unit="score"
                   />
                   <dl className="grid grid-cols-4 gap-2 px-3">
                     {(['brake', 'left', 'right', 'accel'] as const).map((sec) => (
                       <div key={sec}>
                         <dt className="t-annotation">{SECTOR_LABEL[sec]}</dt>
-                        <dd className="t-data mt-0.5 text-sm">{Math.round(s.sectors[sec])}</dd>
+                        <dd className="t-data mt-0.5 text-sm">{Number.isFinite(s.sectors[sec]) ? Math.round(s.sectors[sec]) : 'n/a'}</dd>
                       </div>
                     ))}
                   </dl>
                 </div>
               ))}
               <p className="rule-t t-annotation px-3 py-1.5" style={{ textTransform: 'none', letterSpacing: '0.02em' }}>
-                Scores are absolute: 100 ≈ working a full 1 g circle. Both sides are fitted on the same number of
-                laps, because the boundary can only grow with more laps.
+                Duration-weighted p95, with at least 0.5 s of observations per direction. Gaps are unknown.
+                Full-circle and sector scores need support in every corresponding direction. Equal lap counts do not remove condition or sensor differences.
               </p>
             </Zone>
 
-            <Zone label="How the lap was spent" note="metres of track, never percentages" flush>
+            <Zone label="How the lap was spent" note="metres along the reference axis" flush>
               {aligned.map((l, i) => {
                 // only the stretch this lap actually rode: outside its section
                 // every channel holds its last real value
@@ -706,9 +706,8 @@ export function GripCompareScreen() {
                 );
               })}
               <p className="rule-t t-annotation px-3 py-1.5" style={{ textTransform: 'none', letterSpacing: '0.02em' }}>
-                Metres, not percentages: a percentage would hide that one lap covers more ground than the other.
-                Coast is where the tyre is neither driving nor braking, after the drag the tyre has to overcome is
-                accounted for.
+                Distance is measured on the reference axis, not each lap’s own line. Near-zero demand means
+                estimated longitudinal demand within ±0.1 g; it does not identify throttle or brake state.
               </p>
             </Zone>
           </div>

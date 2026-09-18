@@ -183,7 +183,7 @@ export function CompareTurnTable({ cmp, refKey, subjectKey, anchorG, cursor, onS
     },
     {
       key: 'load',
-      head: 'Transfer',
+      head: 'Demand rate',
       numeric: true,
       cell: (r) =>
         off(r) ? (
@@ -243,7 +243,7 @@ export function CompareTurnTable({ cmp, refKey, subjectKey, anchorG, cursor, onS
         rowKey={(r) => String(r.c.turn)}
         selectedKey={activeTurn == null ? null : String(activeTurn)}
         onSelect={(r) => onSelectTurn(r.c.s)}
-        caption="Demand is a score: g × 100, so 110 ≈ 1.10 g. Δ columns are the subject lap minus the reference, measured over the same stretch of track on both laps."
+        caption="Scores use the selected metric: estimated demand or the tunable activity index. Δ columns are the subject lap minus the reference, measured over the same stretch of track on both laps."
       />
     </Zone>
   );

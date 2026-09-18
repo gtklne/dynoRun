@@ -1,3 +1,4 @@
+import { gapLimit, nearestTime } from './time-series';
 import type { GripChannels, GripLap } from './types';
 
 /**
@@ -16,12 +17,12 @@ import type { GripChannels, GripLap } from './types';
 export const DIST_STEP_M = 2;
 
 /**
- * Samples of padding either side of a lap. The axis's zero is the moment the
+ * Recorded seconds of padding either side of a lap. The axis's zero is the moment the
  * lap crosses the reference lap's start position, found by interpolation, so
  * that instant has to be bracketed by real samples, and a lap's own first
  * sample lands up to one sample period *after* the timing line.
  */
-export const LAP_PAD_SAMPLES = 6;
+export const LAP_PAD_SECONDS = 0.24;
 
 /** Hard ceiling on the projection tolerance, metres. */
 export const MAX_TOL_M = 12;
@@ -56,15 +57,7 @@ const WGS84_A = 6378137;
 const WGS84_F = 1 / 298.257223563;
 const WGS84_E2 = WGS84_F * (2 - WGS84_F);
 
-/**
- * Equirectangular frame on WGS84 local radii of curvature.
- *
- * The single-session map in project.ts uses the flat 111320/110540 constants,
- * which read 0.2-0.6 % short: invisible there because the map auto-fits, but
- * compare *prints* metres and integrates them into lap lengths, where it is
- * 8.5 m per lap. Residual shape distortion with the correct scales is under
- * 0.1 m across an 850 m track, two orders below the racing-line spread.
- */
+/** WGS84 local radii of curvature, shared by session and comparison maps. */
 export function geoFrame(lat0: number, lon0: number): GeoFrame {
   const phi = (lat0 * Math.PI) / 180;
   const s2 = Math.sin(phi) ** 2;
@@ -86,7 +79,7 @@ export function frameForLap(ch: GripChannels, lap: GripLap): GeoFrame {
   let sLon = 0;
   let c = 0;
   for (let i = lap.start; i <= lap.end; i++) {
-    if (ch.lat[i]) { sLat += ch.lat[i]; sLon += ch.lon[i]; c++; }
+    if (ch.positionValid?.[i] !== false) { sLat += ch.lat[i]; sLon += ch.lon[i]; c++; }
   }
   return c ? geoFrame(sLat / c, sLon / c) : geoFrame(0, 0);
 }
@@ -107,6 +100,8 @@ export interface LapPath {
   kEnd: number;
   /** ∫v·dt ÷ geometric length: ≈1 on sound GPS; a quality assertion */
   odoRatio: number;
+  /** Invalid fix or a recorded timestamp gap before this sample. */
+  invalid?: Uint8Array;
 }
 
 /**
@@ -119,16 +114,18 @@ export function lapPath(
   ch: GripChannels,
   lap: GripLap,
   frame: GeoFrame,
-  pad = LAP_PAD_SAMPLES,
+  pad?: number,
 ): LapPath {
   const N = ch.t.length;
-  const i0 = Math.max(0, lap.start - pad);
-  const iEnd = Math.min(N - 1, lap.end + pad);
+  const i0 = pad === undefined ? nearestTime(ch.t, ch.t[lap.start] - LAP_PAD_SECONDS, 0, lap.start) : Math.max(0, lap.start - pad);
+  const iEnd = pad === undefined ? nearestTime(ch.t, ch.t[lap.end] + LAP_PAD_SECONDS, lap.end, N - 1) : Math.min(N - 1, lap.end + pad);
   const n = iEnd - i0 + 1;
   const x = new Float32Array(n);
   const y = new Float32Array(n);
   const s = new Float32Array(n);
   const te = new Float32Array(n);
+  const invalid = new Uint8Array(n);
+  const gap = gapLimit(ch.t);
   const t0 = ch.t[lap.start];
   const k0 = lap.start - i0;
   const kEnd = lap.end - i0;
@@ -144,17 +141,18 @@ export function lapPath(
     x[k] = (ch.lon[i] - frame.lon0) * frame.kx;
     y[k] = (ch.lat[i] - frame.lat0) * frame.ky;
     te[k] = ch.t[i] - t0;
+    invalid[k] = ch.positionValid?.[i] === false || (k > 0 && (ch.positionValid?.[i - 1] === false || ch.t[i] - ch.t[i - 1] > gap)) ? 1 : 0;
     if (k > 0) {
       const step = Math.hypot(x[k] - x[k - 1], y[k] - y[k - 1]);
       acc += step;
       if (k > k0 && k <= kEnd) {
         geom += step;
-        odo += ch.spd[i] * (ch.t[i] - ch.t[i - 1]);
+        odo += (ch.spd[i] + ch.spd[i - 1]) / 2 * (ch.t[i] - ch.t[i - 1]);
       }
     }
     s[k] = acc;
   }
-  return { x, y, s, te, n, i0, k0, kEnd, odoRatio: geom > 0 ? odo / geom : 1 };
+  return { x, y, s, te, invalid, n, i0, k0, kEnd, odoRatio: geom > 0 ? odo / geom : 1 };
 }
 
 export interface ReferenceAxis {
@@ -315,10 +313,13 @@ export function projectOntoReference(
     }
     if (k > 0 && bestU < u[k - 1]) {
       bestU = u[k - 1];
+      bqx = valueAtU(axis.u, ref.x, bestU);
+      bqy = valueAtU(axis.u, ref.y, bestU);
+      bestD = Math.hypot(px - bqx, py - bqy);
       clamps++;
     }
     u[k] = bestU;
-    off[k] = bestD;
+    off[k] = sub.invalid?.[k] ? Infinity : bestD;
     nx[k] = bqx;
     ny[k] = bqy;
     uPrev = bestU;
@@ -357,7 +358,7 @@ export function projectOntoReference(
  * merely imprecise: when a layout diverges, the projection saturates and dumps
  * twenty seconds of the other layout's detour into seventy metres of axis.
  */
-function longestRun(u: Float32Array, off: Float32Array, axis: ReferenceAxis): CommonSection {
+export function longestRun(u: Float32Array, off: Float32Array, axis: ReferenceAxis): CommonSection {
   let bestIn = 0;
   let bestOut = 0;
   let runStart = -1;
@@ -419,10 +420,11 @@ export function estimateDatumOffset(
  */
 export function valueAtU(u: ArrayLike<number>, values: ArrayLike<number>, s: number): number {
   const n = u.length;
-  if (n === 0) return 0;
-  if (s <= u[0]) return values[0];
+  if (n === 0 || !Number.isFinite(s)) return NaN;
+  if (s < u[0]) return values[0];
   if (s >= u[n - 1]) return values[n - 1];
   const j = floorIndex(u, s);
+  if (u[j] === s) return values[j];
   const du = u[j + 1] - u[j];
   return du > 0 ? values[j] + (values[j + 1] - values[j]) * ((s - u[j]) / du) : values[j];
 }
@@ -448,17 +450,5 @@ export function resampleByDistance(
   values: ArrayLike<number>,
   grid: ArrayLike<number>,
 ): Float32Array {
-  const n = u.length;
-  const out = new Float32Array(grid.length);
-  if (n === 0) return out;
-  let j = 0;
-  for (let k = 0; k < grid.length; k++) {
-    const g = grid[k];
-    while (j < n - 2 && u[j + 1] < g) j++;
-    if (g <= u[0]) { out[k] = values[0]; continue; }
-    if (g >= u[n - 1]) { out[k] = values[n - 1]; continue; }
-    const du = u[j + 1] - u[j];
-    out[k] = du > 0 ? values[j] + (values[j + 1] - values[j]) * ((g - u[j]) / du) : values[j];
-  }
-  return out;
+  return Float32Array.from(grid, (g) => valueAtU(u, values, g));
 }

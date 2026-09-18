@@ -164,7 +164,7 @@ export function GripHome() {
           ) : undefined
         }
         meta={[
-          { label: 'Source', value: 'RaceBox CSV, 25 Hz' },
+          { label: 'Source', value: 'RaceBox CSV, recorded timestamps' },
           { label: 'Sessions', value: sessions ? sessions.length : <Na /> },
           {
             label: 'Derives',
@@ -225,17 +225,16 @@ export function GripHome() {
             rows={sessions}
             rowKey={(s) => s.id}
             onSelect={(s) => navigate(`/grip/sessions/${s.id}`)}
-            empty="No sessions yet. Export a session from the RaceBox app as CSV and drop it above to see where you have grip to spare."
+            empty="No sessions yet. Export a session from the RaceBox app as CSV and drop it above to review estimated demand and lap differences."
             caption="Select a row to open the analyzer."
           />
         )}
       </Zone>
 
       <NotesBox>
-        Every headline figure in Grip is an absolute score, g demand × 100, so 100 is roughly 1 g. Nothing here is
-        a percentage of your own best, because a percentage guarantees readings over 100% and hides a slow day.
-        Lateral g is derived from lean angle and longitudinal g from GPS speed corrected for a fixed generic drag
-        model, so both reflect your logger, your tyres and your inputs, not a calibrated rig.
+        Demand is estimated from GPS speed, lean and a generic resistance model. It does not measure tyre
+        capacity or spare grip. Activity is a separate, tunable index. Sensor errors, banking, wind, rider
+        position and conditions can affect both; use the model notes when comparing recordings.
       </NotesBox>
     </Plate>
   );

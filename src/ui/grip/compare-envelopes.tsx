@@ -13,20 +13,11 @@ export interface EnvelopeSeries {
 
 interface Props {
   series: EnvelopeSeries[];
-  /** tyre-class reference ring, g */
+  /** display reference ring, g */
   anchorG: number;
 }
 
-/**
- * Two or more fitted traction envelopes on one g-g plane. The shapes are the
- * point: a boundary that is round-but-small says a rider used every direction
- * yet none of them hard, while one flattened at the top says the drive side is
- * where the session was left behind. A single score cannot separate those.
- *
- * Every envelope drawn here must have been fitted on the same number of timed
- * laps (see equalBudgetEnvelope): the fit is max-preserving, so more laps can
- * only grow the boundary.
- */
+/** Observed directional summaries; disconnected arcs preserve missing support. */
 export function CompareEnvelopes({ series, anchorG }: Props) {
   const ink = usePlateInk();
   const ref = useCanvasDraw(({ ctx, w, h }) => {
@@ -36,7 +27,7 @@ export function CompareEnvelopes({ series, anchorG }: Props) {
     const pad = 26;
     const R = Math.min(w, h) / 2 - pad;
     let gmax = Math.max(1.3, anchorG + 0.15);
-    for (const s of series) for (const v of s.env) gmax = Math.max(gmax, v + 0.08);
+    for (const s of series) for (const v of s.env) if (Number.isFinite(v)) gmax = Math.max(gmax, v + 0.08);
     const P = (gx: number, gy: number): [number, number] => [cx + (gx / gmax) * R, cy - (gy / gmax) * R];
 
     ctx.strokeStyle = ink.ruleFaint;
@@ -44,7 +35,7 @@ export function CompareEnvelopes({ series, anchorG }: Props) {
     ctx.font = plateFont(10);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    for (let g = 0.25; g <= gmax + 0.001; g += 0.25) {
+    for (let g = gmax / 5; g <= gmax + 0.001; g += gmax / 5) {
       ctx.beginPath();
       ctx.arc(cx, cy, (g / gmax) * R, 0, 7);
       ctx.stroke();
@@ -70,7 +61,7 @@ export function CompareEnvelopes({ series, anchorG }: Props) {
     ctx.fillText('RIGHT', 0, 0);
     ctx.restore();
 
-    // tyre-class reference ring: an advisory, not a measurement
+    // display-scale reference ring
     ctx.strokeStyle = ink.caution;
     ctx.setLineDash([2, 4]);
     ctx.beginPath();
@@ -78,20 +69,22 @@ export function CompareEnvelopes({ series, anchorG }: Props) {
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.fillStyle = ink.caution;
-    ctx.fillText(`TYRE ${anchorG.toFixed(2)}G`, cx, cy - (anchorG / gmax) * R - 7);
+    ctx.fillText(`SCALE ${anchorG.toFixed(2)}G`, cx, cy - (anchorG / gmax) * R - 7);
 
     for (const s of series) {
       ctx.strokeStyle = s.color;
       ctx.setLineDash(s.dash ?? []);
       ctx.lineWidth = 2;
       ctx.beginPath();
+      let drawing = false;
       for (let b = 0; b <= ENVELOPE_BINS; b++) {
-        const th = -Math.PI + (b / ENVELOPE_BINS) * 2 * Math.PI;
+        const th = -Math.PI + ((b + 0.5) / ENVELOPE_BINS) * 2 * Math.PI;
         const r = envelopeRadius(s.env, th);
+        if (!Number.isFinite(r)) { drawing = false; continue; }
         const [x, y] = P(r * Math.cos(th), r * Math.sin(th));
-        b ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+        drawing ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+        drawing = true;
       }
-      ctx.closePath();
       ctx.stroke();
       ctx.setLineDash([]);
     }

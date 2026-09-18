@@ -49,7 +49,7 @@ describe('sanitizeGripSettings', () => {
     const hostile = sanitizeGripSettings({ speedSmooth: -5, tau: 1e9, envMinSpeed: -100, mergeGap: NaN });
     const a = analyzeGripSession(parsed, hostile);
     expect(Array.from(a.comb).every(Number.isFinite)).toBe(true);
-    expect(Number.isFinite(a.sessionScore)).toBe(true);
+    expect(a.emptyBins > 0 ? Number.isNaN(a.sessionScore) : Number.isFinite(a.sessionScore)).toBe(true);
     expect(a.laps.length).toBeGreaterThan(0);
   });
 

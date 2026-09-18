@@ -1,6 +1,7 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { analyzeGripSession } from '@/analysis/grip/analyze';
+import { nearestTime } from '@/analysis/grip/time-series';
 import { cornerStats } from '@/analysis/grip/corners';
 import { bestLap } from '@/analysis/grip/laps';
 import { computeCombined } from '@/analysis/grip/load';
@@ -13,7 +14,7 @@ import {
   type GripSettings,
 } from '@/analysis/grip/settings';
 import { isStoredGripData, unpackGripData } from '@/analysis/grip/storage';
-import { GRIP_DATA_VERSION, type GripCorner, type ParsedGripSession } from '@/analysis/grip/types';
+import { GRIP_ANALYSIS_VERSION, type GripCorner, type ParsedGripSession } from '@/analysis/grip/types';
 import { gripSessionRepository } from '@/api/repositories/grip-session-repository';
 import { vehicleRepository } from '@/api/repositories/vehicle-repository';
 import type { GripSessionFull } from '@/api/repositories/types';
@@ -96,7 +97,7 @@ function GripSessionPlate() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [settings, setSettings] = useState<GripSettings>(DEFAULT_GRIP_SETTINGS);
-  const [mode, setMode] = useState<GripMetricMode>('load');
+  const [mode, setMode] = useState<GripMetricMode>('grip');
   const [drawer, setDrawer] = useState<'settings' | 'help' | null>(null);
   const [lapNum, setLapNum] = useState<number | null>(null);
   const [label, setLabel] = useState('');
@@ -157,14 +158,15 @@ function GripSessionPlate() {
   const laps = analysis?.laps ?? [];
   const lap = laps.find((l) => l.num === lapNum) ?? (laps.length ? bestLap(laps) : null);
   const lapLength = lap ? lap.end - lap.start + 1 : 1;
-  const playback = useGripPlayback(lapLength, `${sessionId}:${lap?.num}`);
+  const playbackTimes = useMemo(() => analysis && lap ? analysis.ch.t.slice(lap.start, lap.end + 1) : [0], [analysis, lap]);
+  const playback = useGripPlayback(lapLength, `${sessionId}:${lap?.num}`, playbackTimes);
 
   const metric: ArrayLike<number> | null = mode === 'load' ? dynC : analysis?.comb ?? null;
 
   const cornerLive = useMemo(() => {
     if (!lap || !metric) return new Map<number, { apexG: number; peakG: number }>();
     return new Map(lap.corners.map((c) => {
-      const { apex, peak } = cornerStats(c, metric);
+      const { apex, peak } = cornerStats(c, metric, analysis?.ch.t);
       return [c.n, { apexG: apex, peakG: peak }] as const;
     }));
   }, [lap, metric]);
@@ -172,15 +174,10 @@ function GripSessionPlate() {
     () => new Map(Array.from(cornerLive, ([n, s]) => [n, s.apexG])),
     [cornerLive],
   );
-  // Best apex demand per TRACK TURN across all laps. The "you have proven you
-  // can" reference the spare flag compares against. Keying this on the per-lap
-  // detection index instead compares unrelated bends: detection finds 6 to 9
-  // corners on ten laps of the same circuit, and on the local fixture that made
-  // the flag wrong on 10 of 74 rows, by up to 30 points against a 10-point
-  // threshold. See turns.ts.
+  // Observed maximum on other laps at the matched track turn.
   const bestApexG = useMemo(
-    () => (metric ? bestApexPerTurn(laps, (c) => cornerStats(c, metric).apex) : new Map<number, number>()),
-    [laps, metric],
+    () => (metric ? bestApexPerTurn(laps.filter((l) => l !== lap), (c) => cornerStats(c, metric, analysis?.ch.t).apex) : new Map<number, number>()),
+    [laps, lap, metric, analysis],
   );
 
   /** The lap's own path length, so the plan view can state a real scale. */
@@ -260,8 +257,8 @@ function GripSessionPlate() {
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
       if (!analysis) return;
       if (e.key === ' ') { e.preventDefault(); playback.toggle(); }
-      else if (e.key === 'ArrowRight') playback.scrub(playback.cursor + (e.shiftKey ? 25 : 1));
-      else if (e.key === 'ArrowLeft') playback.scrub(playback.cursor - (e.shiftKey ? 25 : 1));
+      else if (e.key === 'ArrowRight') playback.scrub(e.shiftKey ? nearestTime(playbackTimes, playbackTimes[playback.cursor] + 1) : playback.cursor + 1);
+      else if (e.key === 'ArrowLeft') playback.scrub(e.shiftKey ? nearestTime(playbackTimes, playbackTimes[playback.cursor] - 1) : playback.cursor - 1);
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -275,6 +272,9 @@ function GripSessionPlate() {
       </Plate>
     );
   }
+  if (analysis && analysis.laps.length === 0) {
+    return <Plate><Advisory>This recording has no timed laps to analyze.</Advisory><PlateLink to="/grip">Back to Grip sessions</PlateLink></Plate>;
+  }
   if (!session || !analysis || !lap || !metric || !dynC) {
     return <p className="t-annotation py-16 text-center">Loading session…</p>;
   }
@@ -282,7 +282,7 @@ function GripSessionPlate() {
   const globalCursor = lap.start + readIdx;
   const activeCorner = lap.corners.find((c) => globalCursor >= c.l && globalCursor <= c.r) ?? null;
   const tCur = analysis.ch.t[globalCursor] - analysis.ch.t[lap.start];
-  const hasEnvelope = analysis.fitSamples > 0;
+  const hasEnvelope = Number.isFinite(analysis.sessionScore);
   const vehicleLabel = vehicles.find((v) => v.id === session.vehicle_id)?.name;
 
   return (
@@ -328,38 +328,30 @@ function GripSessionPlate() {
         }
       />
 
+      <p className="t-annotation">Analysis v{GRIP_ANALYSIS_VERSION} · {parsed?.noFix !== undefined ? `${parsed.noFix} missing fixes` : 'Missing-fix count unavailable'}
+        {' · '}{parsed?.dropped !== undefined ? `${parsed.dropped} dropped rows` : 'Dropped-row count unavailable'}
+        {!analysis.ch.positionValid && ' · Legacy recording: missing-fix locations are unavailable.'}
+        {lap.estimatedTime && ' · This lap time is estimated from sample boundaries.'}
+      </p>
       {!hasEnvelope && (
         <Advisory>
-          No traction envelope could be fitted to this session, so the session score reads n/a rather than zero.
-          That is not an envelope of 0 g, it is the absence of one: too few samples survived the fit.
+          A full-circle score needs observations in all 72 directions. Missing directions remain blank;
+          the plotted observations still describe this recording.
         </Advisory>
       )}
 
-      {/* The one earned accent plane on this sheet: the reading the analyzer
-          exists for. Nothing else on this screen may take it, and it is accent
-          only when there is a reading, because an inverted plane carrying n/a
-          would spend the emphasis on an absence.
-
-          The lap count travels with the score and is not decoration: the
-          envelope is max-preserving, so it can only grow with laps, measured at
-          +8.3 points from 1 lap to 10 of identical riding. A score read without
-          its budget is not comparable to anything.
-
-          Nothing in here passes Readout a `unit`, and `Na` is kept out: both
-          hard-code an inline ink-3, which an inverted plane cannot override. The
-          unit lives in the label instead. */}
-      <Zone label="Session score" note="traction envelope size, absolute" accent={hasEnvelope}>
+      <Zone label="Session score" note="observed demand, complete directions required" accent={hasEnvelope}>
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
           {hasEnvelope ? (
             <Readout
               value={Math.round(analysis.sessionScore)}
               label={`Points over ${laps.length} lap${laps.length === 1 ? '' : 's'}`}
-              note="100 would be working a full 1 g circle in every direction. Only comparable at equal lap count."
+              note="RMS of observed directional p95 demand. It does not measure grip capacity."
             />
           ) : (
             <NoReading
               label="Session score, points"
-              reason="No traction envelope could be fitted, so there is no envelope to size."
+              reason={`${analysis.emptyBins} of 72 directions lack support. A full-circle score is unavailable.`}
             />
           )}
           {/* What qualifies the score, not what identifies the sheet: the title
@@ -370,7 +362,7 @@ function GripSessionPlate() {
               <dd className="t-data mt-1 text-sm">{analysis.fitSamples.toLocaleString('en')}</dd>
             </div>
             <div>
-              <dt className="t-annotation">Tyre class</dt>
+              <dt className="t-annotation">Display scale</dt>
               <dd className="t-data mt-1 text-sm">{settings.anchorG.toFixed(2)} g</dd>
             </div>
             <div>
@@ -388,7 +380,7 @@ function GripSessionPlate() {
           value={mode}
           options={[
             { value: 'grip', label: 'Grip' },
-            { value: 'load', label: 'Dynamic load' },
+            { value: 'load', label: 'Activity index' },
           ]}
           onChange={setMode}
         />
@@ -409,7 +401,7 @@ function GripSessionPlate() {
                     <span key={s.g} className="h-3 w-7" style={{ background: s.color }} />
                   ))}
                 </span>
-                <span className="t-annotation">0 to tyre class {settings.anchorG.toFixed(2)} g</span>
+                <span className="t-annotation">0 to display scale {settings.anchorG.toFixed(2)} g</span>
                 <span className="t-annotation">Ring marks the cursor</span>
               </div>
             }
@@ -428,8 +420,8 @@ function GripSessionPlate() {
           </PlanView>
 
           <ProfileView
-            label="Profile: longitudinal g and transfer rate"
-            axis={`Lap time, 0 to ${lap.time.toFixed(2)} s`}
+            label="Profile: longitudinal demand and demand rate"
+            axis={`Recorded time, 0 to ${(analysis.ch.t[lap.end] - analysis.ch.t[lap.start]).toFixed(2)} s`}
           >
             <LoadTimeline
               analysis={analysis}
@@ -443,7 +435,7 @@ function GripSessionPlate() {
           </ProfileView>
 
           <Zone label="Playback" flush>
-            <TransportBar playback={playback} lapLength={lapLength} tCur={tCur} tTot={lap.time} />
+            <TransportBar playback={playback} lapLength={lapLength} tCur={tCur} tTot={analysis.ch.t[lap.end] - analysis.ch.t[lap.start]} />
           </Zone>
         </div>
 
@@ -460,9 +452,9 @@ function GripSessionPlate() {
               onHover={setHoverLocal}
             />
             <div className="rule-t flex flex-wrap gap-x-4 gap-y-1 px-3 py-1.5">
-              <span className="t-annotation">Dashed inner boundary: your fitted envelope</span>
+              <span className="t-annotation">Dashed arcs: observed directional p95 demand</span>
               <span className="t-annotation" style={{ color: 'var(--color-caution)' }}>
-                Dotted ring: tyre class, an advisory, not a limit
+                Dotted ring: display scale only
               </span>
             </div>
           </Zone>
@@ -499,11 +491,9 @@ function GripSessionPlate() {
       />
 
       <NotesBox>
-        Scores are absolute: g demand × 100, so 100 is roughly 1 g, and they compare honestly between laps,
-        sessions, bikes and riders. The traction envelope is descriptive, never a divisor: it is the boundary of
-        what you actually did, and it can only grow with more laps, so the session score is only comparable at
-        equal lap count. Longitudinal g is tyre demand, corrected for a fixed generic drag model rather than
-        measured per bike. Lateral g comes from lean angle. Physics assumptions and every tunable estimate are
+        Demand is estimated from speed, lean and a generic resistance model. It cannot establish tyre grip
+        capacity or spare grip. Banking, slope, wind, rider position and sensor errors can change the result.
+        Activity adds an adjustable rate term and is not a tyre-force measurement. Model notes are
         in{' '}
         <button
           type="button"
@@ -560,7 +550,7 @@ function GripSessionPlate() {
 
       <RevisionBar
         entries={[
-          { label: 'Data version', value: GRIP_DATA_VERSION },
+          { label: 'Analysis revision', value: GRIP_ANALYSIS_VERSION },
           { label: 'Sample rate', value: sampleHz ? `${sampleHz} Hz` : <Na /> },
           { label: 'Samples', value: session.sample_count.toLocaleString('en') },
           { label: 'Timed laps', value: laps.length },

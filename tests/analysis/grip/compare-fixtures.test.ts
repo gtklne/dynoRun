@@ -27,7 +27,13 @@ describe.skipIf(!have)('compare on real RaceBox sessions', () => {
     const cmp = compareLaps(inputs, `A:${best.num}`)!;
     expect(cmp.laps.length).toBe(10);
 
+    expect(cmp.laps.filter((l) => Number.isFinite(l.finishDelta))).toHaveLength(7);
     for (const l of cmp.laps) {
+      if (l.path.invalid?.some(Boolean)) {
+        expect(l.verdict).toBe('partial');
+        expect(l.finishDelta).toBeNaN();
+        continue;
+      }
       expect(l.verdict === 'aligned' || l.verdict === 'reference').toBe(true);
       expect(l.coverage).toBeGreaterThan(0.99);
       // the racing line varies a couple of metres lap to lap, no more

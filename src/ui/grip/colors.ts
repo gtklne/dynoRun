@@ -1,16 +1,6 @@
 import type { PlateInk } from '@/ui/plate';
 
-/**
- * Grip's two ramps, both derived from the plate's inks rather than from fixed
- * hex. Canvas cannot read a Tailwind utility, so without this every chart would
- * keep printing day ink on a night sheet.
- *
- * The two ramps must never be confusable, so they run on different channels
- * entirely. Demand is the traffic light and means on screen what it means on a
- * circuit: green while there is grip in hand, amber as the tyre starts working,
- * red at the tyre-class limit. Load transfer is ink at increasing weight, no hue
- * at all, so a transfer streak can never be read as grip demand.
- */
+/** Display ramps using theme inks. No colour encodes measured grip margin. */
 
 type Rgb = [number, number, number];
 
@@ -57,34 +47,19 @@ export function inkAlpha(color: string, alpha: number): string {
   return `rgba(${x[0]},${x[1]},${x[2]},${Math.max(0, Math.min(1, alpha))})`;
 }
 
-/**
- * Grip or load demand in g as a traffic light, anchored so the red end sits at
- * the tyre-class grip level (`settings.anchorG`). Scores stay absolute; only the
- * colours rescale, which is why changing the anchor recolours but never
- * rescores.
- *
- * Amber is placed at 55% of the anchor rather than at the midpoint on purpose:
- * a tyre is already working hard well before the limit, and a ramp that only
- * leaves green in the last third reads as "fine, fine, fine, red".
- */
+/** Adjustable colour anchor and aesthetic midpoint; neither is a tyre limit. */
 const AMBER_AT = 0.55;
 
 export function scoreColor(ink: PlateInk, g: number, anchorG: number): string {
+  if (!Number.isFinite(g)) return ink.ink3;
   const u = Math.max(0, Math.min(1, g / (anchorG || 1)));
   if (u < AMBER_AT) return mixInk(ink.go, ink.caution, u / AMBER_AT);
   return mixInk(ink.caution, ink.stop, (u - AMBER_AT) / (1 - AMBER_AT));
 }
 
-/**
- * Normalised load-transfer rate (0..1) as ink weight, never as hue.
- *
- * It shares a canvas with the demand ramp (the comet trail crosses the g-g
- * scatter, the timeline cursor dot sits under the track map), so putting both
- * on the traffic light would make a violent throttle-to-brake swap and a corner
- * at the limit the same colour while meaning opposite things. Dim ink to full
- * ink is unmistakably a different scale and still reads at a glance.
- */
+/** Demand rate uses ink weight to keep it distinct from the demand ramp. */
 export function rateColor(ink: PlateInk, n: number): string {
+  if (!Number.isFinite(n)) return ink.ink3;
   return mixInk(ink.ink3, ink.ink, Math.max(0, Math.min(1, n)));
 }
 

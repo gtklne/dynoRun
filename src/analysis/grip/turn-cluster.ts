@@ -34,15 +34,21 @@ export function splitWideCluster<T extends { s: number }>(cluster: T[]): T[][] {
  * Sort hits along the axis, link neighbours within CORNER_CLUSTER_M, then split
  * any cluster that chained too wide. `hits` is not mutated.
  */
-export function clusterByAxisDistance<T extends { s: number }>(hits: readonly T[]): T[][] {
-  const sorted = [...hits].sort((a, b) => a.s - b.s);
-  const linked: T[][] = [];
-  for (const h of sorted) {
-    const last = linked[linked.length - 1];
-    if (last && h.s - last[last.length - 1].s <= CORNER_CLUSTER_M) last.push(h);
-    else linked.push([h]);
+export function clusterByAxisDistance<T extends { s: number; dir?: 'L' | 'R' }>(hits: readonly T[]): T[][] {
+  const groups = new Map<string, T[]>();
+  for (const hit of hits) { const key = hit.dir ?? ''; groups.set(key, [...(groups.get(key) ?? []), hit]); }
+  const clusters: T[][] = [];
+  for (const group of groups.values()) {
+    const sorted = [...group].sort((a, b) => a.s - b.s);
+    const linked: T[][] = [];
+    for (const h of sorted) {
+      const last = linked[linked.length - 1];
+      if (last && h.s - last[last.length - 1].s <= CORNER_CLUSTER_M) last.push(h);
+      else linked.push([h]);
+    }
+    clusters.push(...linked.flatMap(splitWideCluster));
   }
-  return linked.flatMap(splitWideCluster);
+  return clusters.sort((a, b) => a[0].s - b[0].s);
 }
 
 /**

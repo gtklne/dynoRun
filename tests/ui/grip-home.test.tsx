@@ -102,7 +102,7 @@ describe('GripHome', () => {
 
     await waitFor(() => expect(screen.getByTestId('session-screen')).toBeInTheDocument());
     const sent = createSession.mock.calls[0][0];
-    expect(sent.data.version).toBe(1);
+    expect(sent.data.version).toBe(2);
     expect(sent.data.meta.track).toBe('Testring');
     expect(sent.data.ch.t.length).toBeGreaterThan(1000);
     cleanup();

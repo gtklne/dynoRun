@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-const SAMPLE_HZ = 25;
+import { floorIndex } from '@/analysis/grip/align';
 
 export interface GripPlayback {
   /** local sample index within the active lap */
@@ -14,6 +14,8 @@ export interface GripPlayback {
   seek: (i: number) => void;
   /** stop playback, then jump */
   scrub: (i: number) => void;
+  /** Seconds from the first recorded sample. */
+  scrubSeconds: (seconds: number) => void;
 }
 
 /**
@@ -21,7 +23,9 @@ export interface GripPlayback {
  * rounding into the cursor each frame would discard sub-sample progress and
  * freeze 1× playback on a 60 Hz display (0.42 samples/frame → round 0).
  */
-export function useGripPlayback(lapLength: number, resetKey: unknown): GripPlayback {
+export function useGripPlayback(lapLength: number, resetKey: unknown, timestamps?: number[]): GripPlayback {
+  const times = useMemo(() => timestamps ?? Array.from({ length: lapLength }, (_, i) => i / 25), [timestamps, lapLength]);
+  const endTime = times[times.length - 1] ?? 0;
   const [cursor, setCursor] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
@@ -30,7 +34,7 @@ export function useGripPlayback(lapLength: number, resetKey: unknown): GripPlayb
   speedRef.current = speed;
 
   useEffect(() => {
-    playPos.current = 0;
+    playPos.current = times[0] ?? 0;
     setCursor(0);
     setPlaying(false);
   }, [resetKey]);
@@ -38,30 +42,30 @@ export function useGripPlayback(lapLength: number, resetKey: unknown): GripPlayb
   useEffect(() => {
     if (!playing) return;
     let raf = 0;
-    let lastT = 0;
+    let lastT: number | undefined;
     const loop = (ts: number) => {
-      if (!lastT) lastT = ts;
+      if (lastT === undefined) lastT = ts;
       const dt = (ts - lastT) / 1000;
       lastT = ts;
-      playPos.current += dt * SAMPLE_HZ * speedRef.current;
-      if (playPos.current >= lapLength - 1) {
-        playPos.current = lapLength - 1;
+      playPos.current += dt * speedRef.current;
+      if (playPos.current >= endTime) {
+        playPos.current = endTime;
         setCursor(lapLength - 1);
         setPlaying(false);
         return;
       }
-      setCursor(Math.round(playPos.current));
+      setCursor(floorIndex(times, playPos.current));
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [playing, lapLength]);
+  }, [playing, lapLength, times, endTime]);
 
   const seek = useCallback((i: number) => {
     const c = Math.max(0, Math.min(lapLength - 1, Math.round(i)));
-    playPos.current = c;
+    playPos.current = times[c];
     setCursor(c);
-  }, [lapLength]);
+  }, [lapLength, times, endTime]);
 
   const stop = useCallback(() => setPlaying(false), []);
 
@@ -70,15 +74,17 @@ export function useGripPlayback(lapLength: number, resetKey: unknown): GripPlayb
     seek(i);
   }, [seek]);
 
+  const scrubSeconds = useCallback((seconds: number) => scrub(floorIndex(times, times[0] + seconds)), [scrub, times]);
+
   const toggle = useCallback(() => {
     setPlaying((p) => {
-      if (!p && playPos.current >= lapLength - 1) {
-        playPos.current = 0;
+      if (!p && playPos.current >= endTime) {
+        playPos.current = times[0] ?? 0;
         setCursor(0);
       }
       return !p;
     });
-  }, [lapLength]);
+  }, [lapLength, times, endTime]);
 
-  return { cursor, playing, speed, setSpeed, toggle, stop, seek, scrub };
+  return { cursor, playing, speed, setSpeed, toggle, stop, seek, scrub, scrubSeconds };
 }

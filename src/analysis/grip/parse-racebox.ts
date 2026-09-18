@@ -1,3 +1,5 @@
+import { isGripDataEnvelope, MAX_GRIP_SAMPLES } from '../../../server/src/lib/grip-data-validation';
+import { GRIP_DATA_VERSION } from './types';
 import type { GripLapMeta, GripSessionMeta, ParsedGripSession } from './types';
 
 /**
@@ -9,13 +11,13 @@ import type { GripLapMeta, GripSessionMeta, ParsedGripSession } from './types';
  * are skipped; time is rebased to seconds since the first valid sample.
  */
 export function parseRaceboxCsv(text: string): ParsedGripSession {
-  const lines = text.split(/\r?\n/);
+  const rows = csvRows(text.replace(/^\uFEFF/, ''));
   const meta: GripSessionMeta = { track: '', config: '', date: '', best: null, laps: [] };
   let dataStart = -1;
   let header: string[] | null = null;
 
-  for (let i = 0; i < lines.length; i++) {
-    const cells = lines[i].split(',');
+  for (let i = 0; i < rows.length; i++) {
+    const cells = rows[i];
     const key = (cells[0] ?? '').trim();
     if (key === 'Record') {
       header = cells.map((c) => c.trim());
@@ -26,11 +28,11 @@ export function parseRaceboxCsv(text: string): ParsedGripSession {
     else if (key === 'Configuration') meta.config = cells[1]?.trim() ?? '';
     else if (key === 'Date') meta.date = cells[1]?.trim() ?? '';
     else if (key === 'Best Lap Time') {
-      const best = parseFloat(cells[1] ?? '');
-      meta.best = Number.isFinite(best) ? best : null;
+      const best = duration(cells[1] ?? '');
+      meta.best = Number.isFinite(best) && best > 0 ? best : null;
     } else if (/^Lap\s*\d+/i.test(key)) {
-      const time = parseFloat(cells[1] ?? '');
-      if (Number.isFinite(time)) meta.laps.push({ name: key, time } satisfies GripLapMeta);
+      const time = duration(cells[1] ?? '');
+      if (Number.isFinite(time) && time > 0) meta.laps.push({ name: key, time } satisfies GripLapMeta);
     }
   }
 
@@ -54,6 +56,9 @@ export function parseRaceboxCsv(text: string): ParsedGripSession {
     ['Time', idxTime], ['Latitude', idxLat], ['Longitude', idxLon],
     ['Speed (m/s)', idxSpd], ['Lap', idxLap], ['LeanAngle (deg)', idxLean],
   ];
+  for (const [name] of required) {
+    if (header.filter((h) => h === name).length > 1) throw new Error(`Duplicate required column: ${name}.`);
+  }
   const missing = required.filter(([, i]) => i < 0).map(([name]) => name);
   if (missing.length) {
     throw new Error(`Missing required column${missing.length > 1 ? 's' : ''}: ${missing.join(', ')}. Not a supported RaceBox export.`);
@@ -67,6 +72,7 @@ export function parseRaceboxCsv(text: string): ParsedGripSession {
   const lean: number[] = [];
   const lap: number[] = [];
   const head: number[] = [];
+  const positionValid: boolean[] = [];
   let t0: number | null = null;
   // A row without a GPS fix must not become the coordinate 0,0. That is a real
   // place in the Gulf of Guinea, ~5300 km from any circuit, and one such sample
@@ -81,13 +87,13 @@ export function parseRaceboxCsv(text: string): ParsedGripSession {
   let noFix = 0;
   let dropped = 0;
 
-  for (let i = dataStart; i < lines.length; i++) {
-    const c = lines[i].split(',');
+  for (let i = dataStart; i < rows.length; i++) {
+    const c = rows[i];
     // A short row used to be tolerated within 2 cells of the header width, which
     // silently dropped rows short by 3 and kept rows missing the columns we read.
-    if (c.length <= maxIdx) { if (lines[i].trim()) dropped++; continue; }
+    if (c.length <= maxIdx) { if (c.some((v) => v.trim())) dropped++; continue; }
     const ms = Date.parse(c[idxTime]);
-    if (Number.isNaN(ms)) continue;
+    if (Number.isNaN(ms)) { dropped++; continue; }
     if (t0 === null) t0 = ms;
     // Every derivative divides by t[i+3] − t[i−3] and guards that with `dt > 0`,
     // so a repeated or out-of-order timestamp does not degrade the reading, it
@@ -95,9 +101,21 @@ export function parseRaceboxCsv(text: string): ParsedGripSession {
     // an invariant, not a nicety.
     const te = (ms - t0) / 1000;
     if (t.length > 0 && te <= t[t.length - 1]) { dropped++; continue; }
-    const la = +c[idxLat];
-    const lo = +c[idxLon];
-    const fixed = Number.isFinite(la) && Number.isFinite(lo) && la !== 0 && lo !== 0;
+    const read = (idx: number, valid: (n: number) => boolean): number => {
+      const n = Number(c[idx]);
+      if (!c[idx].trim() || !Number.isFinite(n) || !valid(n)) {
+        throw new Error(`Invalid ${header![idx]} in CSV row ${i + 1}. Correct the export before importing.`);
+      }
+      return n;
+    };
+    const speed = read(idxSpd, (v) => v >= 0);
+    const angle = read(idxLean, (v) => Math.abs(v) < 90);
+    const lapNum = read(idxLap, (v) => Number.isInteger(v) && v >= 0);
+    const la = c[idxLat].trim() ? read(idxLat, (v) => Math.abs(v) <= 90) : NaN;
+    const lo = c[idxLon].trim() ? read(idxLon, (v) => Math.abs(v) <= 180) : NaN;
+    // RaceBox's 0,0 sentinel is missing; a single zero coordinate is valid.
+    const fixed = Number.isFinite(la) && Number.isFinite(lo) && !(la === 0 && lo === 0);
+    positionValid.push(fixed);
     if (fixed) {
       lastLat = la;
       lastLon = lo;
@@ -108,13 +126,14 @@ export function parseRaceboxCsv(text: string): ParsedGripSession {
     t.push((ms - t0) / 1000);
     lat.push(lastLat);
     lon.push(lastLon);
-    spd.push(+c[idxSpd] || 0);
-    lean.push(+c[idxLean] || 0);
-    lap.push(+c[idxLap] || 0);
-    head.push(idxHead >= 0 ? +c[idxHead] || 0 : 0);
+    spd.push(speed);
+    lean.push(angle);
+    lap.push(lapNum);
+    head.push(idxHead >= 0 && c[idxHead].trim() ? read(idxHead, () => true) : 0);
+    if (t.length > MAX_GRIP_SAMPLES) throw new Error(`Session exceeds ${MAX_GRIP_SAMPLES} samples.`);
   }
 
-  if (t.length < 25) {
+  if (t.length < 2 || t[t.length - 1] - t[0] < 1) {
     throw new Error('Session is too short to analyze (under one second of samples).');
   }
   // leading rows had nothing to hold; back-fill them from the first real fix
@@ -125,5 +144,41 @@ export function parseRaceboxCsv(text: string): ParsedGripSession {
     throw new Error('No GPS fix anywhere in this session. Every position is empty.');
   }
 
-  return { meta, n: t.length, ch: { t, lat, lon, spd, lean, lap, head }, noFix, dropped };
+  const ch = { t, lat, lon, spd, lean, lap, head, positionValid };
+  if (!isGripDataEnvelope({ version: GRIP_DATA_VERSION, meta, ch, noFix, dropped })) {
+    throw new Error('Invalid session: timed lap numbers must identify one contiguous lap each.');
+  }
+  return { meta, n: t.length, ch, noFix, dropped };
+}
+
+/** Numeric seconds or an explicit minutes:seconds duration. */
+function duration(s: string): number {
+  const parts = s.trim().split(':');
+  if (parts.length === 1) return Number(parts[0]);
+  if (parts.length !== 2 || !/^\d+$/.test(parts[0])) return NaN;
+  const seconds = Number(parts[1]);
+  return seconds >= 0 && seconds < 60 ? Number(parts[0]) * 60 + seconds : NaN;
+}
+
+/** Quoting, escaped quotes, commas and newlines inside quoted fields. */
+function csvRows(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [], field = '', quoted = false, closedQuote = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') {
+      if (quoted && text[i + 1] === '"') { field += '"'; i++; }
+      else if (quoted) { quoted = false; closedQuote = true; }
+      else if (field.length === 0 && !closedQuote) quoted = true;
+      else throw new Error('Unexpected quote in CSV field.');
+    } else if (!quoted && (c === ',' || c === '\n' || c === '\r')) {
+      row.push(field); field = ''; closedQuote = false;
+      if (c !== ',') { rows.push(row); row = []; if (c === '\r' && text[i + 1] === '\n') i++; }
+    } else if (closedQuote) {
+      if (c.trim()) throw new Error('Unexpected text after quoted CSV field.');
+    } else field += c;
+  }
+  if (quoted) throw new Error('Unclosed quoted CSV field.');
+  if (field || row.length) { row.push(field); rows.push(row); }
+  return rows;
 }

@@ -3,6 +3,7 @@ import {
   estimateDatumOffset,
   frameForLap,
   lapPath,
+  longestRun,
   projectOntoReference,
   referenceAxis,
   resampleByDistance,
@@ -127,7 +128,7 @@ export interface ComparedCornerStat {
   measured: boolean;
   /** apex demand ×100 (100 ≈ 1 g) */
   apexScore: number;
-  /** robust peak demand through the window ×100 */
+  /** maximum derived demand through the window ×100 */
   peakScore: number;
   /** m/s */
   minSpeed: number;
@@ -268,6 +269,9 @@ export function compareLaps(inputs: CompareLapInput[], refKey: string): GripComp
     const isReference = input.key === ref.key;
     const path = isReference ? refPath : lapPath(input.analysis.ch, input.lap, frame);
     if (isReference) {
+      const off = Float32Array.from(path.x, (_, k) => path.invalid?.[k] ? Infinity : 0);
+      let maxGapM = 0;
+      for (let k = path.k0 + 1; k <= path.kEnd; k++) maxGapM = Math.max(maxGapM, axis.u[k] - axis.u[k - 1]);
       return {
         input,
         path,
@@ -275,14 +279,14 @@ export function compareLaps(inputs: CompareLapInput[], refKey: string): GripComp
         datumShiftM: 0,
         proj: {
           u: axis.u,
-          off: new Float32Array(path.n),
+          off,
           nx: path.x,
           ny: path.y,
           clamps: 0,
-          coverage: 1,
+          coverage: Array.from(off.subarray(path.k0, path.kEnd + 1)).filter(Number.isFinite).length / (path.kEnd - path.k0 + 1),
           offP95: 0,
-          maxGapM: 0,
-          common: { sIn: 0, sOut: axis.length },
+          maxGapM,
+          common: longestRun(axis.u, off, axis),
         } satisfies LapProjection,
       };
     }
@@ -302,6 +306,12 @@ export function compareLaps(inputs: CompareLapInput[], refKey: string): GripComp
     };
   });
 
+  // A comparison cannot claim more support than its reference recording.
+  const refCommon = prepared.find((p) => p.isReference)!.proj.common;
+  for (const p of prepared) {
+    p.proj.common = { sIn: Math.max(p.proj.common.sIn, refCommon.sIn), sOut: Math.min(p.proj.common.sOut, refCommon.sOut) };
+    if (p.proj.common.sOut < p.proj.common.sIn) p.proj.common.sOut = p.proj.common.sIn;
+  }
   const laps: CompareLapResult[] = prepared.map(({ input, path, proj, isReference, datumShiftM }) => {
     const a = input.analysis;
     const n = path.n;
@@ -324,9 +334,14 @@ export function compareLaps(inputs: CompareLapInput[], refKey: string): GripComp
     const timedLength = path.s[path.kEnd] - path.s[path.k0];
     const lengthRatio = axis.length > 0 ? timedLength / axis.length : 1;
     const sectionFraction = (proj.common.sOut - proj.common.sIn) / axis.length;
-    const verdict = isReference ? 'reference' : verdictFor(sectionFraction, lengthRatio);
-    const full = verdict === 'reference' || verdict === 'aligned';
+    const verdict = isReference && sectionFraction >= 1 - 1e-6 ? 'reference' : verdictFor(sectionFraction, lengthRatio);
+    const full = (verdict === 'reference' || verdict === 'aligned') && proj.common.sIn <= 0 && proj.common.sOut >= axis.length && proj.u[0] <= 0 && proj.u[n - 1] >= axis.length;
 
+    const mask = (values: Float32Array) => {
+      for (let k = 0; k < grid.length; k++) if (verdict === 'incompatible' || grid[k] < proj.common.sIn || grid[k] > proj.common.sOut) values[k] = NaN;
+      return values;
+    };
+    mask(dt);
     return {
       key: input.key,
       label: input.label,
@@ -346,15 +361,15 @@ export function compareLaps(inputs: CompareLapInput[], refKey: string): GripComp
       verdict,
       isReference,
       grid: {
-        t,
+        t: mask(t),
         dt,
-        spd: rs(a.spdS),
-        lean: rs(a.leanS),
-        alat: rs(a.alat),
-        along: rs(a.along),
-        comb: rs(a.comb),
-        loadRate: rs(a.loadRate),
-        metric: rs(input.metric),
+        spd: mask(rs(a.spdS)),
+        lean: mask(rs(a.leanS)),
+        alat: mask(rs(a.alat)),
+        along: mask(rs(a.along)),
+        comb: mask(rs(a.comb)),
+        loadRate: mask(rs(a.loadRate)),
+        metric: mask(rs(input.metric)),
         x: resampleByDistance(proj.u, path.x, grid),
         y: resampleByDistance(proj.u, path.y, grid),
         off: resampleByDistance(proj.u, proj.off, grid),
@@ -416,7 +431,7 @@ function cornerWindowStats(
   const a = input.analysis;
   const path = result.path;
   const u = result.u;
-  const measured = sIn >= result.section.sIn && sOut <= result.section.sOut;
+  const measured = result.verdict !== 'incompatible' && sIn >= result.section.sIn && sOut <= result.section.sOut;
   const own = valueAtU(u, path.te, sOut) - valueAtU(u, path.te, sIn);
   const refSpan = valueAtDistance(grid, refT, sOut) - valueAtDistance(grid, refT, sIn);
   const deltaGain = measured ? own - refSpan : NaN;
@@ -447,6 +462,7 @@ function cornerWindowStats(
   const { apex, peak } = cornerStats(
     { l: path.i0 + lo, r: path.i0 + hi, ap: path.i0 + apexIdx },
     input.metric,
+    a.ch.t,
   );
   return {
     key: input.key,
@@ -454,8 +470,8 @@ function cornerWindowStats(
     apexScore: apex * 100,
     peakScore: peak * 100,
     minSpeed,
-    entrySpeed: a.spdS[path.i0 + lo],
-    exitSpeed: a.spdS[path.i0 + hi],
+    entrySpeed: valueAtU(u, a.spdS.subarray(path.i0, path.i0 + path.n), sIn),
+    exitSpeed: valueAtU(u, a.spdS.subarray(path.i0, path.i0 + path.n), sOut),
     maxLean,
     peakLoad,
     time: own,

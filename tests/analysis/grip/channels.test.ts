@@ -40,7 +40,7 @@ describe('movAvg', () => {
 describe('resistanceG', () => {
   it('matches the generic-race-bike constants at reference speeds', () => {
     // ½·1.20·0.40·v² / (260·g₀) + 0.015
-    expect(resistanceG(0)).toBeCloseTo(0.015, 4);
+    expect(resistanceG(0)).toBe(0);
     expect(resistanceG(100 / 3.6)).toBeCloseTo(0.0876, 3);
     expect(resistanceG(200 / 3.6)).toBeCloseTo(0.3055, 3);
   });

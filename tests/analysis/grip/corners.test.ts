@@ -81,13 +81,13 @@ describe('detectCorners', () => {
     expect(run(ch)).toHaveLength(2);
   });
 
-  it('requires the speed drop to clear cornerDrop', () => {
+  it('also detects sustained lean when speed prominence is small', () => {
     const shallow = trace({
       seconds: 16,
       cruiseKmh: 100,
       dips: [{ at: 8, dropKmh: 4, widthS: 0.8, leanDeg: 30 }],
     });
-    expect(run(shallow, { cornerDrop: 7 })).toHaveLength(0);
+    expect(run(shallow, { cornerDrop: 7 })).toHaveLength(1);
     expect(run(shallow, { cornerDrop: 3 })).toHaveLength(1);
   });
 

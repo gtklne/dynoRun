@@ -30,7 +30,7 @@ export function assignTrackTurns(ch: GripChannels, laps: GripLap[]): number {
   const axis = referenceAxis(refPath);
   if (!(axis.length > 0)) return 0;
 
-  interface Hit { s: number; lapNum: number; corner: GripLap['corners'][number] }
+  interface Hit { s: number; dir: 'L' | 'R'; lapNum: number; corner: GripLap['corners'][number] }
   const hits: Hit[] = [];
   for (const lap of laps) {
     if (lap.corners.length === 0) continue;
@@ -42,7 +42,7 @@ export function assignTrackTurns(ch: GripChannels, laps: GripLap[]): number {
       const s = u[k];
       // a "corner" projecting outside the lap's own axis is not on this layout
       if (!(s >= -axis.tol) || !(s <= axis.length + axis.tol)) continue;
-      hits.push({ s, lapNum: lap.num, corner: c });
+      hits.push({ s, dir: c.dir, lapNum: lap.num, corner: c });
     }
   }
   if (hits.length === 0) return 0;
@@ -65,12 +65,7 @@ export function assignTrackTurns(ch: GripChannels, laps: GripLap[]): number {
   return clusters.length;
 }
 
-/**
- * Best apex demand per *track turn* across every lap: the "you have already
- * proven you can" reference. Keyed on `turn`, never on `n`; corners with
- * turn = 0 are excluded because there is nothing on other laps to compare them
- * against.
- */
+/** Highest observed apex demand at each matched turn in the supplied laps. */
 export function bestApexPerTurn(
   laps: GripLap[],
   apexOf: (corner: GripLap['corners'][number]) => number,

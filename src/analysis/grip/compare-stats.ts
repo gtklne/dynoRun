@@ -49,29 +49,18 @@ export function resolveCompareSettings(inputs: unknown[]): ResolvedCompareSettin
  * fraction of a limit.
  */
 
-/**
- * Refit a session's traction envelope on exactly `k` timed laps.
- *
- * The session score is monotone in lap count: the fit is a p99-per-bin
- * max-preserving boundary, so more laps can only push bins outward. Comparing a
- * 10-lap session's score against a 5-lap session's therefore flatters the
- * longer session by several points for free. Fitting both sides on the same
- * number of laps removes that bias.
- *
- * Every contiguous k-lap window is fitted and the *median-scoring* window is
- * returned whole, never an average of windows, because the boundary is
- * max-preserving and averaging rings would produce a shape that was never fit
- * to any data. Implemented by masking the lap channel, so envelope.ts is
- * untouched.
+/** Fit equal lap-count windows and select a representative observed envelope.
+ * This controls one sampling difference; it does not remove riding, condition,
+ * logger or duration confounding. Quantiles can increase or decrease with data.
  */
 export function equalBudgetEnvelope(
-  analysis: Pick<GripAnalysis, 'spdS' | 'comb' | 'theta' | 'alongRaw' | 'laps' | 'n'>,
+  analysis: Pick<GripAnalysis, 'spdS' | 'comb' | 'theta' | 'alongRaw' | 'laps' | 'n'> & { ch?: { t: ArrayLike<number> } },
   settings: Pick<GripSettings, 'envMinSpeed'>,
   k: number,
 ): GripEnvelope {
   const laps = analysis.laps;
-  const budget = Math.max(1, Math.min(k, laps.length));
-  if (laps.length === 0) return computeEnvelope(analysis, settings);
+  const budget = Math.max(1, Math.min(Number.isFinite(k) ? Math.floor(k) : laps.length, laps.length));
+  if (laps.length === 0) return computeEnvelope(analysis, settings, undefined, analysis.ch?.t);
 
   const fits: GripEnvelope[] = [];
   for (let i = 0; i + budget <= laps.length; i++) {
@@ -80,9 +69,15 @@ export function equalBudgetEnvelope(
       const lap = laps[j];
       for (let s = lap.start; s <= lap.end; s++) mask[s] = lap.num;
     }
-    fits.push(computeEnvelope(analysis, settings, mask));
+    fits.push(computeEnvelope(analysis, settings, mask, analysis.ch?.t));
   }
-  fits.sort((a, b) => a.sessionScore - b.sessionScore);
+  // Complete scores are usually unavailable; rank supported radii only to
+  // select a reproducible window, never display this rank as a session score.
+  const rank = (f: GripEnvelope) => {
+    const v = Array.from(f.env).filter(Number.isFinite);
+    return v.length ? v.reduce((s, x) => s + x * x, 0) / v.length : -Infinity;
+  };
+  fits.sort((a, b) => rank(a) - rank(b));
   return fits[fits.length >> 1];
 }
 
@@ -105,12 +100,7 @@ function sectorOfBin(b: number): EnvelopeSector {
   return 'left';
 }
 
-/**
- * Split the envelope into four directional scores on the same 100 ≈ 1 g scale
- * as the session score, which is the same RMS-radius statistic taken over all
- * bins instead of a quadrant. Answers "which direction am I actually weak in",
- * which one overall number cannot.
- */
+/** Full-sector RMS requires support in all 18 angular bins. */
 export function sectorScores(env: Float32Array): Record<EnvelopeSector, number> {
   const sum: Record<EnvelopeSector, number> = { brake: 0, right: 0, accel: 0, left: 0 };
   const count: Record<EnvelopeSector, number> = { brake: 0, right: 0, accel: 0, left: 0 };
@@ -120,10 +110,10 @@ export function sectorScores(env: Float32Array): Record<EnvelopeSector, number> 
     count[sec]++;
   }
   return {
-    brake: count.brake ? 100 * Math.sqrt(sum.brake / count.brake) : 0,
-    right: count.right ? 100 * Math.sqrt(sum.right / count.right) : 0,
-    accel: count.accel ? 100 * Math.sqrt(sum.accel / count.accel) : 0,
-    left: count.left ? 100 * Math.sqrt(sum.left / count.left) : 0,
+    brake: count.brake === 18 ? 100 * Math.sqrt(sum.brake / count.brake) : NaN,
+    right: count.right === 18 ? 100 * Math.sqrt(sum.right / count.right) : NaN,
+    accel: count.accel === 18 ? 100 * Math.sqrt(sum.accel / count.accel) : NaN,
+    left: count.left === 18 ? 100 * Math.sqrt(sum.left / count.left) : NaN,
   };
 }
 
@@ -187,13 +177,7 @@ export function compareSegments(cmp: GripComparison): SegmentBreakdown {
     const sEnd = bounds[i + 1];
     const turn = turns.length ? turns[i]?.turn ?? null : null;
     const times: SegmentTime[] = cmp.laps.map((lap) => {
-      // a lap that left the reference layout here has no time to report; NaN so
-      // it can never be mistaken for a fast segment
-      // half a metre of slack: a lap with no trailing pad ends at exactly the
-      // axis length to within Float32 rounding, and must not lose its last
-      // segment to that
-      const EPS = 0.5;
-      const covered = sStart >= lap.section.sIn - EPS && sEnd <= lap.section.sOut + EPS;
+      const covered = lap.verdict !== 'incompatible' && sStart >= lap.section.sIn && sEnd <= lap.section.sOut;
       return {
         key: lap.key,
         time: covered
@@ -274,17 +258,8 @@ export interface DutyOptions {
   section?: CommonSection;
 }
 
-/**
- * How many metres of track went to braking, coasting and driving.
- *
- * This uses `along` (drag-corrected tire demand) rather than the kinematic
- * `alongRaw`, and that is what makes "coast" meaningful: along ≈ 0 exactly when
- * the tire is neither driving nor braking, because holding a steady speed still
- * needs +resistanceG(v) of drive. On the raw channel a steady 200 km/h would
- * read as coasting while the rear tire carries 0.3 g of drive.
- *
- * Metres, never percentages: a percentage of a lap hides that one lap is
- * longer than the other.
+/** Integrate descriptive demand bands on the reference distance axis.
+ * The near-zero band does not identify rider throttle/brake state.
  */
 export function dutyMetres(s: Float32Array, grid: CompareGrid, opts: DutyOptions = {}): DutyMetres {
   const coastBand = opts.coastBand ?? 0.1;
@@ -294,16 +269,32 @@ export function dutyMetres(s: Float32Array, grid: CompareGrid, opts: DutyOptions
   const sOut = opts.section ? opts.section.sOut : Infinity;
   const out: DutyMetres = { brake: 0, coast: 0, drive: 0, aboveG: 0, aboveLean: 0, total: 0 };
   for (let k = 0; k + 1 < s.length; k++) {
-    const w = s[k + 1] - s[k];
-    if (!(w > 0)) continue;
-    if (s[k] < sIn || s[k + 1] > sOut) continue;
-    out.total += w;
-    const along = (grid.along[k] + grid.along[k + 1]) / 2;
-    if (along < -coastBand) out.brake += w;
-    else if (along > coastBand) out.drive += w;
-    else out.coast += w;
-    if ((grid.comb[k] + grid.comb[k + 1]) / 2 > gThreshold) out.aboveG += w;
-    if (Math.abs((grid.lean[k] + grid.lean[k + 1]) / 2) > leanThreshold) out.aboveLean += w;
+    const width = s[k + 1] - s[k];
+    const lo = Math.max(s[k], sIn), hi = Math.min(s[k + 1], sOut);
+    if (!(width > 0 && hi > lo)) continue;
+    const channels = [grid.along, grid.comb, grid.lean];
+    if (channels.some((a) => !Number.isFinite(a[k]) || !Number.isFinite(a[k + 1]))) continue;
+    const a = (lo - s[k]) / width, b = (hi - s[k]) / width;
+    // Split each linear cell at every threshold crossing, including both lean
+    // signs. Integrating each resulting constant category is exact.
+    const cuts = [a, b];
+    for (const [values, levels] of [[grid.along, [-coastBand, coastBand]], [grid.comb, [gThreshold]], [grid.lean, [-leanThreshold, leanThreshold]]] as const) {
+      const dv = values[k + 1] - values[k];
+      if (!dv) continue;
+      for (const level of levels) { const f = (level - values[k]) / dv; if (f > a && f < b) cuts.push(f); }
+    }
+    cuts.sort((x, y) => x - y);
+    for (let j = 0; j + 1 < cuts.length; j++) {
+      const w = width * (cuts[j + 1] - cuts[j]);
+      const f = (cuts[j] + cuts[j + 1]) / 2;
+      const at = (v: Float32Array) => v[k] + f * (v[k + 1] - v[k]);
+      out.total += w;
+      if (at(grid.along) < -coastBand) out.brake += w;
+      else if (at(grid.along) > coastBand) out.drive += w;
+      else out.coast += w;
+      if (at(grid.comb) > gThreshold) out.aboveG += w;
+      if (Math.abs(at(grid.lean)) > leanThreshold) out.aboveLean += w;
+    }
   }
   return out;
 }
@@ -321,21 +312,13 @@ export type TurnPayoff =
   | 'level-dearer';
 
 export interface PayoffThresholds {
-  /** seconds: smaller time differences are noise */
+  /** seconds: display deadband, not calibrated uncertainty */
   time?: number;
-  /** score points: smaller demand differences are noise */
+  /** points: display deadband, not calibrated uncertainty */
   score?: number;
 }
 
-/**
- * Turn a pair of deltas into an instruction. Time alone says where the lap went;
- * time crossed with demand says *why*, which is the part a rider can act on:
- * losing time with less g means you backed off, losing it with the same g means
- * the line or the drive was wrong, and those need opposite responses.
- *
- * `deltaTime` is seconds against the reference across the turn (+ = slower),
- * `deltaScore` is apex demand points against the reference (+ = more g).
- */
+/** Descriptive joint categories. These inputs cannot establish causation. */
 export function turnPayoff(deltaTime: number, deltaScore: number, t: PayoffThresholds = {}): TurnPayoff {
   const dt = t.time ?? 0.05;
   const ds = t.score ?? 3;
@@ -346,41 +329,25 @@ export function turnPayoff(deltaTime: number, deltaScore: number, t: PayoffThres
   if (!Number.isFinite(deltaTime) || !Number.isFinite(deltaScore)) return 'unmeasured';
   if (deltaTime < -dt) return deltaScore > ds ? 'faster-more-g' : 'faster-other';
   if (deltaTime > dt) return deltaScore < -ds ? 'slower-backed-off' : 'slower-despite-g';
-  // The time matched. That is not the same as nothing happening: spending
-  // materially more or less grip for the identical time is the most actionable
-  // reading in the table, and calling it "Matched, same time, same demand"
-  // threw it away.
   if (deltaScore > ds) return 'level-dearer';
   if (deltaScore < -ds) return 'level-cheaper';
   return 'level';
 }
 
 export const PAYOFF_LABEL: Record<TurnPayoff, string> = {
-  'unmeasured': 'Not on this lap',
-  'level': 'Matched',
-  'faster-more-g': 'Faster: more grip used',
-  'faster-other': 'Faster: line or drive',
-  'slower-backed-off': 'Slower: backed off',
-  'slower-despite-g': 'Slower: grip was there',
-  'level-cheaper': 'Same time: cheaper',
-  'level-dearer': 'Same time: dearer',
+  'unmeasured': 'Unmeasured', 'level': 'Similar time and demand',
+  'faster-more-g': 'Faster, higher demand', 'faster-other': 'Faster, similar or lower demand',
+  'slower-backed-off': 'Slower, lower demand', 'slower-despite-g': 'Slower, similar or higher demand',
+  'level-cheaper': 'Similar time, lower demand', 'level-dearer': 'Similar time, higher demand',
 };
-
-export const PAYOFF_HINT: Record<TurnPayoff, string> = {
-  'unmeasured': 'This lap left the reference layout before this turn, so there is nothing to compare.',
-  'level': 'Same time, same demand.',
-  'faster-more-g': 'You leaned on the tyre harder here and it paid.',
-  'faster-other': 'Same demand, less time: a better line or an earlier drive.',
-  'slower-backed-off': 'Less demand and slower: the lap you already rode proves there is more here.',
-  'slower-despite-g': 'The g was there but the time was not. Suspect the line, the apex or the exit drive.',
-  'level-cheaper': 'Same time for less grip: the line was doing the work, not the tyre. This is the version to repeat.',
-  'level-dearer': 'Same time but more grip spent: you paid tyre for nothing here.',
-};
+export const PAYOFF_HINT: Record<TurnPayoff, string> = Object.fromEntries(
+  Object.entries(PAYOFF_LABEL).map(([key, label]) => [key, `${label}. Descriptive comparison; it does not identify the cause or available grip. Thresholds are display choices, not measurement uncertainty.`]),
+) as Record<TurnPayoff, string>;
 
 /** Mean pace over a lap, m/s: path length ÷ measured duration. */
 export function lapPace(lap: CompareLapResult): number {
-  const dur = lap.grid.t[lap.grid.t.length - 1];
-  return dur > 0 ? lap.pathLength / dur : 0;
+  const dur = lap.path.te[lap.path.kEnd] - lap.path.te[lap.path.k0];
+  return dur > 0 ? lap.pathLength / dur : NaN;
 }
 
 export interface PaceNote {

@@ -3,9 +3,11 @@
 // storage unchanged; derived channels are Float32Array for compactness.
 
 /** Bump when the stored data envelope shape changes (see storage.ts). */
-export const GRIP_DATA_VERSION = 1;
+export const GRIP_DATA_VERSION = 2;
+/** Analysis revision; derived results are always recalculated from raw data. */
+export const GRIP_ANALYSIS_VERSION = 2;
 
-/** Columnar per-sample channels parsed from a RaceBox CSV export (25 Hz). */
+/** Columnar per-sample channels parsed from a RaceBox CSV export, with recorded timestamps. */
 export interface GripChannels {
   /** seconds since session start */
   t: number[];
@@ -19,6 +21,8 @@ export interface GripChannels {
   lap: number[];
   /** heading, degrees */
   head: number[];
+  /** False for held/backfilled fixes. Absent in legacy v1 recordings. */
+  positionValid?: boolean[];
 }
 
 export interface GripLapMeta {
@@ -63,7 +67,7 @@ export interface GripDerivedChannels {
 }
 
 export interface GripEnvelope {
-  /** fitted personal envelope radius per angular bin, g (ENVELOPE_BINS entries) */
+  /** observed directional p95 radius per angular bin, g (ENVELOPE_BINS entries) */
   env: Float32Array;
   /** peak envelope radius across all bins, g: hardest sustained direction */
   gref: number;
@@ -71,16 +75,16 @@ export interface GripEnvelope {
   sessionScore: number;
   /** samples the fit used: 0 means there is no envelope, not a 0 g one */
   fitSamples: number;
-  /** angular bins no sample of their own reached, so their radius is filled in */
+  /** Unsupported angular bins; these stay NaN instead of being invented. */
   emptyBins: number;
 }
 
 export interface GripLoadChannels {
-  /** fore/aft load-transfer rate (dive/squat), g/s */
+  /** longitudinal demand-component rate, g/s */
   jLong: Float32Array;
-  /** side/side load-transfer rate (flick), g/s */
+  /** lateral demand-component rate, g/s */
   jLat: Float32Array;
-  /** |dG/dt|: how fast the whole load state is moving, g/s */
+  /** |dG/dt|: rate of the vehicle-aligned demand vector, g/s */
   loadRate: Float32Array;
 }
 
@@ -105,7 +109,7 @@ export interface GripCorner {
   /** grip-only demand stats in g (live metric stats come from cornerStats) */
   apexG: number;
   peakG: number;
-  /** peak load-transfer rate through the corner, g/s */
+  /** peak demand-component rate through the corner, g/s */
   peakLoad: number;
   tStart: number;
   tApex: number;
@@ -119,6 +123,8 @@ export interface GripLap {
   end: number;
   /** seconds */
   time: number;
+  /** True when timing comes from sample boundaries rather than metadata. */
+  estimatedTime?: boolean;
   corners: GripCorner[];
 }
 

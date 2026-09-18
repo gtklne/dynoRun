@@ -37,6 +37,7 @@ export function TelemetryReadout({ analysis, lap, cursor, metric, mode, settings
   const lr = d.loadRate[ci];
   const nlr = Math.min(1, lr / settings.rateFS);
   const tCur = d.ch.t[ci] - d.ch.t[lap.start];
+  const fmt = (v: number, dp = 0) => Number.isFinite(v) ? v.toFixed(dp) : 'n/a';
   const demandInk = scoreColor(ink, u, settings.anchorG);
 
   return (
@@ -46,31 +47,31 @@ export function TelemetryReadout({ analysis, lap, cursor, metric, mode, settings
           axisLabel="Lap time"
           axisValue={`${tCur.toFixed(2)} s`}
           channels={[
-            { name: 'Speed', value: (d.spdS[ci] * 3.6).toFixed(0), unit: 'km/h' },
+            { name: 'Speed', value: fmt(d.spdS[ci] * 3.6), unit: 'km/h' },
             {
               name: 'Lean',
-              value: `${Math.abs(lean).toFixed(0)}°${lean < 0 ? ' L' : lean > 0 ? ' R' : ''}`,
+              value: `${fmt(Math.abs(lean))}°${lean < 0 ? ' L' : lean > 0 ? ' R' : ''}`,
             },
-            { name: 'Lat g', value: Math.abs(d.alat[ci]).toFixed(2), unit: 'g' },
+            { name: 'Lat g', value: fmt(Math.abs(d.alat[ci]), 2), unit: 'g' },
             {
               name: 'Long g',
-              value: `${along >= 0 ? '+' : ''}${along.toFixed(2)}`,
+              value: `${along >= 0 ? '+' : ''}${fmt(along, 2)}`,
               unit: along >= 0 ? 'g drive' : 'g brake',
             },
-            { name: 'Transfer', value: lr.toFixed(2), unit: 'g/s', color: rateColor(ink, nlr) },
+            { name: 'Demand rate', value: fmt(lr, 2), unit: 'g/s', color: rateColor(ink, nlr) },
           ]}
         />
       </div>
 
       <div className="rule-b px-3 py-2.5">
         <Readout
-          value={Math.round(u * 100)}
+          value={fmt(u * 100)}
           unit="pts"
           label={metricModeName(mode)}
           note={
             mode === 'load'
-              ? `100 ≈ 1 g. Grip ${gripScore} combined with transient ${loadScore}.`
-              : '100 ≈ 1 g of steady-state demand.'
+              ? `Heuristic index. Demand ${fmt(gripScore)} combined with rate term ${fmt(loadScore)}.`
+              : '100 points = 1 g of estimated demand.'
           }
         />
         {/* the bar is the only place the demand ramp appears as a value, so the
@@ -82,23 +83,24 @@ export function TelemetryReadout({ analysis, lap, cursor, metric, mode, settings
         >
           <div
             style={{
-              width: `${Math.min(100, Math.max(0, (u / (settings.anchorG || 1)) * 100))}%`,
+              width: `${Math.min(100, Math.max(0, ((Number.isFinite(u) ? u : 0) / (settings.anchorG || 1)) * 100))}%`,
               height: '100%',
               background: demandInk,
             }}
           />
         </div>
-        <p className="t-annotation mt-1.5">Full bar = tyre class {settings.anchorG.toFixed(2)} g</p>
+        <p className="t-annotation mt-1.5">Full bar = display scale {settings.anchorG.toFixed(2)} g</p>
       </div>
 
       <div className="px-3 py-2.5">
+        <p className="t-annotation">50/50 static-load assumption; no aero moment or suspension model.{front === 0 || front === 1 ? ' Predicted lift boundary: this two-contact model no longer applies.' : ''}</p>
         <div className="flex items-baseline justify-between gap-3">
           <span className="t-annotation">
-            Rear <span className="t-data ml-1 text-sm">{rearPct}%</span>
+            Rear <span className="t-data ml-1 text-sm">{fmt(rearPct)}%</span>
           </span>
-          <span className="t-annotation">Weight split</span>
+          <span className="t-annotation">Estimated split</span>
           <span className="t-annotation">
-            <span className="t-data mr-1 text-sm">{frontPct}%</span> Front
+            <span className="t-data mr-1 text-sm">{fmt(frontPct)}%</span> Front
           </span>
         </div>
         {/* Hue would only decorate here: the filled length is the rear share,
@@ -108,7 +110,7 @@ export function TelemetryReadout({ analysis, lap, cursor, metric, mode, settings
           style={{ border: 'var(--rule-hair) solid var(--color-grid-strong)', background: 'var(--color-sheet)' }}
         >
           <div
-            style={{ width: `${rearPct}%`, height: '100%', background: 'var(--color-ink-3)' }}
+            style={{ width: `${fmt(rearPct)}%`, height: '100%', background: 'var(--color-ink-3)' }}
           />
           <span
             aria-hidden="true"

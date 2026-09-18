@@ -7,7 +7,7 @@ import { rateColor, scoreColor } from './colors';
 export interface CornerLiveStats {
   /** apex demand in g against the active metric */
   apexG: number;
-  /** robust peak demand in g through the corner */
+  /** maximum derived demand in g through the corner */
   peakG: number;
 }
 
@@ -23,7 +23,7 @@ interface CornerMinimaProps {
   onSelect: (corner: GripCorner) => void;
 }
 
-const score = (g: number) => Math.round(g * 100);
+const score = (g: number) => Number.isFinite(g) ? Math.round(g * 100) : 'n/a';
 
 /** A corner's own best across the session, or 0 when it has no turn identity. */
 const bestFor = (c: GripCorner, best: Map<number, number>) => (c.turn ? best.get(c.turn) ?? 0 : 0);
@@ -56,14 +56,14 @@ export function CornerMinima({
   onSelect,
 }: CornerMinimaProps) {
   const ink = usePlateInk();
-  const label = mode === 'load' ? 'apex load' : 'apex grip';
+  const label = mode === 'load' ? 'apex activity' : 'apex demand';
 
   const rows: Row[] = lap.corners.map((c) => {
     const stats = liveStats.get(c.n);
     const apexG = stats?.apexG ?? 0;
     const peakG = stats?.peakG ?? 0;
     const best = bestFor(c, bestApexG);
-    const gap = score(best) - score(apexG);
+    const gap = (best - apexG) * 100;
     return {
       c,
       apexG,
@@ -71,11 +71,11 @@ export function CornerMinima({
       best,
       gap,
       spare: c.turn > 0 && gap >= settings.spareScore,
-      isBest: c.turn > 0 && best > 0 && score(apexG) >= score(best),
+      isBest: c.turn > 0 && best > 0 && apexG >= best,
     };
   });
 
-  // corners with the biggest proven gap to the rider's own best on other laps
+  // corners with the largest observed difference to the rider's own best on other laps
   const opportunities = rows
     .filter((r) => r.spare)
     .sort((a, b) => b.gap - a.gap)
@@ -116,7 +116,7 @@ export function CornerMinima({
     { key: 'peak', head: 'Peak', numeric: true, cell: (r) => score(r.peakG) },
     {
       key: 'best',
-      head: 'Best here',
+      head: 'Other-lap maximum',
       numeric: true,
       cell: (r) =>
         r.c.turn && r.best > 0 ? (
@@ -127,12 +127,12 @@ export function CornerMinima({
     },
     {
       key: 'verdict',
-      head: 'Against your best',
+      head: 'Observed difference',
       cell: (r) =>
         r.spare ? (
-          <span style={{ color: 'var(--color-caution)' }}>{r.gap} spare</span>
+          <span style={{ color: 'var(--color-caution)' }}>{Math.round(r.gap)} pts lower</span>
         ) : r.isBest ? (
-          <span style={{ color: 'var(--color-go)' }}>Session best</span>
+          <span style={{ color: 'var(--color-go)' }}>At or above comparison</span>
         ) : r.c.turn && r.best > 0 ? (
           <span className="t-annotation">Matched</span>
         ) : (
@@ -143,7 +143,7 @@ export function CornerMinima({
     { key: 'lean', head: 'Lean', numeric: true, cell: (r) => `${Math.round(r.c.maxLean)}°` },
     {
       key: 'load',
-      head: 'Transfer',
+      head: 'Demand rate',
       numeric: true,
       cell: (r) => (
         <span style={{ color: rateColor(ink, Math.min(1, r.c.peakLoad / settings.rateFS)) }}>
@@ -158,7 +158,7 @@ export function CornerMinima({
   return (
     <Zone
       label="Corner minima"
-      note={`${lap.corners.length} corners on this lap${opportunities ? ` · spare grip at ${opportunities}` : ''}`}
+      note={`${lap.corners.length} corners on this lap${opportunities ? ` · lower demand at ${opportunities}` : ''}`}
       flush
     >
       <MinimaTable
@@ -168,7 +168,7 @@ export function CornerMinima({
         selectedKey={activeCorner == null ? null : String(rows.find((r) => r.c.ap === activeCorner)?.c.n ?? '')}
         onSelect={(r) => onSelect(r.c)}
         empty="No corners detected on this lap"
-        caption={`Score = ${label} × 100, so 100 ≈ 1 g. Turn numbers are the same bend on every lap${mode === 'load' ? '; dynamic load adds the transient to steady-state grip' : ''}.`}
+        caption={`Score = ${label} × 100, using the selected metric. Turn matches are approximate${mode === 'load' ? '; activity includes a tunable rate term and is not measured tyre force' : ''}.`}
       />
     </Zone>
   );

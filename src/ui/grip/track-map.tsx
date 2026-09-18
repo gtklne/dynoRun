@@ -1,4 +1,5 @@
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
+import { gapLimit } from '@/analysis/grip/time-series';
 import type { GripAnalysis, GripLap } from '@/analysis/grip/types';
 import { hatchPattern, usePlateInk } from '@/ui/plate';
 import { scoreColor } from './colors';
@@ -14,7 +15,7 @@ interface TrackMapProps {
   metric: ArrayLike<number>;
   /** live apex demand (g) per corner number, against the active metric */
   cornerApexG: Map<number, number>;
-  /** tyre-class colour anchor, g */
+  /** display colour anchor, g */
   anchorG: number;
   onSeek: (localIndex: number) => void;
   /** the cross-referenced instant, as a local index, drawn as a leader mark */
@@ -47,6 +48,7 @@ export function TrackMap({
   const geoRef = useRef<Geo | null>(null);
   const staticLayer = useStaticLayer();
   const ink = usePlateInk();
+  const gap = useMemo(() => gapLimit(analysis.ch.t), [analysis]);
 
   const ref = useCanvasDraw((size) => {
     const { ctx, w, h } = size;
@@ -75,6 +77,7 @@ export function TrackMap({
       // racing line coloured by the active metric
       c.lineWidth = 8;
       for (let i = start + 1; i <= end; i++) {
+        if (!Number.isFinite(metric[i - 1]) || !Number.isFinite(metric[i]) || analysis.ch.t[i] - analysis.ch.t[i - 1] > gap) continue;
         c.strokeStyle = scoreColor(ink, (metric[i - 1] + metric[i]) / 2, anchorG);
         c.beginPath();
         c.moveTo(X(i - 1), Y(i - 1));

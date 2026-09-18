@@ -1,3 +1,4 @@
+import { timeAverage, timeDerivative } from './time-series';
 import type { GripChannels, GripDerivedChannels } from './types';
 
 export const GRAVITY = 9.80665;
@@ -13,7 +14,7 @@ const CRR = 0.015; // rolling resistance, g
  * ~0.10 g at 100 km/h, ~0.31 g at 200 km/h.
  */
 export function resistanceG(v: number): number {
-  return K_DRAG * v * v + CRR;
+  return v > 0 ? K_DRAG * v * v + CRR : 0;
 }
 
 /** Sliding moving average; the window shrinks at the edges. */
@@ -49,23 +50,19 @@ export function movAvg(a: ArrayLike<number>, w: number): Float32Array {
 export function computeChannels(ch: GripChannels, speedSmooth: number): GripDerivedChannels {
   const { t } = ch;
   const N = ch.t.length;
-  const spdS = movAvg(ch.spd, speedSmooth);
-  const leanS = movAvg(ch.lean, 5);
-
-  const along = new Float32Array(N);
-  for (let i = 0; i < N; i++) {
-    const lo = Math.max(0, i - 3);
-    const hi = Math.min(N - 1, i + 3);
-    const dt = t[hi] - t[lo];
-    along[i] = dt > 0 ? ((spdS[hi] - spdS[lo]) / dt) / GRAVITY : 0;
-  }
-  const alongRaw = movAvg(along, 5);
+  const input = (a: number[]) => a.map((v, i) => ch.positionValid?.[i] === false ? NaN : v);
+  const window = Math.max(3, Math.min(19, 2 * Math.round((speedSmooth - 1) / 2) + 1));
+  const spdS = timeAverage(t, input(ch.spd), (window - 1) / 50);
+  const leanS = timeAverage(t, input(ch.lean), 0.08);
+  const derivative = timeDerivative(t, spdS);
+  const alongRaw = timeAverage(t, derivative, 0.08);
+  for (let i = 0; i < N; i++) alongRaw[i] /= GRAVITY;
 
   const alongT = new Float32Array(N);
   for (let i = 0; i < N; i++) alongT[i] = alongRaw[i] + resistanceG(spdS[i]);
 
   const alat = new Float32Array(N);
-  for (let i = 0; i < N; i++) alat[i] = Math.tan((leanS[i] * Math.PI) / 180);
+  for (let i = 0; i < N; i++) alat[i] = Math.abs(leanS[i]) < 90 ? Math.tan((leanS[i] * Math.PI) / 180) : NaN;
 
   const comb = new Float32Array(N);
   const theta = new Float32Array(N);

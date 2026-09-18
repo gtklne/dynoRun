@@ -28,88 +28,42 @@ function CloseIcon() {
 function HelpContent() {
   return (
     <div className="t-body text-[0.8125rem] leading-6 [&_b]:font-semibold [&_b]:text-[color:var(--color-ink)] [&_h4]:mb-1.5 [&_h4]:mt-6 [&_h4:first-child]:mt-0 [&_p+p]:mt-2.5">
-      <h4 className="t-label">What the numbers are</h4>
-      <p>
-        Longitudinal g is <b>tire demand</b>, not raw deceleration: the GPS speed derivative corrected for aero
-        drag + rolling resistance (fixed generic-race-bike constants: CdA 0.40 m², 260 kg with rider). Holding
-        200 km/h therefore reads as ~+0.3 g of drive (the tire really is pushing that hard), and braking reads
-        lower than raw GPS decel because the wind slows the bike without loading the tire. Lateral g comes from
-        lean angle (<span className="t-data">tan θ</span>). Every score is simply <b>measured g demand × 100</b>, so
-        100 ≈ pulling 1 g. Scores are absolute: they compare honestly between laps, sessions, bikes and riders,
-        a slow, careful day scores lower than a fast one, which is the point. Colours are anchored to a{' '}
-        <b>tyre-class grip level</b> you pick in Settings; changing it recolours, never rescores.
-      </p>
-      <p>
-        Your <b>traction envelope</b> (dashed line on the circle) is the boundary of what you actually did:
-        the hardest in each direction, with the top few samples per direction dropped so one bad GPS fix cannot
-        define your limit. It comes out asymmetric (more grip cornering than braking, least on throttle) because
-        a bike is power/wheelie-limited on exit. The <b>session score</b> in the title block is the envelope&rsquo;s
-        overall size, where 100 would mean working a full 1 g circle in every direction.
-      </p>
-      <p>
-        One caveat on that score: the boundary can only grow as you add laps, so a longer session scores higher
-        for free, measured at about <b>+8 points from 1 lap to 10</b> of identical riding. That is why the title
-        block prints the lap count next to it, and why <b>Compare laps</b> fits every session on the same number
-        of laps before putting two scores side by side. Comparing a 4-lap session with a 12-lap one here is not a
-        fair fight.
-      </p>
-
-      <h4 className="t-label">Grip score vs Dynamic load</h4>
-      <p>
-        <b>Grip score</b> is pure steady-state grip demand. In that mode a straight-line throttle→brake swap
-        passes through the centre of the circle at low demand, so it looks harmless.
-      </p>
-      <p><b>Dynamic load</b> folds the transient in as an orthogonal demand:</p>
-      <p className="box plate-sunk t-data px-3 py-2 text-center">
-        dynamic load = √( grip-g² + (τ · transfer-rate)² )
-      </p>
-      <p>
-        so that same swap now reads at the top of the ramp even though net g is zero, because the tyre and
-        suspension are working even when they aren&rsquo;t cornering. <span className="t-data">τ</span> (Settings)
-        sets how much the transient counts; there&rsquo;s no single true value, so it&rsquo;s yours to tune.
-        Smooth, high-grip cornering barely moves between the two modes, so only violent inputs light up. That
-        makes it a measurable &ldquo;be smooth&rdquo; score.
-      </p>
-
-      <h4 className="t-label">The traction circle and comet trail</h4>
-      <p>
-        The circle shows <i>where</i> you are (how much grip). The <b>comet trail</b> and the{' '}
-        <b>profile view</b> show <i>how fast the load is moving</i>, the speed the operating point travels around
-        the circle (<span className="t-data">|dG/dt|</span>, g/s). A hard throttle-to-brake swap streaks straight
-        through the middle: the fork is slamming through its stroke even as net g passes through zero.
-      </p>
-
-      <h4 className="t-label">Weight transfer</h4>
-      <p>
-        Front/rear distribution uses a simple point-mass model,{' '}
-        <span className="t-data">front ≈ 50% − K·a_long</span>. Set <b>K</b> (Settings) to match your bike,
-        higher for a taller or shorter machine that dives and squats more. It&rsquo;s a first-order estimate, not
-        a suspension-geometry simulation.
-      </p>
-
-      <h4 className="t-label">Corner analysis</h4>
-      <p>
-        Corners are found from speed minima confirmed by lean. Detection is not stable: the same ten laps of one
-        circuit yield anywhere from 6 to 9 detected corners, so a corner is identified by <b>where it is on the
-        track</b>, not by the order it was found: every lap&rsquo;s apexes are projected onto your fastest
-        lap&rsquo;s line and grouped by position. <b>Turn 4 is the same bend on every lap tab</b>, and the same
-        bend the Compare screen calls T4. A detection no other lap agrees with shows as &ldquo;Extra bend&rdquo;
-        rather than taking a turn number, and its cross-lap columns read n/a.
-      </p>
-      <p>
-        The headline figure is the <b>apex score</b> (g demand ×100 at the slowest point). Each row also shows
-        your <b>best at that same turn across all laps</b>. If this lap sits well below it, the row is flagged as
-        spare: proven, repeatable room to push. The transfer column is how violently you loaded the chassis there.
-      </p>
-
-      <h4 className="t-label">Honest caveats</h4>
-      <p>
-        This is a heuristic budget model, not a tyre thermal or carcass simulation. Grip margin at a fast kink
-        can be geometry-limited, not courage-limited. The drag correction uses one fixed CdA, so rider tuck vs
-        sit-up, wind and track slope are not modelled. Lateral g assumes a balanced bike (steady-state lean), and
-        load-transfer is derived from GPS + lean, not a direct fork-travel sensor, though your gyro channels
-        back it up.
-      </p>
+      <h4 className="t-label">Estimated demand</h4>
+      <p>Longitudinal demand is (dv/dt)/g plus a generic resistance estimate. The constants are
+        air density 1.20 kg/m³, CdA 0.40 m², mass 260 kg and rolling coefficient 0.015.
+        These are assumptions, not measurements of your bike. Resistance is zero at standstill.</p>
+      <p>Lateral demand is tan(lean). This approximation assumes steady, balanced cornering on level ground
+        and representative combined bike/rider lean. Banking, grade, wind and body position are not resolved.
+        Demand score is 100 times the combined demand in g. It cannot determine tyre capacity, grip margin,
+        or whether a riding input is safe.</p>
+      <h4 className="t-label">Observed envelope</h4>
+      <p>Each of 72 directions shows the duration-weighted 95th percentile of qualifying demand, with at
+        least 0.5 seconds of observations. These are statistical choices, not validated noise filters.
+        Unknown directions stay blank. Full-circle RMS and directional scores are unavailable unless
+        all their directions have support. The envelope may grow or shrink with additional data.
+        Equal lap counts control one sampling difference; they do not establish comparability across bikes,
+        sensors or conditions. Colours and the dotted ring use a display scale, not a tyre limit.</p>
+      <h4 className="t-label">Demand rate and activity</h4>
+      <p>Demand rate is the derivative of the two plotted demand components in g/s. The axes rotate with
+        the bike, so this is not inertial jerk or measured suspension load transfer.</p>
+      <p className="box plate-sunk t-data px-3 py-2 text-center">activity = 100 × √( demand-g² + (τ × demand-rate)² )</p>
+      <p>Activity is a tunable descriptive index, not a physical tyre-force measurement. τ is a weighting
+        parameter with units of seconds, not an identified suspension settling time. Set it to zero to
+        remove the rate term. Compare activity only with identical settings.</p>
+      <h4 className="t-label">Estimated weight split</h4>
+      <p>Front fraction = 0.5 - K × kinematic longitudinal g. K approximates centre-of-mass height divided by
+        wheelbase, with a 50/50 static split. It omits aerodynamic moments and suspension dynamics.
+        At zero or one the model predicts a lift boundary; its two-contact assumptions cease to apply.</p>
+      <h4 className="t-label">Corners and data quality</h4>
+      <p>Detection uses speed minima and sustained lean. Time windows, lean/speed thresholds and spatial
+        clustering are engineering heuristics. Turn identity is approximate, and changing the selected laps
+        can change it. Apex demand is the median within ±0.12 seconds; peak is the maximum derived value
+        in the detected window. Differences from other laps describe observations, not room to push.</p>
+      <p>Filtering uses recorded timestamps and splits at gaps over 1.5 median sample intervals. Missing
+        fixes are excluded when the recording preserves that information. Older saved recordings may have
+        already lost it. Isolated invalid values are rejected on import. Short transients and sensor bias
+        remain possible. Sample-derived lap times are approximate; spatial comparison times use another
+        boundary definition and must not be treated as official lap timing.</p>
     </div>
   );
 }
@@ -168,7 +122,7 @@ export function GripSettingsDrawer({ open, initialTab, settings, onChange, onRes
             <>
               <p className="t-body mb-3 text-[0.8125rem] leading-6">
                 Every estimate the analysis relies on. Changes apply live. Some re-derive the channels (a beat
-                of compute), others just redraw. Defaults suit a track sportbike.
+                of compute), others just redraw. Defaults are modelling and display choices; they are not calibrated to your bike.
               </p>
               {/* Same convention as every block on the sheet: the group's name
                   lives in a head band inside the plane, not floating above it. */}

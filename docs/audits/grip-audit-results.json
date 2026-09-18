@@ -1,0 +1,819 @@
+{
+  "commit": "638eb4b8345b2012c0d9160c819bc955eaf8232d",
+  "checks": [
+    {
+      "id": "P01",
+      "claim": "Standard gravity conversion equals 9.80665 m/s²",
+      "status": "supported",
+      "evidence": 9.80665
+    },
+    {
+      "id": "P02",
+      "claim": "Uniform-sampled linear speed gives the analytical acceleration away from edges",
+      "status": "supported",
+      "evidence": {
+        "maxErrorG": 7.699271117878048e-7
+      }
+    },
+    {
+      "id": "P03",
+      "claim": "Ideal balanced 45° lean maps to 1 lateral g",
+      "status": "supported",
+      "evidence": 1
+    },
+    {
+      "id": "P04",
+      "claim": "Combined channel is the Euclidean norm of its components",
+      "status": "supported",
+      "evidence": 1.041967511177063
+    },
+    {
+      "id": "P05",
+      "claim": "Drag formula implements 0.5 ρ CdA v² / (m g) + Crr",
+      "status": "supported",
+      "evidence": {
+        "at100Kmh": 0.08762935989871284,
+        "at200Kmh": 0.3055174395948514
+      }
+    },
+    {
+      "id": "F01",
+      "claim": "Stationary upright data has zero longitudinal demand",
+      "status": "refuted",
+      "evidence": {
+        "actualG": 0.014999999664723873,
+        "expectedG": 0
+      }
+    },
+    {
+      "id": "P06",
+      "claim": "Linear component ramp has analytical component derivative 0.2 g/s",
+      "status": "supported",
+      "evidence": 0.20000000298023224
+    },
+    {
+      "id": "P07",
+      "claim": "Dynamic metric implements the stated mathematical norm",
+      "status": "supported",
+      "evidence": [
+        1.3453624248504639,
+        0.8999999761581421
+      ]
+    },
+    {
+      "id": "F02",
+      "claim": "loadRate is inertial jerk independent of a rotating vehicle frame",
+      "status": "refuted",
+      "evidence": {
+        "bodyComponentRate": 0,
+        "inertialJerkGPerS": 0.326309188152937,
+        "speedMps": 20,
+        "radiusM": 50
+      }
+    },
+    {
+      "id": "F03",
+      "claim": "A constant acceleration remains correct across a timestamp gap",
+      "status": "refuted",
+      "evidence": {
+        "actualMaxErrorG": 0.9441818098565018,
+        "trueG": 0.20394324259558566
+      }
+    },
+    {
+      "id": "F04",
+      "claim": "Unobserved envelope directions are not presented as measured directional scores",
+      "status": "refuted",
+      "evidence": {
+        "score": 80.00000119209282,
+        "emptyBins": 71,
+        "sectors": {
+          "brake": 80.0000011920929,
+          "right": 80.0000011920929,
+          "accel": 80.0000011920929,
+          "left": 80.0000011920929
+        },
+        "actualSamples": 1
+      }
+    },
+    {
+      "id": "F05",
+      "claim": "A single plausible spike cannot define the fitted envelope",
+      "status": "refuted",
+      "evidence": {
+        "gref": 2.25,
+        "score": 225,
+        "fitSamples": 1
+      }
+    },
+    {
+      "id": "F06",
+      "claim": "Envelope score can only grow as data is added",
+      "status": "refuted",
+      "evidence": {
+        "n47Score": 150,
+        "n48Score": 30.000001192092896
+      }
+    },
+    {
+      "id": "F07",
+      "claim": "A physically possible 1.5 g net braking event can enter the envelope",
+      "status": "refuted",
+      "evidence": {
+        "fitSamples": 0,
+        "netDecelerationG": 1.5,
+        "correctedCombinedGRange": [
+          0.7225660315272721,
+          1.3901224168134259
+        ]
+      }
+    },
+    {
+      "id": "F08",
+      "claim": "Missing speed is not silently made into a real 0 m/s reading",
+      "status": "refuted",
+      "evidence": {
+        "insertedSpeed": 0,
+        "maxFalseLongG": 1.416272759437561,
+        "dropped": 0
+      }
+    },
+    {
+      "id": "F09",
+      "claim": "Missing lean is not silently made upright",
+      "status": "refuted",
+      "evidence": {
+        "insertedLean": 0,
+        "affectedLateralG": 0.7265425324440002,
+        "expectedLateralG": 1
+      }
+    },
+    {
+      "id": "F10",
+      "claim": "CSV numeric channels reject non-finite values",
+      "status": "refuted",
+      "evidence": {
+        "acceptedInfinity": true
+      }
+    },
+    {
+      "id": "F11",
+      "claim": "Latitude/longitude outside geographic bounds are rejected",
+      "status": "refuted",
+      "evidence": {
+        "accepted": true,
+        "lat": 100,
+        "lon": 200
+      }
+    },
+    {
+      "id": "F12",
+      "claim": "Valid fixes at longitude zero are accepted",
+      "status": "refuted",
+      "evidence": {
+        "accepted": false
+      }
+    },
+    {
+      "id": "F13",
+      "claim": "Dropped count includes invalid timestamps as documented",
+      "status": "refuted",
+      "evidence": {
+        "retained": 299,
+        "dropped": 0
+      }
+    },
+    {
+      "id": "F14",
+      "claim": "GPS quality provenance survives persistence",
+      "status": "refuted",
+      "evidence": {
+        "beforeNoFix": 1,
+        "afterNoFix": null
+      }
+    },
+    {
+      "id": "F15",
+      "claim": "Stored-data guard catches isolated corrupt elements",
+      "status": "refuted",
+      "evidence": {
+        "acceptedCorruptElementAt1": true,
+        "stride": 5
+      }
+    },
+    {
+      "id": "F16",
+      "claim": "Stored-data guard validates the metadata needed by analysis",
+      "status": "refuted",
+      "evidence": {
+        "acceptedEmptyMeta": true,
+        "analysisThrows": true
+      }
+    },
+    {
+      "id": "F17",
+      "claim": "Singular lean values are rejected or flagged before tan()",
+      "status": "refuted",
+      "evidence": {
+        "acceptedLeanDeg": 90,
+        "lateralG": 16331239480885248
+      }
+    },
+    {
+      "id": "F18",
+      "claim": "The advertised one-second minimum uses duration",
+      "status": "refuted",
+      "evidence": {
+        "accepted": true,
+        "durationS": 0.24
+      }
+    },
+    {
+      "id": "F19",
+      "claim": "Settings sanitizer enforces an odd integer speed window",
+      "status": "refuted",
+      "evidence": {
+        "storedWindow": 8.8,
+        "actualWindow": 9,
+        "requestedTauZeroBecomes": 0.05
+      }
+    },
+    {
+      "id": "P08",
+      "claim": "Symmetric moving average preserves a linear sequence in the interior",
+      "status": "supported",
+      "evidence": [
+        0.5,
+        1,
+        2,
+        3,
+        3.5
+      ]
+    },
+    {
+      "id": "F20",
+      "claim": "Constant-speed sustained bends are detected as corners",
+      "status": "refuted",
+      "evidence": {
+        "durationS": 10,
+        "leanDeg": 30,
+        "detections": 0
+      }
+    },
+    {
+      "id": "F30",
+      "claim": "The same smooth corner produces the same detection at 10 and 25 Hz",
+      "status": "refuted",
+      "evidence": [
+        {
+          "hz": 10,
+          "corners": 1
+        },
+        {
+          "hz": 25,
+          "corners": 0
+        }
+      ]
+    },
+    {
+      "id": "F21",
+      "claim": "The displayed Peak is the maximum demand",
+      "status": "refuted",
+      "evidence": {
+        "displayedPeakG": 0.5,
+        "actualPeakG": 2
+      }
+    },
+    {
+      "id": "F22",
+      "claim": "Opposite-direction bends 30 m apart retain separate turn identities",
+      "status": "refuted",
+      "evidence": {
+        "groups": [
+          [
+            {
+              "s": 100,
+              "dir": "L"
+            },
+            {
+              "s": 130,
+              "dir": "R"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": "F23",
+      "claim": "Fallback completed-lap duration includes the boundary interval",
+      "status": "refuted",
+      "evidence": {
+        "actualS": 1.96,
+        "boundaryToBoundaryS": 2
+      }
+    },
+    {
+      "id": "F24",
+      "claim": "Contiguous lap fragments cannot duplicate a lap identity",
+      "status": "refuted",
+      "evidence": [
+        {
+          "num": 1,
+          "start": 0,
+          "end": 49
+        },
+        {
+          "num": 1,
+          "start": 100,
+          "end": 149
+        }
+      ]
+    },
+    {
+      "id": "P09",
+      "claim": "Ideal front-load fraction has the correct acceleration sign",
+      "status": "supported",
+      "evidence": {
+        "drive": 0.275,
+        "brake": 0.725
+      }
+    },
+    {
+      "id": "F25",
+      "claim": "Weight-transfer display exposes wheel lift at the ideal point-mass threshold",
+      "status": "refuted",
+      "evidence": {
+        "modelFraction": 0.02,
+        "physicalFractionAtThreshold": 0
+      }
+    },
+    {
+      "id": "F26",
+      "claim": "Exact and grid interpolation agree at repeated projected positions",
+      "status": "refuted",
+      "evidence": {
+        "exact": 2,
+        "resampled": 1
+      }
+    },
+    {
+      "id": "P10",
+      "claim": "WGS84 latitude scale is physically plausible at 47°",
+      "status": "supported",
+      "evidence": {
+        "lat0": 47,
+        "lon0": 8,
+        "kx": 76055.99830065854,
+        "ky": 111170.84150330865
+      }
+    },
+    {
+      "id": "P11",
+      "claim": "Uniform distance grid includes both endpoints",
+      "status": "supported",
+      "evidence": {
+        "n": 502,
+        "end": 1001
+      }
+    },
+    {
+      "id": "F27",
+      "claim": "Duty integration measures the complete common section",
+      "status": "refuted",
+      "evidence": {
+        "actualM": 2,
+        "expectedM": 4
+      }
+    },
+    {
+      "id": "F28",
+      "claim": "Pace on a different layout uses its own complete duration",
+      "status": "refuted",
+      "evidence": {
+        "actualMps": 100,
+        "ownPathM": 2000,
+        "ownDurationS": 100,
+        "projectedAxisDurationS": 20
+      }
+    },
+    {
+      "id": "F29",
+      "claim": "Payoff only attributes missing grip/line causes when observed",
+      "status": "refuted",
+      "evidence": {
+        "actualLabel": "slower-despite-g",
+        "observedTimeDeltaS": 0.2,
+        "observedApexScoreDelta": 0,
+        "causalInputs": "none"
+      }
+    },
+    {
+      "id": "F33",
+      "claim": "Lap-time rounding carries seconds into minutes",
+      "status": "refuted",
+      "evidence": {
+        "actual": "1:60.00",
+        "expected": "2:00.00"
+      }
+    },
+    {
+      "id": "F31",
+      "claim": "Reference-lap GPS gap diagnostics reflect its actual gaps",
+      "status": "refuted",
+      "evidence": {
+        "reportedMaxGapM": 0,
+        "actualMaxGapM": 98.70619201660156,
+        "verdict": "reference",
+        "coverage": 1
+      }
+    },
+    {
+      "id": "F32",
+      "claim": "Session and comparison screens agree on lap length within one metre",
+      "status": "refuted",
+      "evidence": {
+        "minDifferenceM": -10.201907085632683,
+        "maxDifferenceM": -8.372819711191823
+      }
+    },
+    {
+      "id": "P12",
+      "claim": "Same-session spatial lap deltas agree with supplied RaceBox metadata within 0.01 s",
+      "status": "supported",
+      "evidence": [
+        {
+          "file": "tests/fixtures/racebox/RaceBox Track Sessionon 06-06-2026 11-50.csv",
+          "maxErrorS": 0.0013830177805971289
+        },
+        {
+          "file": "tests/fixtures/racebox/RaceBox Track Sessionon 22-06-2026 14-27.csv",
+          "maxErrorS": 0.003507354843492294
+        }
+      ]
+    },
+    {
+      "id": "P13",
+      "claim": "Segment times telescope to each spatial lap duration",
+      "status": "supported",
+      "evidence": [
+        6.132410135251121e-10,
+        3.285265393060399e-10
+      ]
+    }
+  ],
+  "observations": {
+    "filter": [
+      {
+        "frequencyHz": 0.5,
+        "longitudinalAmplitudeRatio": 0.9113176689500924
+      },
+      {
+        "frequencyHz": 1,
+        "longitudinalAmplitudeRatio": 0.68309559296829
+      },
+      {
+        "frequencyHz": 2,
+        "longitudinalAmplitudeRatio": 0.17426442227546887
+      },
+      {
+        "frequencyHz": 3,
+        "longitudinalAmplitudeRatio": 0.013211742677239652
+      }
+    ],
+    "physics": {
+      "dynamicAtOneGAndThreeGPerS": 1.3453624248504639,
+      "slope5PercentMissingG": 0.04993761694389224,
+      "lean45To50G": 0.19175359259421,
+      "lean60ErrorPerDegreeG": 0.06981317007977315,
+      "steady200KmhHeadwind10MpsMissingG": 0.11399904329701965,
+      "mass200InsteadOf260At200KmhG": 0.08715523187845542
+    },
+    "crossLayout": [
+      {
+        "refKey": "0",
+        "laps": [
+          {
+            "key": "0",
+            "verdict": "reference",
+            "sectionFraction": 1,
+            "pathLength": 2739.377151489258,
+            "projectedDurationS": 78.5999984741211,
+            "ownSampleDurationS": 78.5999984741211,
+            "reportedPaceKmh": 125.46765822913207,
+            "ownSamplePaceKmh": 125.46765822913207,
+            "datumShiftM": 0
+          },
+          {
+            "key": "1",
+            "verdict": "partial",
+            "sectionFraction": 0.8845832833132317,
+            "pathLength": 3421.6996574401855,
+            "projectedDurationS": 104.93814086914062,
+            "ownSampleDurationS": 104.95999908447266,
+            "reportedPaceKmh": 117.38457213707969,
+            "ownSamplePaceKmh": 117.36012646942714,
+            "datumShiftM": 0.23323458172011458
+          }
+        ]
+      },
+      {
+        "refKey": "1",
+        "laps": [
+          {
+            "key": "0",
+            "verdict": "partial",
+            "sectionFraction": 0.7121318769605967,
+            "pathLength": 2739.358938217163,
+            "projectedDurationS": 78.85204315185547,
+            "ownSampleDurationS": 78.5999984741211,
+            "reportedPaceKmh": 125.06577868362733,
+            "ownSamplePaceKmh": 125.46682403344744,
+            "datumShiftM": 0.2900847106149068
+          },
+          {
+            "key": "1",
+            "verdict": "reference",
+            "sectionFraction": 1,
+            "pathLength": 3421.6760845184326,
+            "projectedDurationS": 104.95999908447266,
+            "ownSampleDurationS": 104.95999908447266,
+            "reportedPaceKmh": 117.35931794695142,
+            "ownSamplePaceKmh": 117.35931794695142,
+            "datumShiftM": 0
+          }
+        ]
+      }
+    ]
+  },
+  "fixtures": [
+    {
+      "file": "tests/fixtures/racebox/RaceBox Track Sessionon 06-06-2026 11-50.csv",
+      "sha256": "67a73208f3826c13d693e52419ebba4fd1971c986aa86daf79a0e967a660bc1b",
+      "n": 23752,
+      "noFix": 0,
+      "dropped": 0,
+      "durationS": 950.2,
+      "sampleHz": 24.995790359924225,
+      "dtMin": 0.03999999999996362,
+      "dtMedian": 0.03999999999999204,
+      "dtMax": 0.0800000000000125,
+      "laps": 10,
+      "turnCount": 7,
+      "cornersPerLap": [
+        6,
+        7,
+        9,
+        9,
+        7,
+        7,
+        6,
+        7,
+        8,
+        8
+      ],
+      "sessionScore": 94.87847709286376,
+      "gref": 1.268080234527588,
+      "fitSamples": 19937,
+      "emptyBins": 0,
+      "maxCombinedG": 1.3075542449951172,
+      "maxLongRawG": 0.9635371565818787,
+      "maxLoadRate": 3.0259244441986084,
+      "timedSamplesRejectedFromEnvelopeButStillDisplayed": 0,
+      "maxLapDeltaErrorS": 0.0013830177805971289,
+      "meanAbsLapDeltaErrorS": 0.000756841089130944,
+      "verdicts": [
+        "aligned",
+        "aligned",
+        "aligned",
+        "aligned",
+        "aligned",
+        "aligned",
+        "aligned",
+        "aligned",
+        "reference",
+        "aligned"
+      ],
+      "lengths": [
+        {
+          "lap": 1,
+          "comparisonM": 2739.97967338562,
+          "displayM": 2731.5281746762294
+        },
+        {
+          "lap": 2,
+          "comparisonM": 2735.4459257125854,
+          "displayM": 2727.013818082921
+        },
+        {
+          "lap": 3,
+          "comparisonM": 2726.583523750305,
+          "displayM": 2718.2107040391134
+        },
+        {
+          "lap": 4,
+          "comparisonM": 2731.744409561157,
+          "displayM": 2723.322033888194
+        },
+        {
+          "lap": 5,
+          "comparisonM": 2741.690951347351,
+          "displayM": 2733.2380900968424
+        },
+        {
+          "lap": 6,
+          "comparisonM": 2735.8511142730713,
+          "displayM": 2727.422178382331
+        },
+        {
+          "lap": 7,
+          "comparisonM": 2736.7935075759888,
+          "displayM": 2728.338634781678
+        },
+        {
+          "lap": 8,
+          "comparisonM": 2742.261013031006,
+          "displayM": 2733.807138977931
+        },
+        {
+          "lap": 9,
+          "comparisonM": 2739.377151489258,
+          "displayM": 2730.921651995232
+        },
+        {
+          "lap": 10,
+          "comparisonM": 2738.215567588806,
+          "displayM": 2729.765650491199
+        }
+      ],
+      "scoreByWindow": {
+        "3": {
+          "score": 95.37366152218388,
+          "maxLoadRate": 3.8957462310791016,
+          "loadRateP99": 2.476515531539917
+        },
+        "9": {
+          "score": 94.87847709286376,
+          "maxLoadRate": 3.0259244441986084,
+          "loadRateP99": 2.133230686187744
+        },
+        "19": {
+          "score": 93.95248559684609,
+          "maxLoadRate": 1.841547966003418,
+          "loadRateP99": 1.578037142753601
+        }
+      },
+      "budgets": [
+        {
+          "laps": 1,
+          "score": 88.95968701330013
+        },
+        {
+          "laps": 2,
+          "score": 89.95449613850512
+        },
+        {
+          "laps": 3,
+          "score": 90.73837735534505
+        },
+        {
+          "laps": 4,
+          "score": 91.34628610527504
+        },
+        {
+          "laps": 5,
+          "score": 92.02132053816285
+        },
+        {
+          "laps": 6,
+          "score": 92.6587475945241
+        },
+        {
+          "laps": 7,
+          "score": 94.07964505177733
+        },
+        {
+          "laps": 8,
+          "score": 94.24822278242765
+        },
+        {
+          "laps": 9,
+          "score": 94.75831890117392
+        },
+        {
+          "laps": 10,
+          "score": 94.87847709286376
+        }
+      ],
+      "segmentAdditivityErrorS": 6.132410135251121e-10
+    },
+    {
+      "file": "tests/fixtures/racebox/RaceBox Track Sessionon 22-06-2026 14-27.csv",
+      "sha256": "36ac4e1be5d178ed95e86aba0b22faba8c093ca78a8a36697cb136bb2c155597",
+      "n": 64822,
+      "noFix": 0,
+      "dropped": 0,
+      "durationS": 2592.92,
+      "sampleHz": 24.99922866883668,
+      "dtMin": 0.03999999999996362,
+      "dtMedian": 0.03999999999996362,
+      "dtMax": 0.08000000000004093,
+      "laps": 5,
+      "turnCount": 11,
+      "cornersPerLap": [
+        11,
+        11,
+        9,
+        7,
+        11
+      ],
+      "sessionScore": 82.77702862684272,
+      "gref": 1.0851852893829346,
+      "fitSamples": 13308,
+      "emptyBins": 0,
+      "maxCombinedG": 1.107137680053711,
+      "maxLongRawG": 1.1821153163909912,
+      "maxLoadRate": 2.9968159198760986,
+      "timedSamplesRejectedFromEnvelopeButStillDisplayed": 0,
+      "maxLapDeltaErrorS": 0.003507354843492294,
+      "meanAbsLapDeltaErrorS": 0.00134653763508652,
+      "verdicts": [
+        "aligned",
+        "reference",
+        "aligned",
+        "aligned",
+        "aligned"
+      ],
+      "lengths": [
+        {
+          "lap": 1,
+          "comparisonM": 3425.7604188919067,
+          "displayM": 3415.558511806274
+        },
+        {
+          "lap": 2,
+          "comparisonM": 3421.6760845184326,
+          "displayM": 3411.4861431838694
+        },
+        {
+          "lap": 3,
+          "comparisonM": 3421.283928871155,
+          "displayM": 3411.0858216843703
+        },
+        {
+          "lap": 4,
+          "comparisonM": 3424.039559364319,
+          "displayM": 3413.8493711897295
+        },
+        {
+          "lap": 5,
+          "comparisonM": 3423.038752555847,
+          "displayM": 3412.8426016391036
+        }
+      ],
+      "scoreByWindow": {
+        "3": {
+          "score": 83.36805703538798,
+          "maxLoadRate": 3.6050567626953125,
+          "loadRateP99": 1.1989288330078125
+        },
+        "9": {
+          "score": 82.77702862684272,
+          "maxLoadRate": 2.9968159198760986,
+          "loadRateP99": 1.1565347909927368
+        },
+        "19": {
+          "score": 81.48061071542588,
+          "maxLoadRate": 1.8670228719711304,
+          "loadRateP99": 1.063169240951538
+        }
+      },
+      "budgets": [
+        {
+          "laps": 1,
+          "score": 77.20764612404554
+        },
+        {
+          "laps": 2,
+          "score": 79.6098779602351
+        },
+        {
+          "laps": 3,
+          "score": 81.26769563066551
+        },
+        {
+          "laps": 4,
+          "score": 82.4447435692097
+        },
+        {
+          "laps": 5,
+          "score": 82.77702862684272
+        }
+      ],
+      "segmentAdditivityErrorS": 3.285265393060399e-10
+    }
+  ],
+  "summary": {
+    "supported": 13,
+    "refuted": 33
+  }
+}

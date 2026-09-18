@@ -90,7 +90,7 @@ describe('GripSessionScreen', () => {
     expect(cornerRows.some((t) => /Turn 1(?!\d)/.test(t) && /Left/.test(t))).toBe(true);
     expect(cornerRows.some((t) => /Turn 2(?!\d)/.test(t) && /Right/.test(t))).toBe(true);
     // dynamic-load metric is the default colouring
-    expect(screen.getByText(/Track map: dynamic load/i)).toBeInTheDocument();
+    expect(screen.getByText(/Track map: demand score/i)).toBeInTheDocument();
     cleanup();
   });
 
@@ -111,8 +111,8 @@ describe('GripSessionScreen', () => {
     getSession.mockResolvedValue(makeFull());
     await renderScreen();
 
-    fireEvent.click(screen.getByRole('radio', { name: /^Grip$/i }));
-    expect(screen.getByText(/Track map: grip score/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('radio', { name: /^Activity index$/i }));
+    expect(screen.getByText(/Track map: activity index/i)).toBeInTheDocument();
     cleanup();
   });
 

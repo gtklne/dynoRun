@@ -294,7 +294,7 @@ describe('valueAtU / floorIndex / distanceGrid / resampleByDistance', () => {
     expect(valueAtU(u, v, 15)).toBeCloseTo(17.5, 6);
     expect(valueAtU(u, v, -5)).toBe(0);
     expect(valueAtU(u, v, 99)).toBe(30);
-    expect(valueAtU(new Float32Array([]), new Float32Array([]), 1)).toBe(0);
+    expect(valueAtU(new Float32Array([]), new Float32Array([]), 1)).toBeNaN();
   });
 
   it('finds the last index at or below a value', () => {

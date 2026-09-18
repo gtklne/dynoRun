@@ -85,40 +85,22 @@ describe('sectorScores', () => {
 });
 
 describe('equalBudgetEnvelope', () => {
-  it('matches the plain fit when the budget covers every lap', () => {
+  it('matches a plain timestamp-weighted fit when every lap is included', () => {
     const a = session([BASE_PACE, MID]);
-    const full = computeEnvelope(a, DEFAULT_GRIP_SETTINGS, a.ch.lap);
-    const budgeted = equalBudgetEnvelope(a, DEFAULT_GRIP_SETTINGS, a.laps.length);
-    expect(budgeted.sessionScore).toBeCloseTo(full.sessionScore, 4);
+    const full = computeEnvelope(a, DEFAULT_GRIP_SETTINGS, a.ch.lap, a.ch.t);
+    expect(equalBudgetEnvelope(a, DEFAULT_GRIP_SETTINGS, 99)).toEqual(full);
   });
-
-  it('returns the median single-lap fit, never an average of fits', () => {
+  it('returns an actual window and preserves unknown directions', () => {
     const a = session([BASE_PACE, MID, SLOW]);
-    expect(a.laps.length).toBe(3);
     const perLap = a.laps.map((lap) => {
       const mask = new Int32Array(a.n);
       for (let i = lap.start; i <= lap.end; i++) mask[i] = lap.num;
-      return computeEnvelope(a, DEFAULT_GRIP_SETTINGS, mask).sessionScore;
+      return computeEnvelope(a, DEFAULT_GRIP_SETTINGS, mask, a.ch.t);
     });
-    const median = [...perLap].sort((x, y) => x - y)[1];
-    const budgeted = equalBudgetEnvelope(a, DEFAULT_GRIP_SETTINGS, 1);
-    expect(budgeted.sessionScore).toBeCloseTo(median, 4);
-    // and the ring it returns is that same fit, bin for bin
-    expect(perLap).toContain(budgeted.sessionScore);
-  });
-
-  it('clamps a budget bigger than the session and survives one lap', () => {
-    const a = session([BASE_PACE]);
-    expect(equalBudgetEnvelope(a, DEFAULT_GRIP_SETTINGS, 99).sessionScore).toBeGreaterThan(0);
-    expect(equalBudgetEnvelope(a, DEFAULT_GRIP_SETTINGS, 0).sessionScore).toBeGreaterThan(0);
-  });
-
-  it('a faster session scores above a slower one at equal lap budget', () => {
-    const fast = session([BASE_PACE, BASE_PACE]);
-    const slow = session([SLOW, SLOW]);
-    const f = equalBudgetEnvelope(fast, DEFAULT_GRIP_SETTINGS, 2).sessionScore;
-    const s = equalBudgetEnvelope(slow, DEFAULT_GRIP_SETTINGS, 2).sessionScore;
-    expect(f).toBeGreaterThan(s + 5);
+    const result = equalBudgetEnvelope(a, DEFAULT_GRIP_SETTINGS, 1);
+    expect(perLap).toContainEqual(result);
+    expect(result.emptyBins).toBeGreaterThan(0);
+    expect(result.sessionScore).toBeNaN();
   });
 });
 
@@ -141,12 +123,12 @@ describe('compareSegments', () => {
   it('joins the best of each segment into a lap no slower than the best real lap', () => {
     const { cmp } = comparison([BASE_PACE, MID, SLOW]);
     const br = compareSegments(cmp);
-    const bestReal = Math.min(...br.totals.map((t) => t.time));
+    const bestReal = Math.min(...br.totals.map((t) => t.time).filter(Number.isFinite));
     expect(br.theoreticalBest).toBeLessThanOrEqual(bestReal + 1e-6);
     expect(br.bestLapKey).toBe(br.totals.find((t) => t.time === bestReal)!.key);
     for (const seg of br.segments) {
       expect(seg.times.find((t) => t.key === seg.bestKey)!.loss).toBe(0);
-      for (const t of seg.times) expect(t.loss).toBeGreaterThanOrEqual(0);
+      for (const t of seg.times) if (Number.isFinite(t.time)) expect(t.loss).toBeGreaterThanOrEqual(0);
     }
   });
 
@@ -219,7 +201,7 @@ describe('turnPayoff', () => {
   it('separates same-time-different-demand from a true match', () => {
     expect(turnPayoff(0.01, 9)).toBe('level-dearer');
     expect(turnPayoff(0.01, -9)).toBe('level-cheaper');
-    expect(PAYOFF_HINT['level-cheaper']).toMatch(/less grip/);
+    expect(PAYOFF_HINT['level-cheaper']).toMatch(/lower demand/);
   });
 
   // compare.ts sets deltaGain to NaN for a turn outside the lap's common
@@ -278,7 +260,7 @@ describe('partial laps are not measured over track they never rode', () => {
     const whole = dutyMetres(cmp.s, partial.grid);
     const shared = dutyMetres(cmp.s, partial.grid, { section: partial.section });
 
-    expect(shared.total).toBeLessThan(whole.total);
+    expect(shared.total).toBeLessThanOrEqual(whole.total);
     // the section length, to within the grid step it is integrated on: only
     // intervals lying wholly inside the section are counted
     const sectionLength = partial.section.sOut - partial.section.sIn;

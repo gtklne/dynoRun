@@ -1,11 +1,12 @@
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import type { GripAnalysis, GripLap } from '@/analysis/grip/types';
+import { gapLimit, nearestTime } from '@/analysis/grip/time-series';
 import { envelopeRadius, ENVELOPE_BINS } from '@/analysis/grip/envelope';
 import { usePlateInk, type PlateInk } from '@/ui/plate';
 import { rateColor, scoreColor } from './colors';
 import { plateFont, useCanvasDraw, useStaticLayer } from './use-canvas-draw';
 
-const TRAIL = 45; // comet trail length in samples (~1.8 s)
+const TRAIL_SECONDS = 1.8;
 
 interface TractionCircleProps {
   analysis: GripAnalysis;
@@ -13,7 +14,7 @@ interface TractionCircleProps {
   cursor: number;
   metric: ArrayLike<number>;
   rateFS: number;
-  /** tyre-class colour anchor, g, also drawn as the reference ring */
+  /** display colour anchor, g, also drawn as the reference ring */
   anchorG: number;
   /** the cross-referenced instant, as a local index */
   xref?: number | null;
@@ -41,13 +42,19 @@ export function TractionCircle({
   const ink = usePlateInk();
   const planeRef = useRef<{ P: (gx: number, gy: number) => [number, number] } | null>(null);
 
+  const GMAX = useMemo(() => {
+    let max = Math.max(1.3, anchorG + 0.15);
+    for (let i = lap.start; i <= lap.end; i++) if (Number.isFinite(analysis.comb[i])) max = Math.max(max, analysis.comb[i] * 1.1);
+    for (const r of analysis.env) if (Number.isFinite(r)) max = Math.max(max, r * 1.1);
+    return max;
+  }, [analysis, lap, anchorG]);
+  const gap = useMemo(() => gapLimit(analysis.ch.t), [analysis]);
   const ref = useCanvasDraw((size) => {
     const { ctx, w, h } = size;
     const d = analysis;
     ctx.clearRect(0, 0, w, h);
     const cx = w / 2, cy = h / 2, pad = 26;
     const R = Math.min(w, h) / 2 - pad;
-    const GMAX = Math.max(1.3, anchorG + 0.15); // full-scale g at the outer radius
     const P = (gx: number, gy: number): [number, number] => [cx + (gx / GMAX) * R, cy - (gy / GMAX) * R];
     planeRef.current = { P };
 
@@ -67,8 +74,9 @@ export function TractionCircle({
     const cur = Math.max(lap.start, Math.min(lap.end, lap.start + cursor));
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    for (let i = Math.max(lap.start + 1, cur - TRAIL); i <= cur; i++) {
-      const age = (cur - i) / TRAIL;
+    for (let i = Math.max(lap.start + 1, nearestTime(d.ch.t, d.ch.t[cur] - TRAIL_SECONDS, lap.start, cur)); i <= cur; i++) {
+      if (![d.alat[i - 1], d.along[i - 1], d.alat[i], d.along[i], d.loadRate[i]].every(Number.isFinite) || d.ch.t[i] - d.ch.t[i - 1] > gap) continue;
+      const age = Math.min(1, (d.ch.t[cur] - d.ch.t[i]) / TRAIL_SECONDS);
       const n = Math.min(1, d.loadRate[i] / rateFS);
       const [x0, y0] = P(d.alat[i - 1], d.along[i - 1]);
       const [x1, y1] = P(d.alat[i], d.along[i]);
@@ -80,7 +88,7 @@ export function TractionCircle({
     ctx.globalAlpha = 1;
 
     // the cross-referenced instant, when it is not simply the cursor
-    if (xref != null && xref !== cursor) {
+    if (xref != null && xref !== cursor && Number.isFinite(d.comb[lap.start + xref])) {
       const xi = Math.max(lap.start, Math.min(lap.end, lap.start + xref));
       const [hx, hy] = P(d.alat[xi], d.along[xi]);
       ctx.strokeStyle = ink.ink;
@@ -89,6 +97,7 @@ export function TractionCircle({
     }
 
     // current point + radius vector
+    if (!Number.isFinite(d.comb[cur])) return;
     const [px, py] = P(d.alat[cur], d.along[cur]);
     ctx.strokeStyle = ink.rule;
     ctx.lineWidth = 1;
@@ -176,7 +185,7 @@ function paintBackdrop(ctx: CanvasRenderingContext2D, s: Backdrop): void {
   ctx.font = plateFont(10);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  for (let g = 0.25; g <= GMAX + 0.001; g += 0.25) {
+  for (let g = GMAX / 5; g <= GMAX + 0.001; g += GMAX / 5) {
     ctx.beginPath(); ctx.arc(cx, cy, (g / GMAX) * R, 0, 7); ctx.stroke();
   }
   ctx.strokeStyle = ink.rule;
@@ -191,7 +200,7 @@ function paintBackdrop(ctx: CanvasRenderingContext2D, s: Backdrop): void {
   ctx.save(); ctx.translate(cx + R + 13, cy); ctx.rotate(Math.PI / 2); ctx.fillText('RIGHT', 0, 0); ctx.restore();
   ctx.fillText('1.0g', P(0, 1.0)[0] + 13, P(0, 1.0)[1]);
 
-  // tyre-class reference ring: an advisory, not a measurement, so it is the one
+  // display-scale reference ring, so it is the one
   // thing on this plane drawn in caution
   ctx.strokeStyle = ink.caution;
   ctx.lineWidth = 1;
@@ -199,18 +208,21 @@ function paintBackdrop(ctx: CanvasRenderingContext2D, s: Backdrop): void {
   ctx.beginPath(); ctx.arc(cx, cy, (anchorG / GMAX) * R, 0, 7); ctx.stroke();
   ctx.setLineDash([]);
   ctx.fillStyle = ink.caution;
-  ctx.fillText(`TYRE ${anchorG.toFixed(2)}G`, cx, cy - (anchorG / GMAX) * R - 7);
+  ctx.fillText(`SCALE ${anchorG.toFixed(2)}G`, cx, cy - (anchorG / GMAX) * R - 7);
 
   // fitted envelope
   ctx.strokeStyle = ink.ink;
   ctx.lineWidth = 1.5;
   ctx.setLineDash([4, 3]);
   ctx.beginPath();
+  let drawing = false;
   for (let b = 0; b <= ENVELOPE_BINS; b++) {
-    const th = -Math.PI + (b / ENVELOPE_BINS) * 2 * Math.PI;
+    const th = -Math.PI + ((b + 0.5) / ENVELOPE_BINS) * 2 * Math.PI;
     const r = envelopeRadius(d.env, th);
+    if (!Number.isFinite(r)) { drawing = false; continue; }
     const [x, y] = P(r * Math.cos(th), r * Math.sin(th));
-    b ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    drawing ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    drawing = true;
   }
   ctx.stroke();
   ctx.setLineDash([]);
@@ -218,6 +230,7 @@ function paintBackdrop(ctx: CanvasRenderingContext2D, s: Backdrop): void {
   // faint scatter: where you operate this lap
   ctx.globalAlpha = 0.3;
   for (let i = lap.start; i <= lap.end; i++) {
+    if (!Number.isFinite(d.comb[i])) continue;
     const [x, y] = P(d.alat[i], d.along[i]);
     ctx.fillStyle = scoreColor(ink, metric[i], anchorG);
     ctx.beginPath(); ctx.arc(x, y, 1.5, 0, 7); ctx.fill();
