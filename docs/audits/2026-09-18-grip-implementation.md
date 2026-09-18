@@ -56,3 +56,7 @@ Validated on 18 September 2026:
 - `git diff --check`: passed.
 
 The runs emitted existing React test `act(...)`, React Router future-flag and Node localStorage/deprecation warnings; no test or build failures remained.
+
+## Production release preparation
+
+The production deployment now updates and restarts the API before publishing the frontend, so version 2 uploads cannot reach the previous API. A read-only check of all nine saved production grip sessions found nine version 1 envelopes, all accepted by the new validator, with no invalid recordings. None has a stored per-sample fix-validity mask. They need no data migration; a browser refresh and reopening a session recalculates derived results. Re-importing an original CSV is optional for recovering quality information the legacy storage omitted. This release makes no database schema changes.
